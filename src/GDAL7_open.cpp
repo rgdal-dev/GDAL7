@@ -23,7 +23,8 @@ SEXP GDAL7_gdal_open(std::string path, bool update) {
 
 [[cpp11::register]]
 void GDAL7_close(SEXP xp) {
-  GDALDatasetH* ptr = cpp11::as_cpp<GDALDatasetH*>(xp);
+  // Get the external pointer and close the dataset
+  GDALDatasetH* ptr = reinterpret_cast<GDALDatasetH*>(R_ExternalPtrAddr(xp));
   if (ptr && *ptr) {
     GDALClose(*ptr);
     *ptr = nullptr;
