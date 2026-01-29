@@ -720,19 +720,17 @@ print_parsed <- function(result) {
 }
 
 # ============================================================================
-# Test it!
+# Test (only runs when not sourced from orchestrate)
 # ============================================================================
 
-if (interactive() || !exists("SOURCED")) {
+if (FALSE) {  # Set to TRUE to test standalone
+  swig_dir <- "~/gdal/swig/include"
+
   cat("Parsing MajorObject.i...\n\n")
   result <- parse_swig_file(file.path(swig_dir, "MajorObject.i"), debug = FALSE)
   print_parsed(result)
-}
 
-# Also test with Dataset.i
-if (FALSE) {  # Change to TRUE to test
-  cat("\n\n")
-  cat("Parsing Dataset.i...\n\n")
+  cat("\n\nParsing Dataset.i...\n\n")
   result2 <- parse_swig_file(file.path(swig_dir, "Dataset.i"), debug = FALSE)
   print_parsed(result2)
 }

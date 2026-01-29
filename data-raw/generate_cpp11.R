@@ -99,6 +99,48 @@ get_handle_type <- function(class_name) {
   }
 }
 
+# Map SWIG return type to GDAL handle type
+swig_to_handle_type <- function(swig_type) {
+  swig_type <- trimws(swig_type)
+  swig_type <- gsub("\\s*\\*", "*", swig_type)
+
+  # Map common SWIG shadow types to handles
+  mappings <- list(
+    "GDALDatasetShadow*" = "GDALDatasetH",
+    "GDALRasterBandShadow*" = "GDALRasterBandH",
+    "GDALDriverShadow*" = "GDALDriverH",
+    "OGRLayerShadow*" = "OGRLayerH",
+    "OGRFeatureShadow*" = "OGRFeatureH",
+    "OGRGeometryShadow*" = "OGRGeometryH",
+    "OSRSpatialReferenceShadow*" = "OGRSpatialReferenceH",
+    "OGRCoordinateTransformationShadow*" = "OGRCoordinateTransformationH",
+    "GDALGroupHS*" = "GDALGroupH",
+    "GDALMDArrayHS*" = "GDALMDArrayH",
+    "GDALAttributeHS*" = "GDALAttributeH",
+    "GDALDimensionHS*" = "GDALDimensionH",
+    "GDALExtendedDataTypeHS*" = "GDALExtendedDataTypeH",
+    "OGRFieldDomainShadow*" = "OGRFieldDomainH",
+    "GDALRelationshipShadow*" = "GDALRelationshipH"
+  )
+
+  if (swig_type %in% names(mappings)) {
+    return(mappings[[swig_type]])
+  }
+
+  # Fallback: try to guess from pattern
+  if (grepl("Shadow\\*$", swig_type)) {
+    base <- sub("Shadow\\*$", "", swig_type)
+    return(paste0(base, "H"))
+  }
+  if (grepl("HS\\*$", swig_type)) {
+    base <- sub("HS\\*$", "", swig_type)
+    return(paste0(base, "H"))
+  }
+
+  # Default
+  "void*"
+}
+
 # Get the GDAL C API function prefix for a class
 get_api_prefix <- function(class_name) {
   prefixes <- list(
@@ -207,7 +249,7 @@ generate_method <- function(method, class_name) {
   # Build function body
   body_lines <- c()
   body_lines <- c(body_lines, sprintf("    %s h = get_%s_handle(xp);",
-                                       handle_type, class_lower))
+                                      handle_type, class_lower))
 
   # Generate the GDAL C API call
   gdal_call <- generate_gdal_call(method, class_name, param_names)
@@ -219,14 +261,20 @@ generate_method <- function(method, class_name) {
     body_lines <- c(body_lines, sprintf("    const char* result = %s;", gdal_call))
     body_lines <- c(body_lines, "    return result ? std::string(result) : std::string(\"\");")
   } else if (return_type == "cpp11::strings") {
-    body_lines <- c(body_lines, sprintf("    char** result = %s;", gdal_call))
+    # Check if borrowed reference (GetMetadata) vs owned (GetMetadataDomainList, GetFileList)
+    is_borrowed <- grepl("^GetMetadata$|^GetMetadata_", method$name)
+
+    if (is_borrowed) {
+      body_lines <- c(body_lines, sprintf("    CSLConstList result = %s;", gdal_call))
+    } else {
+      body_lines <- c(body_lines, sprintf("    char** result = %s;", gdal_call))
+    }
     body_lines <- c(body_lines, "    writable::strings out;")
     body_lines <- c(body_lines, "    if (result) {")
     body_lines <- c(body_lines, "        for (int i = 0; result[i] != NULL; i++) {")
     body_lines <- c(body_lines, "            out.push_back(result[i]);")
     body_lines <- c(body_lines, "        }")
-    # GetMetadata returns borrowed reference, GetMetadataDomainList/GetFileList need CSLDestroy
-    if (grepl("^GetMetadata$|^GetMetadata_", method$name)) {
+    if (is_borrowed) {
       body_lines <- c(body_lines, "        // Borrowed reference - do not free")
     } else {
       body_lines <- c(body_lines, "        CSLDestroy(result);")
@@ -278,6 +326,18 @@ generate_method <- function(method, class_name) {
     body_lines <- c(body_lines, sprintf('        stop("%s failed: %%s", CPLGetLastErrorMsg());', base_name))
     body_lines <- c(body_lines, "    }")
     body_lines <- c(body_lines, "    return static_cast<int>(err);")
+  } else if (return_type == "SEXP") {
+    # GDAL object return - need to wrap in external_pointer
+    # Extract the handle type from the SWIG return type
+    swig_ret <- method$return_type
+    handle_type <- swig_to_handle_type(swig_ret)
+
+    body_lines <- c(body_lines, sprintf("    %s result = %s;", handle_type, gdal_call))
+    body_lines <- c(body_lines, "    if (!result) {")
+    body_lines <- c(body_lines, "        return R_NilValue;")
+    body_lines <- c(body_lines, "    }")
+    body_lines <- c(body_lines, sprintf("    return external_pointer<%s>(new %s(result));",
+                                        handle_type, handle_type))
   } else {
     body_lines <- c(body_lines, sprintf("    return %s;", gdal_call))
   }
@@ -346,18 +406,59 @@ map_method_to_gdal_func <- function(method_name, class_name) {
   # Strip overload suffix for lookup
   base_name <- sub("_[0-9]+$", "", method_name)
 
-  # Special cases first
-  special <- list(
-    "GetMetadata_Dict" = "GDALGetMetadata",
-    "GetMetadata_List" = "GDALGetMetadata",
-    "GetMetadataDomainList" = "GDALGetMetadataDomainList"
+  # Class-specific method mappings
+  # These map SWIG method names to actual GDAL C API function names
+  dataset_methods <- list(
+    "GetDriver" = "GDALGetDatasetDriver",
+    "GetRasterBand" = "GDALGetRasterBand",
+    "GetProjection" = "GDALGetProjectionRef",
+    "GetProjectionRef" = "GDALGetProjectionRef",
+    "SetProjection" = "GDALSetProjection",
+    "GetSpatialRef" = "GDALGetSpatialRef",
+    "SetSpatialRef" = "GDALSetSpatialRef",
+    "GetGeoTransform" = "GDALGetGeoTransform",
+    "SetGeoTransform" = "GDALSetGeoTransform",
+    "GetGCPCount" = "GDALGetGCPCount",
+    "GetGCPProjection" = "GDALGetGCPProjection",
+    "GetGCPSpatialRef" = "GDALGetGCPSpatialRef",
+    "FlushCache" = "GDALFlushCache",
+    "AddBand" = "GDALAddBand",
+    "CreateMaskBand" = "GDALCreateMaskBand",
+    "GetFileList" = "GDALGetFileList",
+    "GetLayerCount" = "GDALDatasetGetLayerCount",
+    "GetLayer" = "GDALDatasetGetLayer",
+    "GetLayerByName" = "GDALDatasetGetLayerByName",
+    "GetLayerByIndex" = "GDALDatasetGetLayer",
+    "Close" = "GDALClose",
+    "GetRasterXSize" = "GDALGetRasterXSize",
+    "GetRasterYSize" = "GDALGetRasterYSize",
+    "GetRasterCount" = "GDALGetRasterCount"
   )
 
-  if (base_name %in% names(special)) {
-    return(special[[base_name]])
+  majorobject_methods <- list(
+    "GetDescription" = "GDALGetDescription",
+    "SetDescription" = "GDALSetDescription",
+    "GetMetadata_Dict" = "GDALGetMetadata",
+    "GetMetadata_List" = "GDALGetMetadata",
+    "GetMetadataDomainList" = "GDALGetMetadataDomainList",
+    "SetMetadata" = "GDALSetMetadata",
+    "GetMetadataItem" = "GDALGetMetadataItem",
+    "SetMetadataItem" = "GDALSetMetadataItem"
+  )
+
+  # Select mapping based on class
+  if (class_name == "Dataset") {
+    if (base_name %in% names(dataset_methods)) {
+      return(dataset_methods[[base_name]])
+    }
   }
 
-  # Default: prepend GDAL
+  # Check common MajorObject methods (inherited)
+  if (base_name %in% names(majorobject_methods)) {
+    return(majorobject_methods[[base_name]])
+  }
+
+  # Default: prepend GDAL (this may need fixing for specific methods)
   paste0("GDAL", base_name)
 }
 
@@ -367,12 +468,58 @@ generate_class_bindings <- function(parsed_class) {
 
   output <- generate_header(class_name)
 
+  # Skip list - methods that don't generate correctly yet
+  # (GDAL 3.9+ functions, complex signatures, callbacks, etc.)
+  skip_methods <- c(
+    "MarkSuppressOnClose",        # GDAL 3.9+
+    "Close",                      # Callback params
+    "GetCloseReportsProgress",    # GDAL 3.9+
+    "IsThreadSafe",               # GDAL 3.9+
+    "GetThreadSafeDataset",       # GDAL 3.9+
+    "GetRootGroup",               # Complex return
+    "SetProjection",              # Parser issue with param type
+    "SetSpatialRef",              # Complex param
+    "GetGeoTransform",            # Array output param
+    "SetGeoTransform",            # Array input param
+    "GetExtent",                  # Array output param
+    "GetExtentWGS84LongLat",      # Array output param
+    "BuildOverviews",             # Complex params
+    "AddBand",                   # Complex params
+    "CreateMaskBand",            # Complex params
+    "AdviseRead",                # Complex params
+    "GetFieldDomainNames",        # GDAL 3.3+
+    "GetRelationshipNames",       # GDAL 3.6+
+    "GetFieldDomain",             # Complex return
+    "AddFieldDomain",             # Complex param
+    "DeleteFieldDomain",          # GDAL 3.3+
+    "UpdateFieldDomain",          # GDAL 3.3+
+    "GetRelationship",            # Complex return
+    "AddRelationship",            # Complex param
+    "DeleteRelationship",         # GDAL 3.6+
+    "UpdateRelationship",         # GDAL 3.6+
+    "AsMDArray",                  # Complex return
+    "StartTransaction",           # Needs OGR include
+    "CommitTransaction",          # Needs OGR include
+    "RollbackTransaction",        # Needs OGR include
+    "AbortSQL",                   # Needs OGR include
+    "ResetReading",               # Part of layer iteration
+    "GetLayer",                   # Needs OGR include
+    "GetLayerByName",             # Needs OGR include
+    "ClearStatistics"             # GDAL 3.2+
+  )
+
   # Track method names to handle overloads
   method_counts <- list()
 
   for (method in parsed_class$methods) {
+    base_name <- sub("_[0-9]+$", "", method$name)
+
+    # Skip problematic methods
+    if (base_name %in% skip_methods) {
+      next
+    }
+
     # Handle overloaded methods by adding suffix
-    base_name <- method$name
     if (is.null(method_counts[[base_name]])) {
       method_counts[[base_name]] <- 1
     } else {
@@ -404,19 +551,16 @@ generate_cpp11_file <- function(parsed_class, output_path = NULL) {
 }
 
 # ============================================================================
-# Test
+# Test (only runs in interactive mode when not sourced from orchestrate)
 # ============================================================================
 
-if (interactive() || !exists("SOURCED_GEN")) {
-  # Load parser
-  #source("data-raw/parse_swig.R", local = TRUE)
-  SOURCED <- TRUE
+if (FALSE) {  # Set to TRUE to test standalone
+  swig_dir <- "~/gdal/swig/include"
+  source("data-raw/parse_swig.R", local = TRUE)
 
-  # Parse MajorObject
   result <- parse_swig_file(file.path(swig_dir, "MajorObject.i"), debug = FALSE)
   cls <- result$classes[[1]]
 
-  # Generate
   code <- generate_cpp11_file(cls)
   cat(code)
 }

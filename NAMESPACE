@@ -1,6 +1,6 @@
 # Auto-generated - do not edit by hand
-useDynLib(GDAL7, .registration = TRUE)
-
+useDynLib(GDAL7)
+useDynLib(GDAL7)
 import(S7)
 
 export(GDALMajorObject)

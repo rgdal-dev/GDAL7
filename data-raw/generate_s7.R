@@ -116,7 +116,7 @@ generate_s7_class <- function(parsed_class) {
 }
 
 # Generate S7 generics
-generate_s7_generics <- function(parsed_class) {
+generate_s7_generics <- function(parsed_class, skip_methods = character()) {
   class_name <- parsed_class$public_name
 
   lines <- c()
@@ -129,6 +129,11 @@ generate_s7_generics <- function(parsed_class) {
   generated <- character()
 
   for (method in parsed_class$methods) {
+    base_name <- sub("_[0-9]+$", "", method$name)
+
+    # Skip problematic methods
+    if (base_name %in% skip_methods) next
+
     generic_name <- to_snake_case(method$name)
 
     # Skip overloads (already generated the generic)
@@ -162,7 +167,7 @@ generate_s7_generics <- function(parsed_class) {
 }
 
 # Generate S7 methods
-generate_s7_methods <- function(parsed_class) {
+generate_s7_methods <- function(parsed_class, skip_methods = character()) {
   class_name <- parsed_class$public_name
   class_lower <- tolower(class_name)
 
@@ -177,6 +182,10 @@ generate_s7_methods <- function(parsed_class) {
 
   for (method in parsed_class$methods) {
     base_name <- sub("_[0-9]+$", "", method$name)
+
+    # Skip problematic methods
+    if (base_name %in% skip_methods) next
+
     generic_name <- to_snake_case(base_name)
 
     # Track overloads
@@ -272,12 +281,12 @@ S7::method(print, GDAL%s) <- function(x, ...) {
 }
 
 # Generate complete S7 file for a class
-generate_s7_file <- function(parsed_class, output_path = NULL) {
+generate_s7_file <- function(parsed_class, output_path = NULL, skip_methods = character()) {
   code <- paste(
     generate_s7_header(parsed_class$public_name),
     generate_s7_class(parsed_class),
-    generate_s7_generics(parsed_class),
-    generate_s7_methods(parsed_class),
+    generate_s7_generics(parsed_class, skip_methods),
+    generate_s7_methods(parsed_class, skip_methods),
     generate_s7_print(parsed_class),
     sep = "\n"
   )
@@ -291,12 +300,12 @@ generate_s7_file <- function(parsed_class, output_path = NULL) {
 }
 
 # ============================================================================
-# Test
+# Test (only runs in interactive mode when not sourced from orchestrate)
 # ============================================================================
 
-if (interactive() || !exists("SOURCED_S7_GEN")) {
-  #source("parse_swig.R", local = TRUE)
-  SOURCED <- TRUE
+if (FALSE) {  # Set to TRUE to test standalone
+  swig_dir <- "~/gdal/swig/include"
+  source("data-raw/parse_swig.R", local = TRUE)
 
   result <- parse_swig_file(file.path(swig_dir, "MajorObject.i"), debug = FALSE)
   cls <- result$classes[[1]]
