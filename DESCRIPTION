@@ -2,7 +2,7 @@ Package: GDAL7
 Title: Modern GDAL Bindings for R Using S7
 Version: 0.0.1
 Authors@R: 
-    person("GDAL7", "Authors", email = "gdal7@example.com", role = c("aut", "cre"))
+    person("Michael", "Sumner", email = "mdsumner@gmail.com", role = c("aut", "cre"))
 Description: Comprehensive GDAL bindings for R using S7 classes and cpp11.
     Auto-generated from GDAL's SWIG interface definitions.
 License: MIT + file LICENSE
