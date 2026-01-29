@@ -49,4 +49,8 @@ Correctly parses:
 
 **This is a pizza-delivery project.**
 
+```R
+fortunes::fortune("Padovian")
+```
+
 Core parser is working. Output generators are mechanical. Estimated remaining: 2-4 focused days.
