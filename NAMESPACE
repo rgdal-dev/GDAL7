@@ -3,6 +3,10 @@ useDynLib(GDAL7)
 
 import(S7)
 
+# Top-level functions
+export(gdal_open)
+export(gdal_close)
+
 # MajorObject
 export(GDALMajorObject)
 export(get_description)
