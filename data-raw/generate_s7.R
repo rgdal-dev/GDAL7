@@ -241,19 +241,20 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
                               r_params_str))
 
     # Handle return type
+    # Call the R wrapper function from cpp11.R (not .Call directly)
     r_return <- map_r_type(method$return_type)
 
     if (method$return_type == "void") {
-      lines <- c(lines, sprintf('  .Call(%s, %s)', cpp_func, call_args_str))
+      lines <- c(lines, sprintf('  %s(%s)', cpp_func, call_args_str))
       lines <- c(lines, '  invisible(x)')
     } else if (grepl("Shadow\\*$|HS\\*$", method$return_type)) {
       # Returns a GDAL object - wrap in S7 class
       return_class <- map_r_type(method$return_type)
-      lines <- c(lines, sprintf('  ptr <- .Call(%s, %s)', cpp_func, call_args_str))
+      lines <- c(lines, sprintf('  ptr <- %s(%s)', cpp_func, call_args_str))
       lines <- c(lines, sprintf('  if (is.null(ptr)) return(NULL)'))
       lines <- c(lines, sprintf('  %s(.ptr = ptr)', return_class))
     } else {
-      lines <- c(lines, sprintf('  .Call(%s, %s)', cpp_func, call_args_str))
+      lines <- c(lines, sprintf('  %s(%s)', cpp_func, call_args_str))
     }
 
     lines <- c(lines, '}')

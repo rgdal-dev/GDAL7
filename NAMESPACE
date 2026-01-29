@@ -1,5 +1,5 @@
 # Auto-generated - do not edit by hand
-useDynLib(GDAL7)
+useDynLib(GDAL7, .registration = TRUE)
 
 import(S7)
 
