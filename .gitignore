@@ -12,3 +12,5 @@ src/*.dll
 
 # Build artifacts
 *.tar.gz
+src/cpp11.cpp
+R/cpp11.R
