@@ -1,8 +1,9 @@
 # Auto-generated - do not edit by hand
 useDynLib(GDAL7)
-useDynLib(GDAL7)
+
 import(S7)
 
+# MajorObject
 export(GDALMajorObject)
 export(get_description)
 export(set_description)
@@ -13,3 +14,16 @@ export(set_metadata)
 export(set_metadata_2)
 export(get_metadata_item)
 export(set_metadata_item)
+
+# Dataset
+export(GDALDataset)
+export(get_driver)
+export(get_raster_band)
+export(get_projection)
+export(get_projection_ref)
+export(get_spatial_ref)
+export(get_gcpcount)
+export(get_gcpprojection)
+export(flush_cache)
+export(get_file_list)
+export(get_layer_count)
