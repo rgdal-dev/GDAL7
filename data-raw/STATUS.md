@@ -82,14 +82,16 @@ R CMD INSTALL --no-staged-install .
 #### Dataset methods
 - `get_projection(ds)` - Get projection as WKT string
 - `get_projection_ref(ds)` - Alias for get_projection
-- `get_spatial_ref(ds)` - Get spatial reference (returns external pointer)
 - `get_file_list(ds)` - Get list of files comprising dataset
 - `get_gcpcount(ds)` - Get number of GCPs
 - `get_gcpprojection(ds)` - Get GCP projection string
 - `get_layer_count(ds)` - Get number of vector layers
-- `get_driver(ds)` - Get driver (returns external pointer)
-- `get_raster_band(ds, n)` - Get raster band (returns external pointer)
 - `flush_cache(ds)` - Flush pending writes
+
+#### Dataset methods (classes not yet implemented - will error)
+- `get_spatial_ref(ds)` - Returns OGRSpatialReference (class not implemented)
+- `get_driver(ds)` - Returns GDALDriver (class not implemented)
+- `get_raster_band(ds, n)` - Returns GDALRasterBand (class not implemented)
 
 ## Known Issues & Workarounds
 
@@ -119,11 +121,19 @@ R CMD INSTALL --no-staged-install .
 
 **Solution**: S7 methods now call the R wrapper functions from cpp11.R.
 
+### 5. Return Type Classes
+
+**Problem**: Methods that return GDAL objects (get_driver, get_raster_band, get_spatial_ref) try to wrap the result in S7 classes that don't exist yet.
+
+**Current state**: These methods will error until the corresponding classes are implemented (GDALDriver, GDALRasterBand, OGRSpatialReference).
+
+**Future fix**: Either implement stub classes or modify generator to return raw external pointers when class doesn't exist.
+
 ## Not Yet Implemented
 
 ### Classes
 - GDALDriver
-- GDALRasterBand
+- GDALRasterBand  
 - OGRSpatialReference
 - OGRLayer
 - OGRFeature

@@ -1,6 +1,6 @@
 # GDAL7 (development version)
 
-## GDAL7 0.0.1 (2025-01-30)
+## GDAL7 0.0.1 (2026-01-30)
 
 Initial proof-of-concept release. This package provides S7 bindings to the GDAL C API, generated from GDAL's SWIG interface files.
 
@@ -35,17 +35,21 @@ Initial proof-of-concept release. This package provides S7 bindings to the GDAL 
 **GDALDataset Methods**
 
 * `get_projection()` / `get_projection_ref()` - WKT projection string
-* `get_spatial_ref()` - Spatial reference object (external pointer)
 * `get_file_list()` - Files comprising the dataset
 * `get_gcpcount()` / `get_gcpprojection()` - Ground control point info
 * `get_layer_count()` - Number of vector layers
-* `get_driver()` - Dataset driver (external pointer)
-* `get_raster_band(n)` - Raster band (external pointer)
 * `flush_cache()` - Flush pending writes
+
+**GDALDataset Methods (return classes not yet implemented)**
+
+* `get_spatial_ref()` - Returns OGRSpatialReference (errors until class implemented)
+* `get_driver()` - Returns GDALDriver (errors until class implemented)
+* `get_raster_band(n)` - Returns GDALRasterBand (errors until class implemented)
 
 ### Known Limitations
 
-* GDALDriver, GDALRasterBand, OGRSpatialReference classes not yet implemented (methods return external pointers)
+* GDALDriver, GDALRasterBand, OGRSpatialReference classes not yet implemented
+* Methods returning these types (`get_driver`, `get_raster_band`, `get_spatial_ref`) will error
 * `GetGeoTransform()` / `SetGeoTransform()` not yet supported (array parameters)
 * Vector layer methods not yet supported
 * No automatic memory management / destructor support

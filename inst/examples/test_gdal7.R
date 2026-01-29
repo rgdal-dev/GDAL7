@@ -153,10 +153,16 @@ section("4. Get Driver")
 
 ds <- gdal_open(test_file)
 
-drv <- get_driver(ds)
-cat("get_driver():\n")
-cat("  Class:", class(drv)[1], "\n")
-cat("  (Driver class not yet implemented - returns external pointer)\n\n")
+tryCatch({
+  drv <- get_driver(ds)
+  cat("get_driver():\n")
+  cat("  Class:", class(drv)[1], "\n")
+}, error = function(e) {
+  cat("get_driver():\n")
+  cat("  Not yet usable - GDALDriver class not implemented\n")
+  cat("  Error:", conditionMessage(e), "\n")
+})
+cat("\n")
 
 gdal_close(ds)
 
@@ -166,10 +172,16 @@ section("5. Get Raster Band")
 
 ds <- gdal_open(test_file)
 
-band <- get_raster_band(ds, 1L)
-cat("get_raster_band(1):\n")
-cat("  Class:", class(band)[1], "\n")
-cat("  (Band class not yet implemented - returns external pointer)\n\n")
+tryCatch({
+  band <- get_raster_band(ds, 1L)
+  cat("get_raster_band(1):\n")
+  cat("  Class:", class(band)[1], "\n")
+}, error = function(e) {
+  cat("get_raster_band(1):\n")
+  cat("  Not yet usable - GDALRasterBand class not implemented\n")
+  cat("  Error:", conditionMessage(e), "\n")
+})
+cat("\n")
 
 gdal_close(ds)
 
@@ -179,10 +191,16 @@ section("6. Get Spatial Reference")
 
 ds <- gdal_open(test_file)
 
-srs <- get_spatial_ref(ds)
-cat("get_spatial_ref():\n")
-cat("  Class:", class(srs)[1], "\n")
-cat("  (SpatialReference class not yet implemented - returns external pointer)\n\n")
+tryCatch({
+  srs <- get_spatial_ref(ds)
+  cat("get_spatial_ref():\n")
+  cat("  Class:", class(srs)[1], "\n")
+}, error = function(e) {
+  cat("get_spatial_ref():\n")
+  cat("  Not yet usable - OGRSpatialReference class not implemented\n")
+  cat("  Error:", conditionMessage(e), "\n")
+})
+cat("\n")
 
 gdal_close(ds)
 
@@ -236,14 +254,16 @@ cat("    - gdal_open(path)\n")
 cat("    - gdal_close(ds)\n")
 cat("    - get_projection()\n")
 cat("    - get_projection_ref()\n")
-cat("    - get_spatial_ref() -> external pointer\n")
 cat("    - get_file_list()\n")
 cat("    - get_gcpcount()\n")
 cat("    - get_gcpprojection()\n")
 cat("    - get_layer_count()\n")
-cat("    - get_driver() -> external pointer\n")
-cat("    - get_raster_band(n) -> external pointer\n")
 cat("    - flush_cache()\n")
+cat("\n")
+cat("Methods exist but return classes not implemented:\n")
+cat("    - get_driver() -> needs GDALDriver class\n")
+cat("    - get_raster_band(n) -> needs GDALRasterBand class\n")
+cat("    - get_spatial_ref() -> needs OGRSpatialReference class\n")
 cat("\n")
 cat("Not yet implemented:\n")
 cat("  - GDALDriver class\n")
