@@ -1,0 +1,15 @@
+# Auto-generated - do not edit by hand
+useDynLib(GDAL7, .registration = TRUE)
+
+import(S7)
+
+export(GDALMajorObject)
+export(get_description)
+export(set_description)
+export(get_metadata_domain_list)
+export(get_metadata_dict)
+export(get_metadata_list)
+export(set_metadata)
+export(set_metadata_2)
+export(get_metadata_item)
+export(set_metadata_item)

@@ -1,5 +1,5 @@
 # parse_swig.R
-# Minimal SWIG .i file parser for GDAL7 generator
+# Minimal SWIG .i file parser for gdal7 generator
 # Proof of concept using MajorObject.i
 
 # Null coalesce operator
@@ -725,7 +725,7 @@ print_parsed <- function(result) {
 
 if (interactive() || !exists("SOURCED")) {
   cat("Parsing MajorObject.i...\n\n")
-  result <- parse_swig_file("/home/claude/swig/include/MajorObject.i", debug = FALSE)
+  result <- parse_swig_file(file.path(swig_dir, "MajorObject.i"), debug = FALSE)
   print_parsed(result)
 }
 
@@ -733,6 +733,6 @@ if (interactive() || !exists("SOURCED")) {
 if (FALSE) {  # Change to TRUE to test
   cat("\n\n")
   cat("Parsing Dataset.i...\n\n")
-  result2 <- parse_swig_file("/home/claude/swig/include/Dataset.i", debug = FALSE)
+  result2 <- parse_swig_file(file.path(swig_dir, "Dataset.i"), debug = FALSE)
   print_parsed(result2)
 }

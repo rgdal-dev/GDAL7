@@ -1,0 +1,16 @@
+Package: GDAL7
+Title: Modern GDAL Bindings for R Using S7
+Version: 0.0.1
+Authors@R: 
+    person("GDAL7", "Authors", email = "gdal7@example.com", role = c("aut", "cre"))
+Description: Comprehensive GDAL bindings for R using S7 classes and cpp11.
+    Auto-generated from GDAL's SWIG interface definitions.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports:
+    S7
+LinkingTo:
+    cpp11
+SystemRequirements: GDAL (>= 3.0.0)
