@@ -9,7 +9,7 @@ Two parallel evolutions are converging:
 - Joint effort: R-Core, Bioconductor, tidyverse, ROpenSci
 - Designed to supersede both S3 and S4
 - Goal: merge into base R
-- Currently v0.2.0 on CRAN (Nov 2024)
+- Currently v0.2.1 on CRAN (Nov 2025)
 
 **R-GDAL bindings**: rgdal → sf/terra/gdalraster → **?**
 - rgdal: retired 2023
