@@ -106,47 +106,47 @@ get_layer_count <- S7::new_generic("get_layer_count", "x")
 # -----------------------------------------------------------------------------
 
 S7::method(get_driver, GDALDataset) <- function(x) {
-  ptr <- .Call(GDAL7_dataset_get_driver, x@.ptr)
+  ptr <- GDAL7_dataset_get_driver(x@.ptr)
   if (is.null(ptr)) return(NULL)
   GDALDriver(.ptr = ptr)
 }
 
 S7::method(get_raster_band, GDALDataset) <- function(x, nBand) {
-  ptr <- .Call(GDAL7_dataset_get_raster_band, x@.ptr, as.integer(nBand))
+  ptr <- GDAL7_dataset_get_raster_band(x@.ptr, as.integer(nBand))
   if (is.null(ptr)) return(NULL)
   GDALRasterBand(.ptr = ptr)
 }
 
 S7::method(get_projection, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_projection, x@.ptr)
+  GDAL7_dataset_get_projection(x@.ptr)
 }
 
 S7::method(get_projection_ref, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_projection_ref, x@.ptr)
+  GDAL7_dataset_get_projection_ref(x@.ptr)
 }
 
 S7::method(get_spatial_ref, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_spatial_ref, x@.ptr)
+  GDAL7_dataset_get_spatial_ref(x@.ptr)
 }
 
 S7::method(get_gcpcount, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_gcpcount, x@.ptr)
+  GDAL7_dataset_get_gcpcount(x@.ptr)
 }
 
 S7::method(get_gcpprojection, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_gcpprojection, x@.ptr)
+  GDAL7_dataset_get_gcpprojection(x@.ptr)
 }
 
 S7::method(flush_cache, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_flush_cache, x@.ptr)
+  GDAL7_dataset_flush_cache(x@.ptr)
 }
 
 S7::method(get_file_list, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_file_list, x@.ptr)
+  GDAL7_dataset_get_file_list(x@.ptr)
 }
 
 S7::method(get_layer_count, GDALDataset) <- function(x) {
-  .Call(GDAL7_dataset_get_layer_count, x@.ptr)
+  GDAL7_dataset_get_layer_count(x@.ptr)
 }
 
 

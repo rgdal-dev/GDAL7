@@ -100,43 +100,43 @@ set_metadata_item <- S7::new_generic("set_metadata_item", "x")
 # -----------------------------------------------------------------------------
 
 S7::method(get_description, GDALMajorObject) <- function(x) {
-  .Call(GDAL7_majorobject_get_description, x@.ptr)
+  GDAL7_majorobject_get_description(x@.ptr)
 }
 
 S7::method(set_description, GDALMajorObject) <- function(x, pszNewDesc) {
-  .Call(GDAL7_majorobject_set_description, x@.ptr, pszNewDesc)
+  GDAL7_majorobject_set_description(x@.ptr, pszNewDesc)
   invisible(x)
 }
 
 S7::method(get_metadata_domain_list, GDALMajorObject) <- function(x) {
-  .Call(GDAL7_majorobject_get_metadata_domain_list, x@.ptr)
+  GDAL7_majorobject_get_metadata_domain_list(x@.ptr)
 }
 
 S7::method(get_metadata_dict, GDALMajorObject) <- function(x, pszDomain) {
-  .Call(GDAL7_majorobject_get_metadata_dict, x@.ptr, pszDomain)
+  GDAL7_majorobject_get_metadata_dict(x@.ptr, pszDomain)
 }
 
 S7::method(get_metadata_list, GDALMajorObject) <- function(x, pszDomain) {
-  .Call(GDAL7_majorobject_get_metadata_list, x@.ptr, pszDomain)
+  GDAL7_majorobject_get_metadata_list(x@.ptr, pszDomain)
 }
 
 S7::method(set_metadata, GDALMajorObject) <- function(x, papszMetadata, pszDomain) {
-  .Call(GDAL7_majorobject_set_metadata, x@.ptr, papszMetadata, pszDomain)
+  GDAL7_majorobject_set_metadata(x@.ptr, papszMetadata, pszDomain)
 }
 
 #' @export
 set_metadata_2 <- S7::new_generic("set_metadata_2", "x")
 
 S7::method(set_metadata_2, GDALMajorObject) <- function(x, pszMetadataString, pszDomain) {
-  .Call(GDAL7_majorobject_set_metadata, x@.ptr, pszMetadataString, pszDomain)
+  GDAL7_majorobject_set_metadata(x@.ptr, pszMetadataString, pszDomain)
 }
 
 S7::method(get_metadata_item, GDALMajorObject) <- function(x, pszName, pszDomain) {
-  .Call(GDAL7_majorobject_get_metadata_item, x@.ptr, pszName, pszDomain)
+  GDAL7_majorobject_get_metadata_item(x@.ptr, pszName, pszDomain)
 }
 
 S7::method(set_metadata_item, GDALMajorObject) <- function(x, pszName, pszValue, pszDomain) {
-  .Call(GDAL7_majorobject_set_metadata_item, x@.ptr, pszName, pszValue, pszDomain)
+  GDAL7_majorobject_set_metadata_item(x@.ptr, pszName, pszValue, pszDomain)
 }
 
 

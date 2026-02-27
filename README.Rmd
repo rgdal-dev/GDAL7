@@ -1,0 +1,78 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# GDAL7
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of GDAL7 is to model the GDAL api in R via SWIG. 
+
+## Installation
+
+You can work with the (very) development version of GDAL7 like this: 
+
+```r
+#git clone https://github.com/rgdal-dev/GDAL7 \
+#     && cd GDAL7 \ 
+#     && R
+cpp11::cpp_register()
+source("data-raw/fix_cpp11.R")
+fix_cpp11()
+
+devtools::load_all()
+```
+
+If that doesn't work, have a look through `data-raw/orchestrate.R` because it did work. 
+
+## Example
+
+This is a basic example. 
+
+```{r example}
+library(GDAL7)
+dsn <- "/vsicurl/https://projects.pawsey.org.au/idea-gebco-tif/GEBCO_2024.tif"
+dsn2 <- "WMTS:https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"
+#dsn <- "/vsicurl/https://raw.githubusercontent.com/mdsumner/rema-ovr/main/REMA-2m_dem_ovr.vrt"
+
+ds <- gdal_open(dsn)
+get_description(ds)                          #` - Get object description
+set_description(ds, dsn2)                    #` - Set object description
+get_metadata_domain_list(ds)                 #` - List metadata domains
+get_metadata_list(ds, "DERIVED_SUBDATASETS") #` - Get metadata as character vector
+get_metadata_dict(ds, "IMAGE_STRUCTURE")     #` - Get metadata as key=value pairs
+get_metadata_item(ds, "AREA_OR_POINT", "")   #` - Get single metadata item
+#set_metadata(ds, metadata, domain)          #` - Set metadata
+#set_metadata_item(ds, "AREA_OR_POINT", 
+#                             "Point", "")   #` - Set single item
+
+#### Dataset methods
+get_projection(ds)      #` - Get projection as WKT string
+get_projection_ref(ds)  #` - Alias for get_projection
+get_file_list(ds)       #` - Get list of files comprising dataset
+get_gcpcount(ds)        #` - Get number of GCPs
+get_gcpprojection(ds)   #` - Get GCP projection string
+get_layer_count(ds)     #` - Get number of vector layers
+#flush_cache(ds)         #` - Flush pending writes
+
+
+gdal_close(ds)
+```
+
+That's all for now. 
+
+## Code of Conduct
+  
+Please note that the GDAL7 project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.
