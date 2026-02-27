@@ -5,11 +5,17 @@
 #include <cpp11.hpp>
 #include <gdal.h>
 
+// ============================================================================
+// GDAL initialization - call once at package load
+// ============================================================================
+
+[[cpp11::register]]
+void GDAL7_init() {
+    GDALAllRegister();
+}
+
 [[cpp11::register]]
 SEXP GDAL7_gdal_open(std::string path, bool update) {
-  // Ensure GDAL is initialized
-  GDALAllRegister();
-
   unsigned int flags = update ? GDAL_OF_UPDATE : GDAL_OF_READONLY;
   flags |= GDAL_OF_VERBOSE_ERROR;
 

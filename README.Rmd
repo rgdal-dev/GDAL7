@@ -29,10 +29,10 @@ You can work with the (very) development version of GDAL7 like this:
 #     && cd GDAL7 \ 
 #     && R
 cpp11::cpp_register()
-source("data-raw/fix_cpp11.R")
-fix_cpp11()
+#source("data-raw/fix_cpp11.R")
+#fix_cpp11()
 
-devtools::load_all()
+system("R CMD INSTALL --no-staged-install .")
 ```
 
 If that doesn't work, have a look through `data-raw/orchestrate.R` because it did work. 
@@ -84,7 +84,14 @@ get_block_size(band)
 gdal_close(ds)
 ```
 
-That's all for now. 
+## Run a test/demo script
+
+```{r sample}
+source("inst/examples/test_raster_info.R")
+
+source("inst/examples/test_driver.R")
+```
+
 
 ## Code of Conduct
   

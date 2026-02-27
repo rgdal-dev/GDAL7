@@ -1,9 +1,8 @@
 # Package initialization
 
 .onLoad <- function(libname, pkgname) {
-  # Initialize GDAL
-  # GDALAllRegister() is called automatically by GDAL on first use
-  # but we can be explicit here if needed
+  # Register all GDAL drivers
+  GDAL7_init()
 }
 
 .onUnload <- function(libpath) {
