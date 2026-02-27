@@ -64,3 +64,18 @@ export(gdal_get_driver_count)
 export(gdal_get_driver_by_name)
 export(gdal_get_driver)
 export(gdal_drivers)
+
+# Multidimensional - Group
+export(GDALGroup)
+export(get_root_group)
+export(get_name)
+export(get_full_name)
+export(get_mdarray_names)
+export(open_mdarray)
+export(get_group_names)
+export(open_group)
+
+# Multidimensional - MDArray
+export(GDALMDArray)
+export(get_dimension_count)
+export(get_dimensions)

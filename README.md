@@ -174,6 +174,56 @@ source("inst/examples/test_driver.R")
 #> 121        EEDA                                Earth Engine Data API  FALSE
 #> 
 #> Success!
+
+source("inst/examples/test_multidim.R")
+#> === Test Multidimensional API ===
+#> 
+#> Zarr driver: Zarr
+#> netCDF driver: Network Common Data Format
+#> 
+#> 
+#> === Opening in multidim mode: ===
+#> /perm_storage/home/mdsumner/gdal/autotest/gdrivers/data/netcdf/alldatatypes.nc 
+#> 
+#> Root group:
+#> <GDAL7::GDALGroup>
+#>  @ .ptr:<externalptr> 
+#> 
+#> Subgroups:  group 
+#> 
+#> === Arrays ===
+#> <GDAL7::GDALMDArray>
+#>  @ .ptr:<externalptr> 
+#> 
+#> <GDAL7::GDALMDArray>
+#>  @ .ptr:<externalptr> 
+#> 
+#> <GDAL7::GDALMDArray>
+#>  @ .ptr:<externalptr> 
+#> 
+#> <GDAL7::GDALMDArray>
+#>  @ .ptr:<externalptr> 
+#> 
+#> <GDAL7::GDALMDArray>
+#>  @ .ptr:<externalptr> 
+#> 
+#> 
+#> === Test with remote Zarr ===
+#> Opening: ZARR:"/vsicurl/https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_salt_2023.parq" 
+#> <GDAL7::GDALGroup>
+#>  @ .ptr:<externalptr> 
+#> [1] "/"
+#> [1] "/"
+#> character(0)
+#> 
+#> First array:
+#> <GDAL7::GDALMDArray>
+#>  @ .ptr:<externalptr> 
+#> [1] 1
+#>   name size
+#> 1 Time 5479
+#> 
+#> Success!
 ```
 
 ## Code of Conduct

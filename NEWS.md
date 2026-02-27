@@ -2,6 +2,7 @@
 
 * Added raster info and band access. 
 
+* Added driver info and multidim. 
 
 
 ## GDAL7 0.0.1 (2026-01-30)

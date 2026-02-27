@@ -90,6 +90,8 @@ gdal_close(ds)
 source("inst/examples/test_raster_info.R")
 
 source("inst/examples/test_driver.R")
+
+source("inst/examples/test_multidim.R")
 ```
 
 

@@ -6,17 +6,27 @@
 #'
 #' @param path Path to the dataset (file, URL, or connection string)
 #' @param update Logical. If TRUE, open for update (read/write). Default FALSE.
+#' @param multidim Logical. If TRUE, open in multidimensional mode (for NetCDF, 
+#'   Zarr, HDF5, etc.). Use get_root_group() to access the multidimensional structure.
+#'   Default FALSE.
 #' @return A GDALDataset object
 #' @export
 #' @examples
 #' \dontrun{
+#' # Classic raster mode
 #' ds <- gdal_open("/path/to/raster.tif")
 #' get_projection(ds)
 #' gdal_close(ds)
+#' 
+#' # Multidimensional mode
+#' ds <- gdal_open("/path/to/data.zarr", multidim = TRUE)
+#' grp <- get_root_group(ds)
+#' get_mdarray_names(grp)
+#' gdal_close(ds)
 #' }
-gdal_open <- function(path, update = FALSE) {
+gdal_open <- function(path, update = FALSE, multidim = FALSE) {
   path <- normalizePath(path, mustWork = FALSE)
-  ptr <- GDAL7_gdal_open(path, update)
+  ptr <- GDAL7_gdal_open(path, update, multidim)
   GDALDataset(.ptr = ptr)
 }
 

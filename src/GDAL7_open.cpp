@@ -15,9 +15,13 @@ void GDAL7_init() {
 }
 
 [[cpp11::register]]
-SEXP GDAL7_gdal_open(std::string path, bool update) {
+SEXP GDAL7_gdal_open(std::string path, bool update, bool multidim) {
   unsigned int flags = update ? GDAL_OF_UPDATE : GDAL_OF_READONLY;
   flags |= GDAL_OF_VERBOSE_ERROR;
+  
+  if (multidim) {
+    flags |= GDAL_OF_MULTIDIM_RASTER;
+  }
 
   GDALDatasetH h = GDALOpenEx(path.c_str(), flags, nullptr, nullptr, nullptr);
   if (!h) {
