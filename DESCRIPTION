@@ -1,6 +1,6 @@
 Package: GDAL7
 Title: Modern GDAL Bindings for R Using S7
-Version: 0.0.1.9001
+Version: 0.0.1.9002
 Authors@R: 
     person("Michael", "Sumner", email = "mdsumner@gmail.com", role = c("aut", "cre"))
 Description: Comprehensive GDAL bindings for R using S7 classes and cpp11.
@@ -14,3 +14,6 @@ Imports:
 LinkingTo:
     cpp11
 SystemRequirements: GDAL (>= 3.0.0)
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

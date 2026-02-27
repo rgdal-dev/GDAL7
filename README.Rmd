@@ -50,6 +50,8 @@ dsn2 <- "WMTS:https://services.arcgisonline.com/arcgis/rest/services/World_Image
 ds <- gdal_open(dsn)
 get_description(ds)                          #` - Get object description
 set_description(ds, dsn2)                    #` - Set object description
+gdal_close(ds)
+ds <- gdal_open(dsn2)
 get_metadata_domain_list(ds)                 #` - List metadata domains
 get_metadata_list(ds, "DERIVED_SUBDATASETS") #` - Get metadata as character vector
 get_metadata_dict(ds, "IMAGE_STRUCTURE")     #` - Get metadata as key=value pairs
@@ -67,7 +69,18 @@ get_gcpprojection(ds)   #` - Get GCP projection string
 get_layer_count(ds)     #` - Get number of vector layers
 #flush_cache(ds)         #` - Flush pending writes
 
+c(get_raster_xsize(ds), get_raster_ysize(ds))
 
+get_raster_count(ds)
+
+#### bands
+
+## do not use this after ds has been gdal_close(ds)
+
+band <- get_raster_band(ds, 1L)
+band
+get_color_interpretation_name(band)
+get_block_size(band)
 gdal_close(ds)
 ```
 

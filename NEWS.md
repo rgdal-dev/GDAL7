@@ -1,5 +1,9 @@
 # GDAL7 (development version)
 
+* Added raster info and band access. 
+
+
+
 ## GDAL7 0.0.1 (2026-01-30)
 
 Initial proof-of-concept release. This package provides S7 bindings to the GDAL C API, generated from GDAL's SWIG interface files.
