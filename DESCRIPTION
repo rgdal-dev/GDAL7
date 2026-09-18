@@ -1,6 +1,6 @@
 Package: GDAL7
 Title: Modern GDAL Bindings for R Using S7
-Version: 0.0.1.9008
+Version: 0.0.1.9009
 Authors@R: 
     person("Michael", "Sumner", email = "mdsumner@gmail.com", role = c("aut", "cre"))
 Description: Comprehensive GDAL bindings for R using S7 classes and cpp11.
@@ -10,6 +10,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Imports:
+    nanoarrow,
     S7
 LinkingTo:
     cpp11

@@ -701,6 +701,145 @@ extern "C" SEXP _GDAL7_GDAL7_dataset_summary(SEXP xp) {
     return cpp11::as_sexp(GDAL7_dataset_summary(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
+// GDAL7_vector.cpp
+strings GDAL7_dataset_layer_names(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_dataset_layer_names(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_layer_names(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+SEXP GDAL7_dataset_layer(SEXP xp, int index);
+extern "C" SEXP _GDAL7_GDAL7_dataset_layer(SEXP xp, SEXP index) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_layer(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<int>>(index)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+SEXP GDAL7_dataset_layer_by_name(SEXP xp, std::string name);
+extern "C" SEXP _GDAL7_GDAL7_dataset_layer_by_name(SEXP xp, SEXP name) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_layer_by_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(name)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+SEXP GDAL7_dataset_execute_sql(SEXP xp, std::string sql, strings dialect);
+extern "C" SEXP _GDAL7_GDAL7_dataset_execute_sql(SEXP xp, SEXP sql, SEXP dialect) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_execute_sql(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(sql), cpp11::as_cpp<cpp11::decay_t<strings>>(dialect)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+strings GDAL7_layer_name(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_name(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+double GDAL7_layer_feature_count(SEXP xp, bool force);
+extern "C" SEXP _GDAL7_GDAL7_layer_feature_count(SEXP xp, SEXP force) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_feature_count(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<bool>>(force)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+strings GDAL7_layer_geometry_type(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_geometry_type(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_geometry_type(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+strings GDAL7_layer_crs(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_crs(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_crs(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+bool GDAL7_layer_test_capability(SEXP xp, std::string capability);
+extern "C" SEXP _GDAL7_GDAL7_layer_test_capability(SEXP xp, SEXP capability) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_test_capability(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(capability)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+doubles GDAL7_layer_extent(SEXP xp, bool force);
+extern "C" SEXP _GDAL7_GDAL7_layer_extent(SEXP xp, SEXP force) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_extent(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<bool>>(force)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_layer_set_attribute_filter(SEXP xp, strings where);
+extern "C" SEXP _GDAL7_GDAL7_layer_set_attribute_filter(SEXP xp, SEXP where) {
+  BEGIN_CPP11
+    GDAL7_layer_set_attribute_filter(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<strings>>(where));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_layer_set_spatial_filter(SEXP xp, doubles bbox);
+extern "C" SEXP _GDAL7_GDAL7_layer_set_spatial_filter(SEXP xp, SEXP bbox) {
+  BEGIN_CPP11
+    GDAL7_layer_set_spatial_filter(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<doubles>>(bbox));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_layer_reset_reading(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_reset_reading(SEXP xp) {
+  BEGIN_CPP11
+    GDAL7_layer_reset_reading(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
+SEXP GDAL7_layer_arrow_stream(SEXP xp, strings options);
+extern "C" SEXP _GDAL7_GDAL7_layer_arrow_stream(SEXP xp, SEXP options) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_arrow_stream(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<strings>>(options)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_release_arrow_stream(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_release_arrow_stream(SEXP xp) {
+  BEGIN_CPP11
+    GDAL7_release_arrow_stream(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
+SEXP GDAL7_dataset_create_layer(SEXP xp, std::string name, strings crs, std::string geometry_type, strings options);
+extern "C" SEXP _GDAL7_GDAL7_dataset_create_layer(SEXP xp, SEXP name, SEXP crs, SEXP geometry_type, SEXP options) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_create_layer(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(name), cpp11::as_cpp<cpp11::decay_t<strings>>(crs), cpp11::as_cpp<cpp11::decay_t<std::string>>(geometry_type), cpp11::as_cpp<cpp11::decay_t<strings>>(options)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_layer_create_fields(SEXP xp, SEXP schema, strings skip, strings options);
+extern "C" SEXP _GDAL7_GDAL7_layer_create_fields(SEXP xp, SEXP schema, SEXP skip, SEXP options) {
+  BEGIN_CPP11
+    GDAL7_layer_create_fields(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<SEXP>>(schema), cpp11::as_cpp<cpp11::decay_t<strings>>(skip), cpp11::as_cpp<cpp11::decay_t<strings>>(options));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_layer_write_arrow_batch(SEXP xp, SEXP schema, SEXP array, strings options);
+extern "C" SEXP _GDAL7_GDAL7_layer_write_arrow_batch(SEXP xp, SEXP schema, SEXP array, SEXP options) {
+  BEGIN_CPP11
+    GDAL7_layer_write_arrow_batch(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<SEXP>>(schema), cpp11::as_cpp<cpp11::decay_t<SEXP>>(array), cpp11::as_cpp<cpp11::decay_t<strings>>(options));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
+SEXP GDAL7_create_vector_dataset(std::string driver_name, std::string path, strings options);
+extern "C" SEXP _GDAL7_GDAL7_create_vector_dataset(SEXP driver_name, SEXP path, SEXP options) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_create_vector_dataset(cpp11::as_cpp<cpp11::decay_t<std::string>>(driver_name), cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<strings>>(options)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
@@ -725,15 +864,18 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_capabilities",                         (DL_FUNC) &_GDAL7_GDAL7_capabilities,                         0},
     {"_GDAL7_GDAL7_close",                                (DL_FUNC) &_GDAL7_GDAL7_close,                                1},
     {"_GDAL7_GDAL7_color_interpretations",                (DL_FUNC) &_GDAL7_GDAL7_color_interpretations,                0},
+    {"_GDAL7_GDAL7_create_vector_dataset",                (DL_FUNC) &_GDAL7_GDAL7_create_vector_dataset,                3},
     {"_GDAL7_GDAL7_data_types",                           (DL_FUNC) &_GDAL7_GDAL7_data_types,                           0},
     {"_GDAL7_GDAL7_dataset_abort_sql",                    (DL_FUNC) &_GDAL7_GDAL7_dataset_abort_sql,                    1},
     {"_GDAL7_GDAL7_dataset_add_band",                     (DL_FUNC) &_GDAL7_GDAL7_dataset_add_band,                     3},
     {"_GDAL7_GDAL7_dataset_as_mdarray",                   (DL_FUNC) &_GDAL7_GDAL7_dataset_as_mdarray,                   2},
     {"_GDAL7_GDAL7_dataset_clear_statistics",             (DL_FUNC) &_GDAL7_GDAL7_dataset_clear_statistics,             1},
     {"_GDAL7_GDAL7_dataset_commit_transaction",           (DL_FUNC) &_GDAL7_GDAL7_dataset_commit_transaction,           1},
+    {"_GDAL7_GDAL7_dataset_create_layer",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_create_layer,                 5},
     {"_GDAL7_GDAL7_dataset_create_mask_band",             (DL_FUNC) &_GDAL7_GDAL7_dataset_create_mask_band,             2},
     {"_GDAL7_GDAL7_dataset_delete_field_domain",          (DL_FUNC) &_GDAL7_GDAL7_dataset_delete_field_domain,          2},
     {"_GDAL7_GDAL7_dataset_delete_relationship",          (DL_FUNC) &_GDAL7_GDAL7_dataset_delete_relationship,          2},
+    {"_GDAL7_GDAL7_dataset_execute_sql",                  (DL_FUNC) &_GDAL7_GDAL7_dataset_execute_sql,                  3},
     {"_GDAL7_GDAL7_dataset_flush_cache",                  (DL_FUNC) &_GDAL7_GDAL7_dataset_flush_cache,                  1},
     {"_GDAL7_GDAL7_dataset_get_band",                     (DL_FUNC) &_GDAL7_GDAL7_dataset_get_band,                     2},
     {"_GDAL7_GDAL7_dataset_get_close_reports_progress",   (DL_FUNC) &_GDAL7_GDAL7_dataset_get_close_reports_progress,   1},
@@ -750,6 +892,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_dataset_get_root_group",               (DL_FUNC) &_GDAL7_GDAL7_dataset_get_root_group,               1},
     {"_GDAL7_GDAL7_dataset_get_thread_safe_dataset",      (DL_FUNC) &_GDAL7_GDAL7_dataset_get_thread_safe_dataset,      2},
     {"_GDAL7_GDAL7_dataset_is_thread_safe",               (DL_FUNC) &_GDAL7_GDAL7_dataset_is_thread_safe,               2},
+    {"_GDAL7_GDAL7_dataset_layer",                        (DL_FUNC) &_GDAL7_GDAL7_dataset_layer,                        2},
+    {"_GDAL7_GDAL7_dataset_layer_by_name",                (DL_FUNC) &_GDAL7_GDAL7_dataset_layer_by_name,                2},
+    {"_GDAL7_GDAL7_dataset_layer_names",                  (DL_FUNC) &_GDAL7_GDAL7_dataset_layer_names,                  1},
     {"_GDAL7_GDAL7_dataset_mark_suppress_on_close",       (DL_FUNC) &_GDAL7_GDAL7_dataset_mark_suppress_on_close,       1},
     {"_GDAL7_GDAL7_dataset_raster_count",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_raster_count,                 1},
     {"_GDAL7_GDAL7_dataset_raster_xsize",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_raster_xsize,                 1},
@@ -784,6 +929,18 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_init",                                 (DL_FUNC) &_GDAL7_GDAL7_init,                                 0},
     {"_GDAL7_GDAL7_integer_constants",                    (DL_FUNC) &_GDAL7_GDAL7_integer_constants,                    0},
     {"_GDAL7_GDAL7_inv_geotransform",                     (DL_FUNC) &_GDAL7_GDAL7_inv_geotransform,                     1},
+    {"_GDAL7_GDAL7_layer_arrow_stream",                   (DL_FUNC) &_GDAL7_GDAL7_layer_arrow_stream,                   2},
+    {"_GDAL7_GDAL7_layer_create_fields",                  (DL_FUNC) &_GDAL7_GDAL7_layer_create_fields,                  4},
+    {"_GDAL7_GDAL7_layer_crs",                            (DL_FUNC) &_GDAL7_GDAL7_layer_crs,                            1},
+    {"_GDAL7_GDAL7_layer_extent",                         (DL_FUNC) &_GDAL7_GDAL7_layer_extent,                         2},
+    {"_GDAL7_GDAL7_layer_feature_count",                  (DL_FUNC) &_GDAL7_GDAL7_layer_feature_count,                  2},
+    {"_GDAL7_GDAL7_layer_geometry_type",                  (DL_FUNC) &_GDAL7_GDAL7_layer_geometry_type,                  1},
+    {"_GDAL7_GDAL7_layer_name",                           (DL_FUNC) &_GDAL7_GDAL7_layer_name,                           1},
+    {"_GDAL7_GDAL7_layer_reset_reading",                  (DL_FUNC) &_GDAL7_GDAL7_layer_reset_reading,                  1},
+    {"_GDAL7_GDAL7_layer_set_attribute_filter",           (DL_FUNC) &_GDAL7_GDAL7_layer_set_attribute_filter,           2},
+    {"_GDAL7_GDAL7_layer_set_spatial_filter",             (DL_FUNC) &_GDAL7_GDAL7_layer_set_spatial_filter,             2},
+    {"_GDAL7_GDAL7_layer_test_capability",                (DL_FUNC) &_GDAL7_GDAL7_layer_test_capability,                2},
+    {"_GDAL7_GDAL7_layer_write_arrow_batch",              (DL_FUNC) &_GDAL7_GDAL7_layer_write_arrow_batch,              4},
     {"_GDAL7_GDAL7_majorobject_get_description",          (DL_FUNC) &_GDAL7_GDAL7_majorobject_get_description,          1},
     {"_GDAL7_GDAL7_majorobject_get_metadata_dict",        (DL_FUNC) &_GDAL7_GDAL7_majorobject_get_metadata_dict,        2},
     {"_GDAL7_GDAL7_majorobject_get_metadata_domain_list", (DL_FUNC) &_GDAL7_GDAL7_majorobject_get_metadata_domain_list, 1},
@@ -801,6 +958,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_mdarray_get_nodata_value",             (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_nodata_value,             1},
     {"_GDAL7_GDAL7_mdarray_get_unit",                     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_unit,                     1},
     {"_GDAL7_GDAL7_mdarray_release",                      (DL_FUNC) &_GDAL7_GDAL7_mdarray_release,                      1},
+    {"_GDAL7_GDAL7_release_arrow_stream",                 (DL_FUNC) &_GDAL7_GDAL7_release_arrow_stream,                 1},
     {"_GDAL7_GDAL7_string_constants",                     (DL_FUNC) &_GDAL7_GDAL7_string_constants,                     0},
     {NULL, NULL, 0}
 };

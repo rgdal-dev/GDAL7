@@ -391,3 +391,79 @@ GDAL7_color_interpretations <- function() {
 GDAL7_dataset_summary <- function(xp) {
   .Call(`_GDAL7_GDAL7_dataset_summary`, xp)
 }
+
+GDAL7_dataset_layer_names <- function(xp) {
+  .Call(`_GDAL7_GDAL7_dataset_layer_names`, xp)
+}
+
+GDAL7_dataset_layer <- function(xp, index) {
+  .Call(`_GDAL7_GDAL7_dataset_layer`, xp, index)
+}
+
+GDAL7_dataset_layer_by_name <- function(xp, name) {
+  .Call(`_GDAL7_GDAL7_dataset_layer_by_name`, xp, name)
+}
+
+GDAL7_dataset_execute_sql <- function(xp, sql, dialect) {
+  .Call(`_GDAL7_GDAL7_dataset_execute_sql`, xp, sql, dialect)
+}
+
+GDAL7_layer_name <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_name`, xp)
+}
+
+GDAL7_layer_feature_count <- function(xp, force) {
+  .Call(`_GDAL7_GDAL7_layer_feature_count`, xp, force)
+}
+
+GDAL7_layer_geometry_type <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_geometry_type`, xp)
+}
+
+GDAL7_layer_crs <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_crs`, xp)
+}
+
+GDAL7_layer_test_capability <- function(xp, capability) {
+  .Call(`_GDAL7_GDAL7_layer_test_capability`, xp, capability)
+}
+
+GDAL7_layer_extent <- function(xp, force) {
+  .Call(`_GDAL7_GDAL7_layer_extent`, xp, force)
+}
+
+GDAL7_layer_set_attribute_filter <- function(xp, where) {
+  invisible(.Call(`_GDAL7_GDAL7_layer_set_attribute_filter`, xp, where))
+}
+
+GDAL7_layer_set_spatial_filter <- function(xp, bbox) {
+  invisible(.Call(`_GDAL7_GDAL7_layer_set_spatial_filter`, xp, bbox))
+}
+
+GDAL7_layer_reset_reading <- function(xp) {
+  invisible(.Call(`_GDAL7_GDAL7_layer_reset_reading`, xp))
+}
+
+GDAL7_layer_arrow_stream <- function(xp, options) {
+  .Call(`_GDAL7_GDAL7_layer_arrow_stream`, xp, options)
+}
+
+GDAL7_release_arrow_stream <- function(xp) {
+  invisible(.Call(`_GDAL7_GDAL7_release_arrow_stream`, xp))
+}
+
+GDAL7_dataset_create_layer <- function(xp, name, crs, geometry_type, options) {
+  .Call(`_GDAL7_GDAL7_dataset_create_layer`, xp, name, crs, geometry_type, options)
+}
+
+GDAL7_layer_create_fields <- function(xp, schema, skip, options) {
+  invisible(.Call(`_GDAL7_GDAL7_layer_create_fields`, xp, schema, skip, options))
+}
+
+GDAL7_layer_write_arrow_batch <- function(xp, schema, array, options) {
+  invisible(.Call(`_GDAL7_GDAL7_layer_write_arrow_batch`, xp, schema, array, options))
+}
+
+GDAL7_create_vector_dataset <- function(driver_name, path, options) {
+  .Call(`_GDAL7_GDAL7_create_vector_dataset`, driver_name, path, options)
+}

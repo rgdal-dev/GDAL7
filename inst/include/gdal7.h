@@ -32,6 +32,8 @@
 #include <cpl_error.h>
 #include <cpl_string.h>
 #include <gdal.h>
+#include <ogr_api.h>
+#include <ogr_srs_api.h>
 
 namespace gdal7 {
 
@@ -39,7 +41,7 @@ namespace gdal7 {
 // Object kinds
 // ---------------------------------------------------------------------------
 
-enum class Kind { Dataset, Band, Driver, Group, MDArray, SpatialRef };
+enum class Kind { Dataset, Band, Driver, Group, MDArray, SpatialRef, Layer, SQLResult };
 
 inline const char* kind_name(Kind kind) {
     switch (kind) {
@@ -49,6 +51,8 @@ inline const char* kind_name(Kind kind) {
         case Kind::Group: return "GDALGroup";
         case Kind::MDArray: return "GDALMDArray";
         case Kind::SpatialRef: return "OGRSpatialReference";
+        case Kind::Layer: return "OGRLayer";
+        case Kind::SQLResult: return "OGRLayer";
     }
     return "GDAL object";
 }
@@ -63,6 +67,8 @@ inline SEXP kind_tag(Kind kind) {
         case Kind::Group: { static SEXP s = Rf_install("GDAL7_group"); return s; }
         case Kind::MDArray: { static SEXP s = Rf_install("GDAL7_mdarray"); return s; }
         case Kind::SpatialRef: { static SEXP s = Rf_install("GDAL7_spatialref"); return s; }
+        case Kind::Layer: { static SEXP s = Rf_install("GDAL7_layer"); return s; }
+        case Kind::SQLResult: { static SEXP s = Rf_install("GDAL7_sql_result"); return s; }
     }
     static SEXP other = Rf_install("GDAL7_object");
     return other;
@@ -72,7 +78,8 @@ inline SEXP kind_tag(Kind kind) {
 // from something else that does. Drivers belong to GDAL's driver manager and
 // outlive everything, so they are neither owned nor tied to a parent.
 inline bool kind_is_owned(Kind kind) {
-    return kind == Kind::Dataset || kind == Kind::Group || kind == Kind::MDArray;
+    return kind == Kind::Dataset || kind == Kind::Group || kind == Kind::MDArray ||
+           kind == Kind::SQLResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +115,19 @@ struct Owner {
             case Kind::Dataset: GDALClose(static_cast<GDALDatasetH>(h)); break;
             case Kind::Group: GDALGroupRelease(static_cast<GDALGroupH>(h)); break;
             case Kind::MDArray: GDALMDArrayRelease(static_cast<GDALMDArrayH>(h)); break;
+            case Kind::SQLResult: {
+                // The result set belongs to the dataset it was run against and
+                // has to go back to it. If the dataset has already been closed
+                // there is nothing to give it back to, and GDAL freed the
+                // result with it.
+                GDALDatasetH ds = parent == nullptr
+                    ? nullptr
+                    : static_cast<GDALDatasetH>(parent->handle);
+                if (ds != nullptr) {
+                    GDALDatasetReleaseResultSet(ds, static_cast<OGRLayerH>(h));
+                }
+                break;
+            }
             default: break;
         }
     }
@@ -190,7 +210,8 @@ inline bool is_handle(SEXP xp) {
     }
     SEXP tag = R_ExternalPtrTag(xp);
     const Kind kinds[] = {Kind::Dataset, Kind::Band, Kind::Driver,
-                          Kind::Group, Kind::MDArray, Kind::SpatialRef};
+                          Kind::Group, Kind::MDArray, Kind::SpatialRef,
+                          Kind::Layer, Kind::SQLResult};
     for (Kind k : kinds) {
         if (tag == kind_tag(k)) {
             return true;
@@ -253,6 +274,41 @@ inline GDALMajorObjectH major_object(SEXP xp) {
 template <typename T>
 inline T get(SEXP xp, Kind kind) {
     return static_cast<T>(checked_handle(xp, kind)->ptr);
+}
+
+// A layer reaches R two ways: borrowed from the dataset that defines it, or
+// owned as the result set of a query. They answer the same API, so everything
+// but their lifetime treats them alike.
+inline OGRLayerH layer(SEXP xp) {
+    if (TYPEOF(xp) != EXTPTRSXP) {
+        cpp11::stop("Expected an OGRLayer object");
+    }
+    SEXP tag = R_ExternalPtrTag(xp);
+    Kind kind;
+    if (tag == kind_tag(Kind::Layer)) {
+        kind = Kind::Layer;
+    } else if (tag == kind_tag(Kind::SQLResult)) {
+        kind = Kind::SQLResult;
+    } else {
+        cpp11::stop("Expected an OGRLayer object");
+    }
+
+    Handle* h = static_cast<Handle*>(R_ExternalPtrAddr(xp));
+    check_alive(h, kind);
+    return static_cast<OGRLayerH>(h->ptr);
+}
+
+// The dataset a layer came out of, which is where its result set goes back to
+// and which SQL and field creation both need.
+inline GDALDatasetH layer_dataset(SEXP xp) {
+    layer(xp);  // for the checks
+    Handle* h = static_cast<Handle*>(R_ExternalPtrAddr(xp));
+    for (const Owner* o = h->owner.get(); o != nullptr; o = o->parent.get()) {
+        if (o->kind == Kind::Dataset) {
+            return static_cast<GDALDatasetH>(o->handle);
+        }
+    }
+    cpp11::stop("This OGRLayer is not attached to a dataset");
 }
 
 // Close an object on request rather than waiting for garbage collection.

@@ -48,3 +48,16 @@ skip_if_no_fd_count <- function() {
 test_cog <- function() {
   system.file("extdata", "overviews.tif", package = "GDAL7", mustWork = TRUE)
 }
+
+# A five-feature point layer in a GeoPackage, with a string, a 64-bit integer
+# and a double field. Built with ogr2ogr from a CSV of WKT.
+test_gpkg <- function() {
+  system.file("extdata", "test.gpkg", package = "GDAL7", mustWork = TRUE)
+}
+
+# A scratch copy, for tests that write to the layer.
+test_gpkg_copy <- function() {
+  path <- tempfile(fileext = ".gpkg")
+  file.copy(test_gpkg(), path, overwrite = TRUE)
+  path
+}

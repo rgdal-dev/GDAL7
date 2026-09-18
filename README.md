@@ -205,6 +205,65 @@ get_dimensions(arr)
 gdal_close(ds)
 ```
 
+### Vector data
+
+A whole layer arrives as a data frame in one call, through the
+column-oriented Arrow path GDAL added in 3.6, so there is no per-feature
+work in R at all. Geometry comes back as WKB, in a list column of raw
+vectors:
+
+``` r
+gpkg <- system.file("extdata/test.gpkg", package = "GDAL7")
+
+ds <- gdal_open(gpkg)
+gdal_layers(ds)
+#>     name geometry_type feature_count fast_arrow
+#> 1 places         Point             5       TRUE
+
+places <- read_vector(ds)
+places[c("name", "population")]
+#>        name population
+#> 1    Hobart     247086
+#> 2 Melbourne    5031195
+#> 3    Sydney    5312163
+#> 4     Perth    2141834
+#> 5    Darwin     147255
+
+gdal_close(ds)
+```
+
+Filters are set on the layer and apply to everything read afterwards. A
+spatial filter is what makes a large layer cheap, because a driver with
+a spatial index uses it rather than reading every feature:
+
+``` r
+ds <- gdal_open(gpkg)
+layer <- get_layer(ds, "places")
+
+set_filter(layer, where = "population > 1e6", bbox = c(140, -45, 155, -30))
+read_vector(layer)$name
+#> [1] "Melbourne" "Sydney"
+
+read_vector(execute_sql(ds, "SELECT name FROM places ORDER BY name LIMIT 2"))
+#>   OGC_FID   name
+#> 1       1 Darwin
+#> 2       2 Hobart
+gdal_close(ds)
+```
+
+The same path runs the other way, so a data frame with a WKB column
+writes back out as a layer:
+
+``` r
+path <- tempfile(fileext = ".gpkg")
+write_vector(places, path, layer = "places", crs = "EPSG:4326",
+             geometry_type = "Point")
+
+identical(read_vector(path), places)
+#> [1] TRUE
+unlink(path)
+```
+
 ### Constants and capabilities
 
 The enumerators and metadata keys that GDAL declares come through as two

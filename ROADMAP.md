@@ -544,6 +544,37 @@ for the write direction.
 *Exit:* a GeoPackage layer reads to a data frame with WKB geometry in one call, and
 round-trips.
 
+*Status: done.* `read_vector()` is the one call, and `write_vector()` is the
+other direction of the same path. The round trip is a test and a README line:
+`identical(read_vector(path), read_vector(original))` after writing the second
+from the first, values, field types, feature ids and WKB alike.
+
+What 7.1 predicted held. The whole vector read surface is one C function,
+`OGR_L_GetArrowStream`, plus a few accessors: no OGRFeature class, no
+OGRGeometry class, no per-feature R work at any point. `src/GDAL7_vector.cpp`
+is 395 lines, and that covers reading, filtering, SQL and the write direction
+together; `src/GDAL7_rasterio.cpp` takes 352 for raster reading alone. Vector
+did turn out cheaper per unit of API reached, as 7.1 said it would.
+
+The stream is handed to R as an external pointer of class
+`nanoarrow_array_stream`, which is the Arrow interchange contract, so
+`arrow_stream()` composes with nanoarrow, arrow and duckdb without GDAL7
+touching a value. `OLCFastGetArrowStream` is reported as the `fast_arrow`
+column of `gdal_layers()`.
+
+Two things that only showed up against a real driver. A layer allows one Arrow
+stream at a time, so a stream has to be given back before the layer can be read
+again; waiting for the garbage collector makes an innocent second read fail, so
+`read_vector()` releases its stream and `release_arrow_stream()` is exported for
+anyone taking one directly. And the feature id is not a field: GPKG refuses to
+create a field called `fid`, so the FID and geometry columns are named to GDAL
+through options and skipped when the fields are created.
+
+A layer is borrowed from its dataset and a result set is owned, so `Kind::Layer`
+and `Kind::SQLResult` are separate kinds in `inst/include/gdal7.h`. A result set
+goes back through `GDALDatasetReleaseResultSet`, and only if the dataset is
+still open, which the ownership chain from stage 1 already knew how to answer.
+
 ### Stage 5 - Multidimensional read
 
 `GDALMDArrayRead` with start/count/step/stride, attributes, coordinate variables,

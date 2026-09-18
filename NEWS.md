@@ -1,5 +1,48 @@
 # GDAL7 (development version)
 
+## Stage 4: vector via Arrow
+
+* `read_vector()` reads a whole vector layer into a data frame in one call,
+  through GDAL's column-oriented Arrow API rather than feature by feature.
+  Geometry arrives as WKB, in a list column of raw vectors. It takes a layer, a
+  dataset, or a path.
+
+* `write_vector()` is the same path in the other direction: the data frame
+  becomes one Arrow record batch, GDAL creates the fields from its schema, and
+  `OGR_L_WriteArrowBatch` writes it. A GeoPackage round-trips exactly, feature
+  ids and WKB included.
+
+* `arrow_stream()` hands the layer out as a `nanoarrow_array_stream`, which is
+  the Arrow interchange contract, so it composes with nanoarrow, arrow and
+  duckdb directly. A layer allows one stream at a time;
+  `release_arrow_stream()` gives one back, and `read_vector()` does that for
+  you.
+
+* `gdal_layers()` lists a dataset's layers with their geometry type, feature
+  count, and whether the driver has a native Arrow fast path
+  (`OLCFastGetArrowStream`).
+
+* `get_layer()` takes a layer by name or by position, and `execute_sql()` runs
+  a statement and returns its result set as a layer, or `NULL` for a statement
+  that has none. A result set is released when it is collected, or when its
+  dataset is closed.
+
+* `set_filter()` sets a layer's attribute filter, spatial filter, or both.
+  Both apply to everything read afterwards, `feature_count()` included. A
+  spatial filter is what makes a large layer cheap, because a driver with a
+  spatial index uses it rather than reading every feature.
+
+* `feature_count()` and `get_extent()` ask the driver first and only scan the
+  layer when asked to, returning `NA` rather than a number it would have had to
+  invent.
+
+* A layer belongs to its dataset and a result set belongs to the query, so both
+  are tracked by the ownership chain: touching a layer after its dataset is
+  closed is an R error, not a crash.
+
+* `nanoarrow` is a new dependency, and `inst/extdata/test.gpkg` is a new
+  five-feature fixture.
+
 ## Stage 3: the generator
 
 * The C function a binding calls is now derived from the `%extend` body in
