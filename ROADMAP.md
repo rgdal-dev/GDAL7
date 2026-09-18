@@ -1,0 +1,477 @@
+# GDAL7 Roadmap
+
+A staged plan for making GDAL7 powerful and efficient, grounded in a read of the
+code at commit `6297d1b`, plus the opportunities the original design did not take.
+
+References below are `file:line` against that commit.
+
+---
+
+## 1. Where the package actually is
+
+The rationale (`data-raw/GDAL7-rationale.md`) proposes a generator that parses GDAL's
+`swig/include/*.i` files and emits cpp11 bindings plus S7 classes, so that GDAL7
+tracks GDAL by regeneration rather than by hand. The parser is real and works
+(`data-raw/parse_swig.R`, ~736 lines, extracts classes, inheritance, methods,
+parameters, defaults, `%apply` typemaps, `%rename`, `%constant`).
+
+But the shipped package is mostly not generated:
+
+| Area | Generated | Hand written |
+|---|---|---|
+| R | `aaa-class-majorobject.R`, `aab-class-dataset.R` | `driver.R`, `raster-info.R`, `z-multidim.R`, `gdal-open.R`, `zzz.R` |
+| src | `GDAL7_majorobject.cpp`, `GDAL7_dataset.cpp` | `GDAL7_open.cpp`, `GDAL7_info.cpp`, `GDAL7_driver.cpp`, `GDAL7_multidim.cpp` |
+| NAMESPACE | no (header says "Auto-generated"; nothing generates it) | yes |
+
+And the two generated R files have since been hand-edited, while
+`data-raw/orchestrate.R:23-25` still deletes and regenerates them. Re-running the
+pipeline today would silently revert working code. Three of the hand-written files
+exist specifically to override generated methods that were wrong
+(`R/raster-info.R:66`, `R/driver.R:26`).
+
+Functionally, the honest summary is: **GDAL7 can describe a dataset but cannot read
+one value out of it.** There is no `RasterIO`, no geotransform, no OGR beyond
+`get_layer_count()`, no multidimensional read, no creation, no VSI, no SRS class.
+
+That is fine for a proof of concept. It also means the sequencing decisions below
+are still cheap to make.
+
+---
+
+## 2. The one architectural problem to fix first
+
+The parser reads SWIG `.i` files, which describe GDAL's **C++ shadow API**
+(`Dataset::GetProjection()`). The generator emits calls to GDAL's **C API**
+(`GDALGetProjectionRef()`). Nothing connects the two automatically. The connection
+is a hand-maintained lookup table of about 33 entries at
+`data-raw/generate_cpp11.R:411-463`, with a `paste0("GDAL", base_name)` guess as the
+fallback (`:462`).
+
+Any GDAL method not in that table generates a call to a function that does not
+exist, which is why there is a 35-entry skip list at
+`data-raw/generate_cpp11.R:473-509`, duplicated at `data-raw/orchestrate.R:41-53`.
+The skip list is not working around parser limitations; it is working around the
+missing mapping. So the central claim, "regenerate when GDAL updates", is not yet
+true, and it will not become true by adding more table entries.
+
+**The mapping is already in the input data.** GDAL's `.i` files implement each
+shadow method in a `%extend` block whose body is literally the C API call. The
+parser already captures it: `method$body` is assigned at `data-raw/parse_swig.R:214`.
+Neither generator ever reads `$body` (verified: no `$body` reference in
+`generate_cpp11.R` or `generate_s7.R`).
+
+Same story for constants: `%constant` directives are parsed into `result$constants`
+at `data-raw/parse_swig.R:482` and never emitted. So `GDT_*`, `GA_*`, `GCI_*` are
+absent, and `get_data_type()` (`R/raster-info.R:119`) hands back a bare integer with
+nothing in the package to interpret it against.
+
+Deriving the C call from the captured `%extend` body, rather than from a lookup
+table, is the change that makes the rest of the generator thesis viable. It should
+happen before the surface area grows.
+
+---
+
+## 3. Blocking defects
+
+Ordered roughly by how much they cost.
+
+### Cannot be installed from a clone
+
+`.gitignore:14-15` excludes `src/cpp11.cpp` and `R/cpp11.R`. A fresh clone has no
+registration code, so `remotes::install_github()` and `R CMD build` both fail. The
+README works around this by telling the user to run `cpp11::cpp_register()` first
+(`README.md:31`). This is the single largest adoption blocker: nobody can try the
+package without reading the README and running a generator step by hand.
+
+Commit the cpp11 output (it is generated but stable, and cpp11 packages normally
+ship it), or add a `configure` step that produces it.
+
+### No documentation, and print methods that never fire
+
+Every file carries roxygen comments and `DESCRIPTION:14` sets `RoxygenNote: 7.3.3`,
+but roxygen is never run, there is no `man/`, and `NAMESPACE` is hand-maintained
+despite its own "Auto-generated - do not edit by hand" header (`NAMESPACE:1`).
+
+The visible consequence: `NAMESPACE` contains no `S3method()` entries at all, so the
+`S7::method(print, ...)` definitions at `R/raster-info.R:227`, `R/driver.R:223`,
+`R/z-multidim.R:200` and `:226` are dead code. You can see this in the committed
+README output, where a band prints as the S7 default rather than via the method that
+exists (`README.md:87-88`, `README.md:109-110`), and drivers and groups likewise.
+Running roxygen would emit the `S3method(print, "GDAL7::GDALRasterBand")` lines that
+make them dispatch.
+
+`R/GDAL7-package.R:5` also has a malformed tag, `#' @useDynLibGDAL7, .registration =FALSE`,
+which is both unparseable and contradicts `useDynLib(GDAL7, .registration = TRUE)`
+in the hand-written NAMESPACE.
+
+### R CMD check cannot pass
+
+- `DESCRIPTION:8` declares `MIT + file LICENSE`; there is no LICENSE file. That is a
+  check ERROR.
+- `tests/testthat.R:12` calls `test_check("GDAL7")` but `tests/testthat/` does not
+  exist. The only executable tests are the scripts in `inst/examples/`, which
+  hardcode `/perm_storage/home/mdsumner/gdal/autotest/...` and reach the network.
+- No `man/` (above).
+
+### Not buildable off Linux
+
+`src/Makevars` shells out to `gdal-config` with no `configure`, no `Makevars.win` or
+`Makevars.ucrt`, and no pkg-config fallback. Windows and most macOS setups will not
+build.
+
+### No CI
+
+There is no `.github/`. For a package whose entire job is compiling against a fast
+moving C++ library across three platforms, CI is not polish, it is the thing that
+tells you the generator still works.
+
+---
+
+## 4. Memory and lifetime
+
+This is the category that decides whether GDAL7 can ever be trusted as a foundation
+for other packages, and it is currently the weakest.
+
+**Datasets leak.** `src/GDAL7_open.cpp:31` wraps the handle in
+`cpp11::external_pointer<GDALDatasetH>`. The default deleter `delete`s the heap box
+holding the handle; it never calls `GDALClose`. Unless the user calls `gdal_close()`
+by hand, the dataset, its file handle, and any `/vsicurl/` connection state stay
+open for the life of the session.
+
+**Child handles dangle.** Bands (`src/GDAL7_info.cpp:57`), drivers
+(`src/GDAL7_driver.cpp:68`), groups and arrays all hold raw handles with no
+reference to the dataset they came from. After `gdal_close(ds)`, a retained band is a
+use after free. `README.md:83` documents this as a caveat to the user
+("do not use this after ds has been gdal_close(ds)") rather than preventing it. An R
+package that can segfault from ordinary use will not pass CRAN and will not be
+adopted as a base layer.
+
+The fix is mechanical and should be done once, in one place: allocate every handle
+with `R_MakeExternalPtr(ptr, tag, prot)` where `prot` is the parent's external
+pointer, so the parent cannot be collected while a child lives; register a finalizer
+that performs the type-correct release; and have `gdal_close()` flip a shared
+"closed" flag that every accessor checks, so a stale band errors instead of crashing.
+
+**Multidim handles leak outright.** `GDAL7_group_release`
+(`src/GDAL7_multidim.cpp:140`) and `GDAL7_mdarray_release` (`:252`) are written and
+registered, but they are not exported in `NAMESPACE` and nothing in
+`R/z-multidim.R` calls them. Every `get_root_group()`, `open_group()` and
+`open_mdarray()` leaks a GDAL reference. The comment at
+`src/GDAL7_multidim.cpp:25` even says the group needs releasing.
+
+**CSL helper leaks on throw.** `list_to_csl` (`src/GDAL7_majorobject.cpp:31`,
+duplicated at `src/GDAL7_dataset.cpp:31`) accumulates a `char**` and leaks it if
+`cpp11::as_cpp<std::string>` throws. Both helpers are emitted once per generated
+translation unit by `data-raw/generate_cpp11.R:205-225`; today they are identical, so
+the `inline` keyword saves it, but the moment one generated copy diverges it becomes
+an ODR violation. Use `CPLStringList` (RAII) from a single shared header under
+`inst/include/`.
+
+---
+
+## 5. Correctness defects
+
+1. `R/aaa-class-majorobject.R:131` - the `set_metadata_2` method calls
+   `GDAL7_majorobject_set_metadata()`, the list variant, instead of
+   `GDAL7_majorobject_set_metadata_2()`. The C++ function at
+   `src/GDAL7_majorobject.cpp:99` takes a `cpp11::list`, so passing a character
+   string cannot work. Note `data-raw/generate_s7.R:199` would have generated the
+   correct name; this is drift from a hand edit.
+
+2. `src/GDAL7_multidim.cpp:191` - `writable::list result(count)` allocates `count`
+   slots, then `:203-204` `push_back` two more. The returned list has length
+   `count + 2` with `count` leading NULLs. `get_dimensions()` (`R/z-multidim.R:176`)
+   only indexes by name, so it looks fine from R, but the C level return is
+   malformed. Should be `writable::list result;` or a fixed size 2.
+
+3. `R/gdal-open.R:28` - `normalizePath()` is applied to every path, including
+   connection strings such as `WMTS:https://...`, `NETCDF:"file.nc":var` and
+   `/vsicurl/https://...`. On Linux a non-existent path passes through unchanged so
+   this is invisible today; on Windows `normalizePath` rewrites separators to
+   backslashes and will corrupt every `/vsi*/` and URL-bearing DSN. Gate on
+   `file.exists()`, or drop it entirely and let GDAL resolve the string.
+
+4. Stale error text. `stop("... failed: %s", CPLGetLastErrorMsg())` appears at
+   `src/GDAL7_dataset.cpp:105` and `src/GDAL7_majorobject.cpp:105`, `:118`, `:134`
+   with no preceding `CPLErrorReset()`, so an unrelated earlier error can be
+   reported as the cause. More broadly there is no `CPLPushErrorHandler` anywhere, so
+   GDAL warnings go to stderr and never reach R's condition system: they cannot be
+   caught, suppressed, or tested against.
+
+5. Missing versus empty is conflated. Every `const char*` getter returns `""` for
+   NULL (`src/GDAL7_majorobject.cpp:47`, `src/GDAL7_dataset.cpp:67`, and so on), so
+   `get_metadata_item()` cannot distinguish "not set" from "set to empty string".
+   `NA_character_` is the right answer for absent.
+
+6. `get_metadata_dict` and `get_metadata_list` are byte-identical implementations
+   (`src/GDAL7_majorobject.cpp:71` and `:85`). SWIG's `GetMetadata_Dict` is meant to
+   return a dict; both R methods return the same `KEY=VALUE` character vector.
+
+7. Defaults from SWIG are parsed and documented but not applied. The generator
+   records `p$default` and writes it into the roxygen `@param`
+   (`data-raw/generate_s7.R:156`) but builds the R signature without it (`:210-227`).
+   So `get_metadata_item(ds, "AREA_OR_POINT", "")` requires the domain argument that
+   SWIG declares as optional, as the README example shows (`README.md:66`).
+
+8. Encoding. `std::string(s)` on a cpp11 string yields the native encoding. GDAL
+   expects UTF-8 filenames and strings. On a non-UTF-8 locale, or Windows, this
+   corrupts non-ASCII paths and metadata. Translate explicitly at the boundary.
+
+---
+
+## 6. Efficiency
+
+`gdal_drivers()` (`R/driver.R:164-186`) loops in R and makes 7 `.Call`s per driver;
+on a typical 204-driver build that is about 1400 round trips to produce one small
+data frame. It should be one C++ call returning the whole table. This is the
+representative case, not an isolated one: the current design puts one `.Call` behind
+every single scalar accessor.
+
+The general principle worth adopting early, because it shapes the API: **batch at the
+boundary.** A `gdal_info(dsn)` that returns size, band count, per band type, block
+size, nodata, scale/offset, colour interpretation, geotransform, SRS and overview
+levels in a single call is what makes interactive use over `/vsicurl/` feel
+immediate. Per-accessor generics can stay, layered on top, for the cases that need
+them.
+
+Two related items already in reach and currently skipped:
+
+- `GetThreadSafeDataset` / `IsThreadSafe` (GDAL 3.10) are in the skip list
+  (`data-raw/orchestrate.R:45`). A thread-safe dataset handle is one of the more
+  interesting things an R binding can expose, since it lets GDAL parallelise reads
+  internally without R-level threading.
+- `GDALRasterIOEx` with `GDALRasterIOExtraArg` gives overview-aware reads: read an
+  arbitrary window at an arbitrary output size with a chosen resampling algorithm,
+  including floating point windows. That single primitive is what makes huge remote
+  rasters usable interactively. It is worth binding *before* plain `ReadRaster`, not
+  after.
+
+---
+
+## 7. Opportunities the original design did not take
+
+These are the items with the highest leverage, and none of them appear in the
+five-phase scope at `data-raw/GDAL7-rationale.md:129-144`.
+
+### 7.1 Arrow is the vector strategy, and it reorders the phases
+
+The rationale puts vector at Phase 2 as "OGRLayer, OGRFeature, OGRGeometry", meaning
+a class-by-class binding of feature and geometry objects. GDAL 3.6 added a
+column-oriented read API (RFC 86): `OGR_L_GetArrowStream` fills an `ArrowArrayStream`
+with whole record batches, and `OGR_L_WriteArrowBatch` covers the write direction.
+
+Binding that one function plus nanoarrow gives whole-layer reads into a data frame
+with WKB geometry, at C speed, with essentially no per-feature binding surface, and
+it composes with the arrow and duckdb ecosystems for free. The `OLCFastGetArrowStream`
+layer capability tells you when the driver has a native fast path.
+
+The consequence for sequencing: vector reading becomes *cheaper* than raster I/O,
+not more expensive. Phase 2 as originally scoped is largely unnecessary for reading.
+OGRFeature and OGRGeometry classes become an optional convenience layer rather than
+a prerequisite.
+
+### 7.2 Bind GDAL's own algorithm registry instead of hand-wrapping utilities
+
+GDAL 3.11 introduced the unified `gdal` command line interface, and **GDAL 3.12
+added a C API for it** in `gdalalgorithm.h`: `GDALGetGlobalAlgorithmRegistry()`,
+`GDALAlgorithmRegistryInstantiateAlgFromPath()`, `GDALAlgorithmGetArg()`,
+`GDALAlgorithmArgSetAsString()` / `SetAsInteger()` / `SetAsDouble()` /
+`SetAsDoubleList()`, `GDALAlgorithmRun()` with a progress callback,
+`GDALAlgorithmFinalize()`, and `GDALAlgorithmArgGetAsDatasetValue()` /
+`GDALArgDatasetValueGetDatasetRef()` to pull out an in-memory result.
+
+This is much closer to the package's own thesis than the SWIG parser is. Instead of
+hand-binding warp, translate, vector translate and the pipeline commands one at a
+time, you instantiate an algorithm by path and set arguments by name. When GDAL adds
+a command or an argument, GDAL7 gets it without a code change. It also gives raster
+and vector pipelines, which have no equivalent in any existing R binding.
+
+The rationale's Phase 5 ("Warp, Translate, VRT, VSI") should be re-scoped around
+this. It is arguably the single most distinctive thing GDAL7 could offer.
+
+Caveat worth checking against the target GDAL: the C API landed in 3.12, and
+`DESCRIPTION:16` currently says `GDAL (>= 3.0.0)`, so this needs version guards
+(see 7.4). Current stable is 3.13.3.
+
+### 7.3 Use the `%extend` bodies, and emit the constants
+
+Covered in section 2. Both are already parsed and thrown away. This is the cheapest
+structural improvement available.
+
+### 7.4 Version guards instead of an all-or-nothing skip list
+
+Today a method that needs GDAL 3.9 is deleted from the build for everyone
+(`data-raw/generate_cpp11.R:474-508` lists the version reasons in comments). Wrapping
+generated bindings in `#if GDAL_VERSION_NUM >= ...` and exposing a
+`gdal7_capabilities()` table lets one source tree serve GDAL 3.0 through 3.13 and
+degrade honestly. The generator already knows enough to emit the guards; the version
+notes are sitting in those comments.
+
+There is also no `gdal_version()` / `GDALVersionInfo()` binding at all, which every
+binding needs and which the capability story depends on.
+
+### 7.5 Vendor the API model and diff it in CI
+
+`data-raw/orchestrate.R:8` hardcodes `swig_dir <- "~/gdal/swig/include"`, and nothing
+records which GDAL version produced the checked-in generated code. Generation is not
+reproducible today.
+
+Vendor the `.i` files, or better, the extracted API model as JSON, under
+`inst/api/` with a version stamp. Then add a CI job that regenerates and diffs. Two
+things fall out: "GDAL 3.14 added 12 methods" becomes a reviewable pull request
+instead of a mystery, and the claim that the checked-in code matches the generator
+becomes continuously verified rather than aspirational. That verification is exactly
+what would let another package depend on GDAL7.
+
+### 7.6 Actually use S7 properties
+
+"Properties with getters/setters" is reason number one for choosing S7
+(`data-raw/GDAL7-rationale.md:89`), and the rationale's own example at `:104-108`
+shows `raster_xsize` as a property. Zero properties exist in the package; everything
+is a generic, and `%immutable` is still unparsed (`data-raw/PARSER_STATUS.md:61`).
+
+Moving the accessor half of the API to properties (`ds@xsize`, `ds@bands`,
+`band@nodata`, `band@block`) reads better, matches the stated design, and cuts the
+exported symbol count sharply. Which matters, because:
+
+### 7.7 Namespace hygiene
+
+`NAMESPACE` currently exports bare generics named `get_name`, `get_description`,
+`get_offset`, `get_scale`, `get_dimensions`, `test_capability`, `flush_cache`,
+`open_group`. For a package intended as a foundation that coexists with sf, terra
+and stars, those names will collide. Properties absorb most of them; the remainder
+want a prefix or a smaller verb vocabulary. Easier to change now than after anyone
+depends on it.
+
+### 7.8 Progress callbacks and interruptibility
+
+Nothing binds `GDALProgressFunc`, and nothing calls `R_CheckUserInterrupt()`. A slow
+`/vsicurl/` read or a warp currently cannot be interrupted and reports no progress.
+Both are table stakes for interactive use, and the algorithm API in 7.2 takes a
+progress callback directly.
+
+### 7.9 Test fixtures that need neither network nor a personal path
+
+`inst/examples/*.R` hardcode `/perm_storage/home/mdsumner/gdal/autotest/...` and hit
+remote URLs. The `MEM` driver plus `/vsimem/` can build fixtures in-process, which
+makes the test suite hermetic and CI possible on every platform. This is a
+prerequisite for section 3's CI item, not a separate nicety.
+
+---
+
+## 8. Staged plan
+
+Each stage has an exit criterion that can be checked, not just a list of work.
+
+### Stage 0 - Installable and checkable
+
+Ship `src/cpp11.cpp` and `R/cpp11.R`. Add LICENSE. Run roxygen and generate
+NAMESPACE from it, fixing `R/GDAL7-package.R:5` (this alone makes the print methods
+work). Create `tests/testthat/` with real tests. Add `configure` plus
+`Makevars.win`/`Makevars.ucrt` with a pkg-config fallback. Add CI across Linux,
+macOS and Windows. Root-cause `data-raw/fix_cpp11.R` rather than carrying it: the
+most likely culprit is the `GDAL7_` prefix on registered entry points interacting
+with cpp11's `_GDAL7_` decoration, so renaming the C++ entry points is a cheap
+experiment that would let the whole post-processing hack be deleted.
+
+*Exit:* `remotes::install_github("rgdal-dev/GDAL7")` works on a clean machine, and
+`R CMD check --as-cran` is clean on three platforms in CI.
+
+### Stage 1 - Safe object lifetimes
+
+One shared header under `inst/include/` with the handle wrapper: parent protection
+via `R_MakeExternalPtr` `prot`, type-correct finalizers, a shared closed flag,
+`CPLStringList` for CSL. Wire `GDALGroupRelease` and `GDALMDArrayRelease` in. Install
+a `CPLPushErrorHandler` that routes GDAL errors and warnings into R conditions, with
+`CPLErrorReset()` before each fallible call. Fix the defects in section 5.
+
+*Exit:* a test that opens a dataset, takes a band, closes the dataset and then
+touches the band gives an R error, not a crash. A loop opening and dropping datasets
+shows flat file-handle count.
+
+### Stage 2 - Raster I/O, the missing core
+
+Geotransform in both directions, plus `GDALApplyGeoTransform` / `GDALInvGeoTransform`.
+`GDALRasterIOEx` with `GDALRasterIOExtraArg` first, so window-plus-output-size reads
+with resampling exist from the start. Overview introspection. A batched
+`gdal_info(dsn)` per section 6. The `GDT_*` / `GCI_*` constants from 7.3 so returned
+type codes mean something.
+
+*Exit:* reading a window of a remote COG at a reduced output size is one call, and
+returns the same numbers as `gdalinfo` / `gdal_translate` on the same window.
+
+### Stage 3 - Make the generator true
+
+Derive the C call from the captured `%extend` body (section 2). Emit constants. Emit
+version guards (7.4). Parse `%immutable` and emit S7 properties (7.6). Vendor the API
+model and add the regenerate-and-diff CI job (7.5). Retire the skip lists, or reduce
+them to genuinely hard cases with recorded reasons.
+
+*Exit:* a clean regenerate reproduces the checked-in generated files byte for byte,
+CI proves it on every commit, and the skip list is short enough to read.
+
+### Stage 4 - Vector via Arrow
+
+`OGR_L_GetArrowStream` plus nanoarrow. Layer listing, SQL execution, spatial and
+attribute filters, `OLCFastGetArrowStream` capability reporting. `OGR_L_WriteArrowBatch`
+for the write direction.
+
+*Exit:* a GeoPackage layer reads to a data frame with WKB geometry in one call, and
+round-trips.
+
+### Stage 5 - Multidimensional read
+
+`GDALMDArrayRead` with start/count/step/stride, attributes, coordinate variables,
+`GetView` for slicing, `AsClassicDataset` for the bridge back to raster. This is the
+stage the existing multidim skeleton was pointed at; right now it can navigate
+groups and arrays but cannot read a value.
+
+*Exit:* a Zarr or NetCDF array slices and reads into an R array with correct
+dimension order and nodata handling.
+
+### Stage 6 - Algorithms and pipelines
+
+The `gdalalgorithm.h` C API from 7.2: registry, instantiate by path, set arguments by
+name, run with a progress callback, retrieve in-memory results. Guarded on GDAL 3.12.
+Progress and interrupt handling from 7.8 lands here.
+
+*Exit:* `gdal raster reproject` and a raster pipeline run from R with named
+arguments, an interruptible progress bar, and a MEM dataset handed back without
+touching disk.
+
+### Stage 7 - Write side and creation
+
+`GDALCreate` / `CreateCopy` with creation options parsed from the driver XML
+(`src/GDAL7_driver.cpp:118` currently returns the raw XML string), `WriteRaster`,
+VSI, `CPLSetConfigOption`, thread-safe datasets from section 6.
+
+*Exit:* create a COG from R, validate it with the driver's own checks.
+
+---
+
+## 9. Housekeeping
+
+`data-raw/` carries two copies of each design document
+(`GDAL7-rationale.md` / `gdal7-rationale.md`, `GDAL7-dev-guide.md` /
+`gdal7-dev-guide.md`) which have already drifted: the lowercase copies say S7 v0.2.0
+Nov 2024, the uppercase say v0.2.1 Nov 2025. Keep one of each.
+
+`data-raw/STATUS.md` and `data-raw/PARSER_STATUS.md` both predate the driver, band
+and multidim work and now describe those classes as unimplemented
+(`STATUS.md:91-94`, `:134-137`). Either update them or fold them into this document.
+
+---
+
+## 10. Positioning
+
+Worth stating explicitly somewhere public, because it affects what to build.
+
+The differentiator against gdalraster, vapour and sf is not "more of the API".
+gdalraster already covers a lot of it, and with more polish. The differentiator is
+**the API, reflectively, from a generator anyone can audit**, plus the two things no
+existing R binding has: Arrow-native vector reads as the primary path, and GDAL's own
+algorithm registry exposed directly so the CLI's capabilities arrive without a
+release cycle.
+
+Stages 0 through 3 buy the credibility. Stages 4 and 6 are the reasons for someone to
+switch.
