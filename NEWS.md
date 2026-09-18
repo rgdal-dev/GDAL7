@@ -2,6 +2,13 @@
 
 ## Stage 0: the package installs and checks
 
+* The declared GDAL floor is now 3.10, up from 3.0.0, which was wrong in any case:
+  the multidimensional bindings are RFC 75 and need at least 3.1. `configure`
+  reads the floor from `DESCRIPTION` and refuses an older GDAL with a clear
+  message. Linux CI moved to `ubuntu-26.04`, whose `libgdal-dev` is 3.12.2;
+  `ubuntu-latest` is still 24.04 with GDAL 3.8.4, and migrates to 26.04 in
+  October 2026.
+
 * The package can be installed from a clone or with `remotes::install_github()`.
   `src/cpp11.cpp` and `R/cpp11.R` are now committed rather than gitignored, so
   no generator step is needed before installing.

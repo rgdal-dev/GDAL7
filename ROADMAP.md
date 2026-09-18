@@ -303,9 +303,22 @@ structural improvement available.
 Today a method that needs GDAL 3.9 is deleted from the build for everyone
 (`data-raw/generate_cpp11.R:474-508` lists the version reasons in comments). Wrapping
 generated bindings in `#if GDAL_VERSION_NUM >= ...` and exposing a
-`gdal7_capabilities()` table lets one source tree serve GDAL 3.0 through 3.13 and
+`gdal7_capabilities()` table lets one source tree serve a range of GDAL versions and
 degrade honestly. The generator already knows enough to emit the guards; the version
 notes are sitting in those comments.
+
+Raising the declared floor does most of this work without any guards at all. The
+floor is now GDAL 3.10 (`DESCRIPTION`), which is above every version named in those
+skip comments: `ClearStatistics` (3.2), `GetFieldDomainNames` (3.3), the
+relationship methods (3.6), `MarkSuppressOnClose` and friends (3.9),
+`GetThreadSafeDataset` (3.10). Eleven of the thirty-five skipped methods are gated
+on nothing else, so the floor alone unblocks them.
+
+Unblocked is not the same as done. Each still needs a C API mapping, which is
+section 2's problem, so un-skipping them belongs to Stage 3 rather than being a
+quick win now. What the floor removes is the *reason* they were excluded. Guards
+remain worth having only for things above the floor, which today means the GDAL
+3.12 algorithm registry in 7.2.
 
 There is also no `gdal_version()` / `GDALVersionInfo()` binding at all, which every
 binding needs and which the capability story depends on.

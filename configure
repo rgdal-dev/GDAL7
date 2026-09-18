@@ -6,9 +6,11 @@
 #   2. gdal-config, from $GDAL_CONFIG or the PATH
 #   3. pkg-config gdal
 #
-# GDAL7 needs GDAL 3.0.0 or newer.
+# The required GDAL version is declared in DESCRIPTION, not here.
 
-GDAL_MIN_VERSION=3.0.0
+# Read the floor from DESCRIPTION so there is one source of truth for it.
+GDAL_MIN_VERSION=$(sed -n 's/^SystemRequirements:.*GDAL *(>= *\([0-9][0-9.]*\)).*/\1/p' DESCRIPTION)
+: "${GDAL_MIN_VERSION:=3.10.0}"
 
 : "${R_HOME=$(R RHOME)}"
 if [ -z "${R_HOME}" ]; then
@@ -63,6 +65,8 @@ if [ -n "${GDAL_VERSION}" ]; then
       "q(status = if (package_version('${GDAL_VERSION}') >= '${GDAL_MIN_VERSION}') 0L else 1L)" \
       >/dev/null 2>&1; then
     echo "configure: found GDAL ${GDAL_VERSION}, but GDAL7 needs >= ${GDAL_MIN_VERSION}" >&2
+    echo "configure: to build against it anyway, set PKG_CPPFLAGS and PKG_LIBS" >&2
+    echo "configure: explicitly, which skips this check." >&2
     exit 1
   fi
 fi

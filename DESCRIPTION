@@ -13,7 +13,7 @@ Imports:
     S7
 LinkingTo:
     cpp11
-SystemRequirements: GDAL (>= 3.0.0)
+SystemRequirements: GDAL (>= 3.10.0)
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
