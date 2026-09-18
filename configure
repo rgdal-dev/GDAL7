@@ -22,19 +22,23 @@ RBIN="${R_HOME}/bin/R"
 GDAL_CONFIG="${GDAL_CONFIG:-gdal-config}"
 GDAL_VERSION=""
 SOURCE=""
+SOURCE_KIND=""
 
 if [ -n "${PKG_CPPFLAGS}" ] && [ -n "${PKG_LIBS}" ]; then
   SOURCE="PKG_CPPFLAGS/PKG_LIBS from the environment"
+  SOURCE_KIND="env"
 elif "${GDAL_CONFIG}" --version >/dev/null 2>&1; then
   GDAL_VERSION=$("${GDAL_CONFIG}" --version)
   PKG_CPPFLAGS=$("${GDAL_CONFIG}" --cflags)
   PKG_LIBS=$("${GDAL_CONFIG}" --libs)
   SOURCE="gdal-config (GDAL ${GDAL_VERSION})"
+  SOURCE_KIND="gdal-config"
 elif pkg-config --exists gdal 2>/dev/null; then
   GDAL_VERSION=$(pkg-config --modversion gdal)
   PKG_CPPFLAGS=$(pkg-config --cflags gdal)
   PKG_LIBS=$(pkg-config --libs gdal)
   SOURCE="pkg-config (GDAL ${GDAL_VERSION})"
+  SOURCE_KIND="pkg-config"
 else
   cat >&2 <<'MSG'
 --------------------------- GDAL NOT FOUND ---------------------------
@@ -60,14 +64,32 @@ fi
 
 # Refuse a GDAL that is too old, rather than failing later with a confusing
 # compile error about a missing symbol.
+#
+# Only the leading numeric part is compared. A development build reports its
+# version as something like "3.14.0dev", which package_version() rejects
+# outright, and a version R cannot parse must never be mistaken for one that is
+# too old -- that turns the newest GDAL there is into a build failure.
 if [ -n "${GDAL_VERSION}" ]; then
-  if ! "${RBIN}" --vanilla --slave -e \
-      "q(status = if (package_version('${GDAL_VERSION}') >= '${GDAL_MIN_VERSION}') 0L else 1L)" \
-      >/dev/null 2>&1; then
-    echo "configure: found GDAL ${GDAL_VERSION}, but GDAL7 needs >= ${GDAL_MIN_VERSION}" >&2
-    echo "configure: to build against it anyway, set PKG_CPPFLAGS and PKG_LIBS" >&2
-    echo "configure: explicitly, which skips this check." >&2
-    exit 1
+  GDAL_VERSION_NUMERIC=$(echo "${GDAL_VERSION}" | \
+    sed -n 's/^\([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*/\1/p')
+
+  if [ -z "${GDAL_VERSION_NUMERIC}" ]; then
+    echo "configure: no version number in '${GDAL_VERSION}'; skipping the version check" >&2
+  else
+    VERSION_OK=$("${RBIN}" --vanilla --slave -e \
+      "cat(if (package_version('${GDAL_VERSION_NUMERIC}') >= '${GDAL_MIN_VERSION}') 'yes' else 'no')" \
+      2>/dev/null)
+
+    if [ "${VERSION_OK}" = "no" ]; then
+      echo "configure: found GDAL ${GDAL_VERSION}, but GDAL7 needs >= ${GDAL_MIN_VERSION}" >&2
+      echo "configure: to build against it anyway, set PKG_CPPFLAGS and PKG_LIBS" >&2
+      echo "configure: explicitly, which skips this check." >&2
+      exit 1
+    elif [ "${VERSION_OK}" != "yes" ]; then
+      # The comparison itself failed to run. The compile test below is the real
+      # gate, so say so and carry on rather than refusing to build.
+      echo "configure: could not compare GDAL ${GDAL_VERSION} against ${GDAL_MIN_VERSION}; continuing" >&2
+    fi
   fi
 fi
 
@@ -89,19 +111,78 @@ int main(void) {
 }
 CPP
 
-if ! ${CXX} ${CXX17STD} ${PKG_CPPFLAGS} "${TESTDIR}/conftest.cpp" -o "${TESTDIR}/conftest" ${PKG_LIBS} >"${TESTDIR}/conftest.log" 2>&1; then
-  echo "configure: GDAL was found via ${SOURCE}, but a test program did not build." >&2
-  echo "configure: PKG_CPPFLAGS=${PKG_CPPFLAGS}" >&2
-  echo "configure: PKG_LIBS=${PKG_LIBS}" >&2
-  cat "${TESTDIR}/conftest.log" >&2
-  rm -rf "${TESTDIR}"
-  exit 1
+SHLIB_LDFLAGS=$("${RBIN}" CMD config SHLIB_CXXLDFLAGS 2>/dev/null)
+[ -z "${SHLIB_LDFLAGS}" ] && SHLIB_LDFLAGS="-shared"
+PICFLAGS=$("${RBIN}" CMD config CXXPICFLAGS 2>/dev/null)
+
+# $1 output file, $2 extra flags before the source, $3 extra libraries after.
+# Word splitting on the flag variables is wanted here.
+conftest_build() {
+  # shellcheck disable=SC2086
+  ${CXX} ${CXX17STD} $2 ${PKG_CPPFLAGS} "${TESTDIR}/conftest.cpp" \
+    -o "${TESTDIR}/$1" ${PKG_LIBS} $3
+}
+
+LINK_MODE=""
+SHLIB_UNDEFINED=""
+
+echo "== linking an executable against PKG_LIBS ==" >"${TESTDIR}/conftest.log"
+if conftest_build conftest "" "" >>"${TESTDIR}/conftest.log" 2>&1; then
+  LINK_MODE="executable"
+else
+  # An executable has to resolve every symbol of every library on the link
+  # line, libgdal's own dependencies included. Two things routinely stop that
+  # on a working GDAL install, and neither means GDAL7 cannot be built.
+
+  # First: libgdal needs libraries that `gdal-config --libs` does not name.
+  # Those are needed for real, so they are kept.
+  DEP_LIBS=""
+  if [ "${SOURCE_KIND}" = "gdal-config" ]; then
+    DEP_LIBS=$("${GDAL_CONFIG}" --dep-libs 2>/dev/null)
+  fi
+
+  if [ -n "${DEP_LIBS}" ] && \
+     { echo "== retrying with gdal-config --dep-libs ==" >>"${TESTDIR}/conftest.log"; \
+       conftest_build conftest "" "${DEP_LIBS}" >>"${TESTDIR}/conftest.log" 2>&1; }; then
+    PKG_LIBS="${PKG_LIBS} ${DEP_LIBS}"
+    LINK_MODE="executable, with gdal-config --dep-libs"
+  # Second: libgdal has undefined symbols of its own that nothing on the link
+  # path supplies -- a GDAL built against a newer GEOS or PROJ than the one
+  # installed is the usual cause. R links GDAL7.so as a shared object, which
+  # tolerates that and resolves it when the library is loaded, so refusing the
+  # build here would be stricter than the build itself.
+  elif { echo "== retrying as a shared object, the way R links the package ==" \
+           >>"${TESTDIR}/conftest.log"; \
+         conftest_build conftest.so "${PICFLAGS} ${SHLIB_LDFLAGS}" "" \
+           >>"${TESTDIR}/conftest.log" 2>&1; }; then
+    LINK_MODE="shared object"
+    SHLIB_UNDEFINED="yes"
+  else
+    echo "configure: GDAL was found via ${SOURCE}, but a test program did not build." >&2
+    echo "configure: PKG_CPPFLAGS=${PKG_CPPFLAGS}" >&2
+    echo "configure: PKG_LIBS=${PKG_LIBS}" >&2
+    cat "${TESTDIR}/conftest.log" >&2
+    rm -rf "${TESTDIR}"
+    exit 1
+  fi
 fi
 rm -rf "${TESTDIR}"
 
 echo "configure: GDAL found via ${SOURCE}"
 echo "configure: PKG_CPPFLAGS=${PKG_CPPFLAGS}"
 echo "configure: PKG_LIBS=${PKG_LIBS}"
+echo "configure: test program linked as ${LINK_MODE}"
+
+if [ -n "${SHLIB_UNDEFINED}" ]; then
+  cat >&2 <<'MSG'
+configure: note: this libgdal has undefined symbols of its own that no library
+configure: on the link path provides. GDAL7 uses none of them, and R links
+configure: GDAL7.so as a shared object, so the build goes ahead. If a GDAL
+configure: feature that needs them is used at run time it will fail then; the
+configure: usual cause is a GDAL built against a newer GEOS or PROJ than the
+configure: one installed.
+MSG
+fi
 
 sed -e "s|@cppflags@|${PKG_CPPFLAGS}|" \
     -e "s|@libs@|${PKG_LIBS}|" \

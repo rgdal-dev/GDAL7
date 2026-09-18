@@ -1,5 +1,24 @@
 # GDAL7 (development version)
 
+## configure fixes
+
+* A development build of GDAL is no longer refused. `gdal-config --version`
+  reports something like `3.14.0dev` for those, which `package_version()`
+  rejects outright, and `configure` was treating a version it could not parse
+  as a version that was too old. Only the leading numeric part is compared now,
+  and a comparison that cannot be made is reported and stepped over rather than
+  being fatal.
+
+* A libgdal with undefined symbols of its own no longer blocks the build.
+  `configure` linked its test program as an executable, which makes the linker
+  resolve every symbol of every library on the link line, libgdal's own
+  dependencies included. R links `GDAL7.so` as a shared object, which does not,
+  so the check was stricter than the build it was checking. It now retries with
+  `gdal-config --dep-libs`, and then as a shared object, before giving up, and
+  says which of the three worked. A GDAL built against a newer GEOS than the
+  one installed is the usual way this comes up; GDAL7 itself calls no GEOS
+  functions.
+
 ## Stage 1: safe object lifetimes
 
 * GDAL objects now have real lifetimes. Every handle reaching R carries a
