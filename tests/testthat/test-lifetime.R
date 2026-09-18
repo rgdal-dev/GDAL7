@@ -43,7 +43,7 @@ test_that("handles of the wrong kind are refused", {
   band <- get_raster_band(ds, 1)
 
   # Reaching past the S7 classes, which is what a binding must survive.
-  expect_error(GDAL7_dataset_get_raster_xsize(band@.ptr), "Expected a GDALDataset")
+  expect_error(GDAL7_dataset_raster_xsize(band@.ptr), "Expected a GDALDataset")
   expect_error(GDAL7_band_get_xsize(ds@.ptr), "Expected a GDALRasterBand")
   expect_error(GDAL7_close(band@.ptr), "Expected a GDALDataset")
 })

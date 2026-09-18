@@ -4,12 +4,12 @@
 \alias{set_metadata}
 \title{SetMetadata}
 \usage{
-set_metadata(x, papszMetadata, pszDomain = "")
+set_metadata(x, papszMetadata = NULL, pszDomain = "")
 }
 \arguments{
 \item{x}{A GDALMajorObject object}
 
-\item{papszMetadata}{character}
+\item{papszMetadata}{character (default: NULL)}
 
 \item{pszDomain}{character (default: "")}
 }

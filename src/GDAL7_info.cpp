@@ -16,24 +16,9 @@ inline GDALRasterBandH band(SEXP xp) {
 
 }  // namespace
 
-// ============================================================================
-// Dataset dimension properties (not captured by SWIG parser as they're %immutable)
-// ============================================================================
-
-[[cpp11::register]]
-int GDAL7_dataset_get_raster_xsize(SEXP xp) {
-    return GDALGetRasterXSize(dataset(xp));
-}
-
-[[cpp11::register]]
-int GDAL7_dataset_get_raster_ysize(SEXP xp) {
-    return GDALGetRasterYSize(dataset(xp));
-}
-
-[[cpp11::register]]
-int GDAL7_dataset_get_raster_count(SEXP xp) {
-    return GDALGetRasterCount(dataset(xp));
-}
+// The dataset's own dimensions are generated now: GDAL declares them with
+// %immutable, and the generator turns each into an S7 property backed by
+// GDAL7_dataset_raster_xsize() and friends in GDAL7_dataset.cpp.
 
 // ============================================================================
 // Raster Band methods

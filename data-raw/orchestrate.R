@@ -1,93 +1,132 @@
 # data-raw/orchestrate.R
-# Master script to regenerate all GDAL7 bindings from SWIG files
+# Regenerate every generated file in GDAL7 from the vendored API model.
 #
-# Usage: source("data-raw/orchestrate.R")
-# Then:  R CMD INSTALL --no-staged-install .
+# Usage:
+#   Rscript data-raw/orchestrate.R              # generate from inst/api/gdal-api.json
+#   Rscript data-raw/orchestrate.R --refresh    # re-extract the model from ~/gdal first
+#
+# The default needs no GDAL checkout, which is what lets CI regenerate and diff
+# on every commit. --refresh is the step a human takes when GDAL moves on; it
+# rewrites inst/api/gdal-api.json, and the change it makes to the generated
+# code is then a reviewable diff rather than a surprise.
+#
+# After generating: R CMD INSTALL --no-staged-install .
 
-# Path to GDAL swig includes (adjust to your setup)
+args <- commandArgs(trailingOnly = TRUE)
+refresh <- "--refresh" %in% args
 swig_dir <- "~/gdal/swig/include"
 
-# Check swig dir exists
-if (!dir.exists(normalizePath(swig_dir, mustWork = FALSE))) {
-  stop("SWIG directory not found: ", swig_dir,
-       "\nClone GDAL repo: git clone --depth 1 https://github.com/osgeo/gdal.git ~/gdal")
-}
-
-# Clean stale generated files BEFORE sourcing generators
-message("=== Cleaning stale files ===")
-unlink("src/cpp11.cpp")
-unlink("R/cpp11.R")
-unlink(list.files("src", pattern = "\\.(o|so|dll)$", full.names = TRUE))
-# Clean old class files (both naming conventions)
-unlink("R/class-majorobject.R")
-unlink("R/class-dataset.R")
-unlink("R/aaa-class-majorobject.R")
-unlink("R/aab-class-dataset.R")
-
-# Suppress test output when sourcing
+# Suppress the generators' standalone test blocks when sourced.
 SOURCED <- TRUE
 SOURCED_GEN <- TRUE
 SOURCED_S7_GEN <- TRUE
 
 message("=== Loading generators ===")
 source("data-raw/parse_swig.R")
+source("data-raw/api_model.R")
 source("data-raw/generate_cpp11.R")
 source("data-raw/generate_s7.R")
+source("data-raw/generate_constants.R")
 
-# Skip list for Dataset - methods that don't generate correctly yet
-# (GDAL 3.9+ functions, complex signatures, callbacks, arrays, etc.)
-dataset_skip <- c(
-  "MarkSuppressOnClose", "Close", "GetCloseReportsProgress",
-  "IsThreadSafe", "GetThreadSafeDataset", "GetRootGroup",
-  "SetProjection", "SetSpatialRef",
-  "GetExtent", "GetExtentWGS84LongLat",
-  "BuildOverviews", "AddBand", "CreateMaskBand", "AdviseRead",
-  "GetFieldDomainNames", "GetRelationshipNames",
-  "GetFieldDomain", "AddFieldDomain", "DeleteFieldDomain", "UpdateFieldDomain",
-  "GetRelationship", "AddRelationship", "DeleteRelationship", "UpdateRelationship",
-  "AsMDArray", "StartTransaction", "CommitTransaction", "RollbackTransaction",
-  "AbortSQL", "ResetReading", "GetLayer", "GetLayerByName", "ClearStatistics",
-  # Hand-written in R/driver.R and R/raster-info.R, where the classes they
-  # return are defined. Generating them too would re-register the same methods
-  # and make S7 warn about overwriting on every load.
-  "GetDriver", "GetRasterBand",
-  # Hand-written in R/raster-io.R. The generator has no way to express an array
-  # in or out of a C function, and these two carry a double[6] each way.
-  "GetGeoTransform", "SetGeoTransform"
+# =============================================================================
+# The API model
+# =============================================================================
+
+if (refresh) {
+  message("=== Refreshing the API model from ", swig_dir, " ===")
+  write_api_model(build_api_model(swig_dir))
+}
+
+model <- read_api_model()
+symbol_versions <- read_symbol_versions()
+message(sprintf("=== API model: GDAL %s, extracted %s ===",
+                model$gdal_version, model$extracted))
+
+# Methods that are written by hand elsewhere in the package. Unlike everything
+# the generator declines to emit, these are not gaps: they are places where a
+# hand-written binding does more than the generator could, and generating them
+# too would define the same symbol twice.
+hand_written <- list(
+  Dataset = c(
+    # R/driver.R and R/raster-info.R, where the classes they return live.
+    "GetDriver", "GetRasterBand",
+    # R/raster-io.R. Each carries a double[6], which the generator cannot
+    # express in either direction.
+    "GetGeoTransform", "SetGeoTransform",
+    # src/GDAL7_multidim.cpp, which also opens groups and arrays.
+    "GetRootGroup"
+  )
 )
 
 # =============================================================================
-# Generate MajorObject (base class - must load first, hence "aaa-" prefix)
+# Clean stale generated files BEFORE generating
 # =============================================================================
-message("=== Generating MajorObject ===")
-result <- parse_swig_file(file.path(swig_dir, "MajorObject.i"))
-cls <- result$classes[[1]]
 
-generate_cpp11_file(cls, "src/GDAL7_majorobject.cpp")
-generate_s7_file(cls, "R/aaa-class-majorobject.R")  # aaa- ensures it loads first
-
-# =============================================================================
-# Generate Dataset (inherits from MajorObject)
-# =============================================================================
-message("=== Generating Dataset ===")
-result <- parse_swig_file(file.path(swig_dir, "Dataset.i"))
-cls <- result$classes[[1]]
-
-generate_cpp11_file(cls, "src/GDAL7_dataset.cpp")
-generate_s7_file(cls, "R/aab-class-dataset.R", skip_methods = dataset_skip)  # aab- loads second
+message("=== Cleaning stale files ===")
+unlink("src/cpp11.cpp")
+unlink("R/cpp11.R")
+unlink(list.files("src", pattern = "\\.(o|so|dll)$", full.names = TRUE))
+unlink("R/aaa-class-majorobject.R")
+unlink("R/aab-class-dataset.R")
+unlink("src/GDAL7_majorobject.cpp")
+unlink("src/GDAL7_dataset.cpp")
+unlink("src/GDAL7_constants.cpp")
+unlink("src/GDAL7_capabilities.cpp")
 
 # =============================================================================
-# Generate cpp11 registration and fix it
+# Classes
 # =============================================================================
+
+# MajorObject is generated first and named "aaa-" so that it loads before the
+# classes that inherit from it.
+outputs <- list(
+  MajorObject = list(cpp = "src/GDAL7_majorobject.cpp",
+                     r = "R/aaa-class-majorobject.R"),
+  Dataset = list(cpp = "src/GDAL7_dataset.cpp",
+                 r = "R/aab-class-dataset.R")
+)
+
+capabilities <- list()
+
+for (cls in model$classes) {
+  name <- cls$public_name
+  message(sprintf("=== Generating %s ===", name))
+
+  paths <- outputs[[name]]
+  if (is.null(paths)) {
+    stop("No output paths are configured for class ", name)
+  }
+
+  result <- generate_cpp11_file(cls, paths$cpp, symbol_versions,
+                                hand_written = hand_written[[name]] %||% character())
+  generate_s7_file(cls, paths$r, methods = result$methods, members = result$members)
+
+  capabilities <- c(capabilities, result$capabilities)
+
+  if (length(result$skipped) > 0) {
+    message(sprintf("    %d method(s) not generated; reasons are in %s",
+                    length(unique(vapply(result$skipped, function(x) x$name, ""))),
+                    paths$cpp))
+  }
+}
+
+# =============================================================================
+# Constants and capabilities
+# =============================================================================
+
+message("=== Generating constants ===")
+generate_constants_file(model, "src/GDAL7_constants.cpp", symbol_versions)
+
+message("=== Generating capabilities ===")
+generate_capabilities_file(capabilities, "src/GDAL7_capabilities.cpp")
+
+# =============================================================================
+# cpp11 registration
+# =============================================================================
+
 message("=== Generating cpp11 registration ===")
 cpp11::cpp_register()
 
-# =============================================================================
-# Done!
-# =============================================================================
 message("")
 message("=== Generation complete ===")
 message("Now run: R CMD INSTALL --no-staged-install .")
-message("")
-message("Or in R:")
-message("  system('R CMD INSTALL --no-staged-install .')")

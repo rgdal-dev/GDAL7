@@ -18,17 +18,68 @@ inline GDALDatasetH get_dataset_handle(SEXP xp) {
 }  // namespace
 
 [[cpp11::register]]
-SEXP GDAL7_dataset_get_driver(SEXP xp) {
+int GDAL7_dataset_raster_xsize(SEXP xp) {
     GDALDatasetH h = get_dataset_handle(xp);
-    GDALDriverH result = GDALGetDatasetDriver(h);
-    return gdal7::wrap(result, gdal7::Kind::Driver);
+    return GDALGetRasterXSize(h);
 }
 
 [[cpp11::register]]
-SEXP GDAL7_dataset_get_raster_band(SEXP xp, int nBand) {
+int GDAL7_dataset_raster_ysize(SEXP xp) {
     GDALDatasetH h = get_dataset_handle(xp);
-    GDALRasterBandH result = GDALGetRasterBand(h, nBand);
-    return gdal7::wrap(result, gdal7::Kind::Band, xp);
+    return GDALGetRasterYSize(h);
+}
+
+[[cpp11::register]]
+int GDAL7_dataset_raster_count(SEXP xp) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALGetRasterCount(h);
+}
+
+[[cpp11::register]]
+void GDAL7_dataset_mark_suppress_on_close(SEXP xp) {
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 12, 0)
+    GDALDatasetH h = get_dataset_handle(xp);
+    GDALDatasetMarkSuppressOnClose(h);
+#else
+    (void)xp;
+    gdal7::unavailable("mark_suppress_on_close", "3.12.0");
+#endif
+}
+
+[[cpp11::register]]
+bool GDAL7_dataset_get_close_reports_progress(SEXP xp) {
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 13, 0)
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetGetCloseReportsProgress(h);
+#else
+    (void)xp;
+    gdal7::unavailable("get_close_reports_progress", "3.13.0");
+#endif
+}
+
+[[cpp11::register]]
+bool GDAL7_dataset_is_thread_safe(SEXP xp, int nScopeFlags) {
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 10, 0)
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetIsThreadSafe(h, nScopeFlags, nullptr);
+#else
+    (void)xp;
+    (void)nScopeFlags;
+    gdal7::unavailable("is_thread_safe", "3.10.0");
+#endif
+}
+
+[[cpp11::register]]
+SEXP GDAL7_dataset_get_thread_safe_dataset(SEXP xp, int nScopeFlags) {
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 10, 0)
+    GDALDatasetH h = get_dataset_handle(xp);
+    GDALDatasetH result = GDALGetThreadSafeDataset(h, nScopeFlags, nullptr);
+    return gdal7::wrap(result, gdal7::Kind::Dataset, xp);
+#else
+    (void)xp;
+    (void)nScopeFlags;
+    gdal7::unavailable("get_thread_safe_dataset", "3.10.0");
+#endif
 }
 
 [[cpp11::register]]
@@ -44,10 +95,15 @@ cpp11::strings GDAL7_dataset_get_projection_ref(SEXP xp) {
 }
 
 [[cpp11::register]]
-SEXP GDAL7_dataset_get_spatial_ref(SEXP xp) {
+int GDAL7_dataset_set_projection(SEXP xp, std::string prj) {
     GDALDatasetH h = get_dataset_handle(xp);
-    OGRSpatialReferenceH result = GDALGetSpatialRef(h);
-    return gdal7::wrap(result, gdal7::Kind::SpatialRef, xp);
+    gdal7::ErrorScope err;
+    CPLErr status = GDALSetProjection(h, prj.c_str());
+    if (status != CE_None) {
+        err.stop("SetProjection failed");
+    }
+    err.flush();
+    return static_cast<int>(status);
 }
 
 [[cpp11::register]]
@@ -75,6 +131,30 @@ int GDAL7_dataset_flush_cache(SEXP xp) {
 }
 
 [[cpp11::register]]
+int GDAL7_dataset_add_band(SEXP xp, int datatype, cpp11::strings options) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    gdal7::ErrorScope err;
+    CPLErr status = GDALAddBand(h, static_cast<GDALDataType>(datatype), gdal7::to_csl(options).List());
+    if (status != CE_None) {
+        err.stop("AddBand failed");
+    }
+    err.flush();
+    return static_cast<int>(status);
+}
+
+[[cpp11::register]]
+int GDAL7_dataset_create_mask_band(SEXP xp, int nFlags) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    gdal7::ErrorScope err;
+    CPLErr status = GDALCreateDatasetMaskBand(h, nFlags);
+    if (status != CE_None) {
+        err.stop("CreateMaskBand failed");
+    }
+    err.flush();
+    return static_cast<int>(status);
+}
+
+[[cpp11::register]]
 cpp11::strings GDAL7_dataset_get_file_list(SEXP xp) {
     GDALDatasetH h = get_dataset_handle(xp);
     char** result = GDALGetFileList(h);
@@ -84,8 +164,106 @@ cpp11::strings GDAL7_dataset_get_file_list(SEXP xp) {
 }
 
 [[cpp11::register]]
+void GDAL7_dataset_reset_reading(SEXP xp) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    GDALDatasetResetReading(h);
+}
+
+[[cpp11::register]]
 int GDAL7_dataset_get_layer_count(SEXP xp) {
     GDALDatasetH h = get_dataset_handle(xp);
     return GDALDatasetGetLayerCount(h);
 }
+
+[[cpp11::register]]
+int GDAL7_dataset_abort_sql(SEXP xp) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetAbortSQL(h);
+}
+
+[[cpp11::register]]
+int GDAL7_dataset_start_transaction(SEXP xp, int force) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetStartTransaction(h, force);
+}
+
+[[cpp11::register]]
+int GDAL7_dataset_commit_transaction(SEXP xp) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetCommitTransaction(h);
+}
+
+[[cpp11::register]]
+int GDAL7_dataset_rollback_transaction(SEXP xp) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetRollbackTransaction(h);
+}
+
+[[cpp11::register]]
+void GDAL7_dataset_clear_statistics(SEXP xp) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    GDALDatasetClearStatistics(h);
+}
+
+[[cpp11::register]]
+cpp11::strings GDAL7_dataset_get_field_domain_names(SEXP xp, cpp11::strings options) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    char** result = GDALDatasetGetFieldDomainNames(h, gdal7::to_csl(options).List());
+    strings out = gdal7::from_csl(result);
+    CSLDestroy(result);
+    return out;
+}
+
+[[cpp11::register]]
+bool GDAL7_dataset_delete_field_domain(SEXP xp, std::string name) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetDeleteFieldDomain(h, name.c_str(), nullptr);
+}
+
+[[cpp11::register]]
+cpp11::strings GDAL7_dataset_get_relationship_names(SEXP xp, cpp11::strings options) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    char** result = GDALDatasetGetRelationshipNames(h, gdal7::to_csl(options).List());
+    strings out = gdal7::from_csl(result);
+    CSLDestroy(result);
+    return out;
+}
+
+[[cpp11::register]]
+bool GDAL7_dataset_delete_relationship(SEXP xp, std::string name) {
+    GDALDatasetH h = get_dataset_handle(xp);
+    return GDALDatasetDeleteRelationship(h, name.c_str(), nullptr);
+}
+
+[[cpp11::register]]
+SEXP GDAL7_dataset_as_mdarray(SEXP xp, cpp11::strings options) {
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 12, 0)
+    GDALDatasetH h = get_dataset_handle(xp);
+    GDALMDArrayH result = GDALDatasetAsMDArray(h, gdal7::to_csl(options).List());
+    return gdal7::wrap(result, gdal7::Kind::MDArray, xp);
+#else
+    (void)xp;
+    (void)options;
+    gdal7::unavailable("as_mdarray", "3.12.0");
+#endif
+}
+
+// Not generated (15 of GDAL's Dataset methods), with the reason the
+// generator gave. Each is a thing the generator cannot yet express, not a
+// thing GDAL7 has decided against.
+//   Close                    parameter callback is GDALProgressFunc
+//   GetSpatialRef            its SWIG body is not a single C call
+//   SetSpatialRef            parameter srs is OSRSpatialReferenceShadow*
+//   GetExtent                GDALGetExtent is passed argout, which is not a parameter
+//   GetExtentWGS84LongLat    GDALGetExtentWGS84LongLat is passed argout, which is not a parameter
+//   BuildOverviews           GDALBuildOverviewsEx is passed resampling ? resampling : "NEAREST", which is not a parameter
+//   AdviseRead               its SWIG body is not a single C call
+//   GetLayer                 its SWIG body is not a single C call
+//   GetLayerByName           its SWIG body is not a single C call
+//   GetFieldDomain           GDAL7 has no class for OGRFieldDomainH
+//   AddFieldDomain           its SWIG body is not a single C call
+//   UpdateFieldDomain        parameter fieldDomain is OGRFieldDomainShadow*
+//   GetRelationship          GDAL7 has no class for GDALRelationshipH
+//   AddRelationship          parameter relationship is GDALRelationshipShadow*
+//   UpdateRelationship       parameter relationship is GDALRelationshipShadow*
 

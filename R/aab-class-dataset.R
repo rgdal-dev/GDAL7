@@ -17,7 +17,19 @@ GDALDataset <- S7::new_class(
 
   properties = list(
     # Internal pointer - not for direct user access
-    .ptr = S7::class_any
+    .ptr = S7::class_any,
+    raster_xsize = S7::new_property(
+      S7::class_integer,
+      getter = function(self) GDAL7_dataset_raster_xsize(self@.ptr)
+    ),
+    raster_ysize = S7::new_property(
+      S7::class_integer,
+      getter = function(self) GDAL7_dataset_raster_ysize(self@.ptr)
+    ),
+    raster_count = S7::new_property(
+      S7::class_integer,
+      getter = function(self) GDAL7_dataset_raster_count(self@.ptr)
+    )
   ),
 
   validator = function(self) {
@@ -30,6 +42,38 @@ GDALDataset <- S7::new_class(
 # -----------------------------------------------------------------------------
 # Generics for GDALDataset
 # -----------------------------------------------------------------------------
+
+#' MarkSuppressOnClose
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return NULL
+#' @export
+mark_suppress_on_close <- S7::new_generic("mark_suppress_on_close", "x")
+
+#' GetCloseReportsProgress
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return logical
+#' @export
+get_close_reports_progress <- S7::new_generic("get_close_reports_progress", "x")
+
+#' IsThreadSafe
+#'
+#' @param x A GDALDataset object
+#' @param nScopeFlags integer
+#' @return logical
+#' @export
+is_thread_safe <- S7::new_generic("is_thread_safe", "x", function(x, nScopeFlags) S7::S7_dispatch())
+
+#' GetThreadSafeDataset
+#'
+#' @param x A GDALDataset object
+#' @param nScopeFlags integer
+#' @return GDALDataset
+#' @export
+get_thread_safe_dataset <- S7::new_generic("get_thread_safe_dataset", "x", function(x, nScopeFlags) S7::S7_dispatch())
 
 #' GetProjection
 #'
@@ -47,13 +91,13 @@ get_projection <- S7::new_generic("get_projection", "x")
 #' @export
 get_projection_ref <- S7::new_generic("get_projection_ref", "x")
 
-#' GetSpatialRef
+#' SetProjection
 #'
 #' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return OSRSpatialReference
+#' @param prj character
+#' @return integer
 #' @export
-get_spatial_ref <- S7::new_generic("get_spatial_ref", "x")
+set_projection <- S7::new_generic("set_projection", "x", function(x, prj) S7::S7_dispatch())
 
 #' GetGCPCount
 #'
@@ -79,6 +123,23 @@ get_gcpprojection <- S7::new_generic("get_gcpprojection", "x")
 #' @export
 flush_cache <- S7::new_generic("flush_cache", "x")
 
+#' AddBand
+#'
+#' @param x A GDALDataset object
+#' @param datatype ANY
+#' @param options character (default: NULL)
+#' @return integer
+#' @export
+add_band <- S7::new_generic("add_band", "x", function(x, datatype, options = NULL) S7::S7_dispatch())
+
+#' CreateMaskBand
+#'
+#' @param x A GDALDataset object
+#' @param nFlags integer
+#' @return integer
+#' @export
+create_mask_band <- S7::new_generic("create_mask_band", "x", function(x, nFlags) S7::S7_dispatch())
+
 #' GetFileList
 #'
 #' @param x A GDALDataset object
@@ -86,6 +147,14 @@ flush_cache <- S7::new_generic("flush_cache", "x")
 #' @return character
 #' @export
 get_file_list <- S7::new_generic("get_file_list", "x")
+
+#' ResetReading
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return NULL
+#' @export
+reset_reading <- S7::new_generic("reset_reading", "x")
 
 #' GetLayerCount
 #'
@@ -95,9 +164,108 @@ get_file_list <- S7::new_generic("get_file_list", "x")
 #' @export
 get_layer_count <- S7::new_generic("get_layer_count", "x")
 
+#' AbortSQL
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return integer
+#' @export
+abort_sql <- S7::new_generic("abort_sql", "x")
+
+#' StartTransaction
+#'
+#' @param x A GDALDataset object
+#' @param force integer (default: FALSE)
+#' @return integer
+#' @export
+start_transaction <- S7::new_generic("start_transaction", "x", function(x, force = FALSE) S7::S7_dispatch())
+
+#' CommitTransaction
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return integer
+#' @export
+commit_transaction <- S7::new_generic("commit_transaction", "x")
+
+#' RollbackTransaction
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return integer
+#' @export
+rollback_transaction <- S7::new_generic("rollback_transaction", "x")
+
+#' ClearStatistics
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return NULL
+#' @export
+clear_statistics <- S7::new_generic("clear_statistics", "x")
+
+#' GetFieldDomainNames
+#'
+#' @param x A GDALDataset object
+#' @param options character (default: NULL)
+#' @return character
+#' @export
+get_field_domain_names <- S7::new_generic("get_field_domain_names", "x", function(x, options = NULL) S7::S7_dispatch())
+
+#' DeleteFieldDomain
+#'
+#' @param x A GDALDataset object
+#' @param name character
+#' @return logical
+#' @export
+delete_field_domain <- S7::new_generic("delete_field_domain", "x", function(x, name) S7::S7_dispatch())
+
+#' GetRelationshipNames
+#'
+#' @param x A GDALDataset object
+#' @param options character (default: NULL)
+#' @return character
+#' @export
+get_relationship_names <- S7::new_generic("get_relationship_names", "x", function(x, options = NULL) S7::S7_dispatch())
+
+#' DeleteRelationship
+#'
+#' @param x A GDALDataset object
+#' @param name character
+#' @return logical
+#' @export
+delete_relationship <- S7::new_generic("delete_relationship", "x", function(x, name) S7::S7_dispatch())
+
+#' AsMDArray
+#'
+#' @param x A GDALDataset object
+#' @param options character (default: NULL)
+#' @return GDALMDArray
+#' @export
+as_mdarray <- S7::new_generic("as_mdarray", "x", function(x, options = NULL) S7::S7_dispatch())
+
 # -----------------------------------------------------------------------------
 # Methods for GDALDataset
 # -----------------------------------------------------------------------------
+
+S7::method(mark_suppress_on_close, GDALDataset) <- function(x) {
+  GDAL7_dataset_mark_suppress_on_close(x@.ptr)
+  invisible(x)
+}
+
+S7::method(get_close_reports_progress, GDALDataset) <- function(x) {
+  GDAL7_dataset_get_close_reports_progress(x@.ptr)
+}
+
+S7::method(is_thread_safe, GDALDataset) <- function(x, nScopeFlags) {
+  GDAL7_dataset_is_thread_safe(x@.ptr, as.integer(nScopeFlags))
+}
+
+S7::method(get_thread_safe_dataset, GDALDataset) <- function(x, nScopeFlags) {
+  ptr <- GDAL7_dataset_get_thread_safe_dataset(x@.ptr, as.integer(nScopeFlags))
+  if (is.null(ptr)) return(NULL)
+  GDALDataset(.ptr = ptr)
+}
 
 S7::method(get_projection, GDALDataset) <- function(x) {
   GDAL7_dataset_get_projection(x@.ptr)
@@ -107,8 +275,8 @@ S7::method(get_projection_ref, GDALDataset) <- function(x) {
   GDAL7_dataset_get_projection_ref(x@.ptr)
 }
 
-S7::method(get_spatial_ref, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_spatial_ref(x@.ptr)
+S7::method(set_projection, GDALDataset) <- function(x, prj) {
+  GDAL7_dataset_set_projection(x@.ptr, prj)
 }
 
 S7::method(get_gcpcount, GDALDataset) <- function(x) {
@@ -123,12 +291,66 @@ S7::method(flush_cache, GDALDataset) <- function(x) {
   GDAL7_dataset_flush_cache(x@.ptr)
 }
 
+S7::method(add_band, GDALDataset) <- function(x, datatype, options = NULL) {
+  GDAL7_dataset_add_band(x@.ptr, as.integer(datatype), as.character(options))
+}
+
+S7::method(create_mask_band, GDALDataset) <- function(x, nFlags) {
+  GDAL7_dataset_create_mask_band(x@.ptr, as.integer(nFlags))
+}
+
 S7::method(get_file_list, GDALDataset) <- function(x) {
   GDAL7_dataset_get_file_list(x@.ptr)
 }
 
+S7::method(reset_reading, GDALDataset) <- function(x) {
+  GDAL7_dataset_reset_reading(x@.ptr)
+  invisible(x)
+}
+
 S7::method(get_layer_count, GDALDataset) <- function(x) {
   GDAL7_dataset_get_layer_count(x@.ptr)
+}
+
+S7::method(abort_sql, GDALDataset) <- function(x) {
+  GDAL7_dataset_abort_sql(x@.ptr)
+}
+
+S7::method(start_transaction, GDALDataset) <- function(x, force = FALSE) {
+  GDAL7_dataset_start_transaction(x@.ptr, as.integer(force))
+}
+
+S7::method(commit_transaction, GDALDataset) <- function(x) {
+  GDAL7_dataset_commit_transaction(x@.ptr)
+}
+
+S7::method(rollback_transaction, GDALDataset) <- function(x) {
+  GDAL7_dataset_rollback_transaction(x@.ptr)
+}
+
+S7::method(clear_statistics, GDALDataset) <- function(x) {
+  GDAL7_dataset_clear_statistics(x@.ptr)
+  invisible(x)
+}
+
+S7::method(get_field_domain_names, GDALDataset) <- function(x, options = NULL) {
+  GDAL7_dataset_get_field_domain_names(x@.ptr, as.character(options))
+}
+
+S7::method(delete_field_domain, GDALDataset) <- function(x, name) {
+  GDAL7_dataset_delete_field_domain(x@.ptr, name)
+}
+
+S7::method(get_relationship_names, GDALDataset) <- function(x, options = NULL) {
+  GDAL7_dataset_get_relationship_names(x@.ptr, as.character(options))
+}
+
+S7::method(delete_relationship, GDALDataset) <- function(x, name) {
+  GDAL7_dataset_delete_relationship(x@.ptr, name)
+}
+
+S7::method(as_mdarray, GDALDataset) <- function(x, options = NULL) {
+  GDAL7_dataset_as_mdarray(x@.ptr, as.character(options))
 }
 
 

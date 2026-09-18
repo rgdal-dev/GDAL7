@@ -166,6 +166,35 @@ get_dimensions(arr)
 gdal_close(ds)
 ```
 
+### Constants and capabilities
+
+The enumerators and metadata keys that GDAL declares come through as two named
+vectors, rather than two hundred exported names:
+
+```{r constants}
+gdal_constants("GDT_")[1:6]
+gdal_string_constants("DCAP_")[1:3]
+```
+
+The dimensions of a dataset are S7 properties, read from GDAL each time rather
+than copied when the object was made:
+
+```{r properties}
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+c(ds@raster_xsize, ds@raster_ysize, ds@raster_count)
+gdal_close(ds)
+```
+
+A few bindings call GDAL functions newer than the minimum GDAL7 requires. They
+always exist and always dispatch; calling one that the GDAL in use is too old
+for raises an error naming the release it needs. `gdal7_capabilities()` is how
+to ask first:
+
+```{r capabilities}
+gdal_version()[["release"]]
+gdal7_capabilities()
+```
+
 ## Code of Conduct
 
 Please note that the GDAL7 project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.

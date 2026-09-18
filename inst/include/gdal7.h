@@ -380,6 +380,14 @@ class ErrorScope {
 // GDAL uses a null pointer for "not set" and "" for "set to the empty string".
 // Keeping the two apart on the R side is the difference between a metadata
 // item that is absent and one that is present and blank.
+// A binding whose C function is newer than the GDAL this was built against.
+// The binding still exists, so registration and dispatch are unaffected; it is
+// the call that is not there, and saying so beats failing to link.
+[[noreturn]] inline void unavailable(const char* what, const char* needed) {
+    cpp11::stop("%s() needs GDAL %s or newer; GDAL7 was built against %s",
+                what, needed, GDALVersionInfo("RELEASE_NAME"));
+}
+
 inline cpp11::strings chr(const char* value) {
     cpp11::writable::strings out(static_cast<R_xlen_t>(1));
     if (value == nullptr) {

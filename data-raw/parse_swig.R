@@ -15,7 +15,17 @@ new_class_def <- function() {
     internal_name = NA_character_,
     parent = NA_character_,
     properties = list(),
+    members = list(),
     methods = list()
+  )
+}
+
+new_member_def <- function() {
+  list(
+    name = NA_character_,
+    type = NA_character_,
+    immutable = TRUE,
+    get_body = NA_character_
   )
 }
 
@@ -109,14 +119,62 @@ parse_rename <- function(line) {
   }
 }
 
-# Parse: %constant NAME = VALUE;
+# TRUE when a preprocessor guard selects a different SWIG target language, so
+# the block it opens is not ours. A negated guard -- "#if !defined(SWIGJAVA)"
+# or "#ifndef SWIGJAVA" -- selects every other language, ours included, so it
+# is kept. gdalconst.i puts the whole string-constant block behind one of those.
+swig_lang_guard_skips <- function(line) {
+  stripped <- gsub("!\\s*defined\\s*\\(\\s*SWIG\\w*\\s*\\)", "", line)
+  stripped <- sub("^\\s*#\\s*ifndef\\s+SWIG\\w*", "", stripped)
+  grepl("SWIG", stripped)
+}
+
+# Parse: %constant [type] NAME = VALUE;
+#
+# SWIG allows the type to be omitted, in which case the constant is an
+# enumerator and therefore an int. When it is present it is one of a handful
+# of C spellings, of which only "char *" is not integral.
 parse_constant <- function(line) {
-  m <- regmatches(line, regexec("%constant\\s+(\\w+)\\s*=\\s*(\\w+)", line))[[1]]
-  if (length(m) == 3) {
-    list(name = m[2], value = m[3])
-  } else {
-    NULL
+  m <- regmatches(
+    line,
+    regexec("^\\s*%constant\\s+(.*?)([A-Za-z_]\\w*)\\s*=\\s*([^;]+?)\\s*;", line)
+  )[[1]]
+  if (length(m) != 4) {
+    return(NULL)
   }
+
+  type <- trimws(m[2])
+  if (type == "") {
+    type <- "int"
+  }
+
+  kind <- if (grepl("\\*", type) || grepl("\\bchar\\b", type)) "string" else "int"
+
+  list(name = m[3], value = m[4], type = type, kind = kind)
+}
+
+# Parse a member declaration inside %extend: "int RasterXSize;".
+# Returns NULL for anything that is not one, including the constructor and
+# destructor declarations that sit in the same block.
+parse_member <- function(line, class_name) {
+  line <- trimws(line)
+  if (!grepl(";\\s*$", line)) return(NULL)
+  if (grepl("[()=]", line)) return(NULL)
+  if (grepl("^~", line)) return(NULL)
+
+  m <- regmatches(
+    line,
+    regexec("^([A-Za-z_][A-Za-z0-9_ ]*[ *])([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*;[[:space:]]*$", line)
+  )[[1]]
+  if (length(m) != 3) return(NULL)
+
+  name <- m[3]
+  if (!is.na(class_name) && name == class_name) return(NULL)
+
+  member <- new_member_def()
+  member$type <- trimws(m[2])
+  member$name <- name
+  member
 }
 
 # Parse: class ClassName : public ParentClass {
@@ -302,11 +360,15 @@ parse_params <- function(params_str, apply_context) {
       param$name <- tail(tokens, 1)
       # Handle pointer attached to name: *pszName -> pszName, type gets *
       if (grepl("^\\*+", param$name)) {
+        # "char **options": the stars belong to the type, not the name. Keeping
+        # them is what tells a string list apart from a single char.
         stars <- regmatches(param$name, regexec("^(\\*+)", param$name))[[1]][2]
         param$name <- sub("^\\*+", "", param$name)
         tokens[length(tokens)] <- stars
+        param$type <- paste(tokens, collapse = " ")
+      } else {
+        param$type <- paste(tokens[-length(tokens)], collapse = " ")
       }
-      param$type <- paste(tokens[-length(tokens)], collapse = " ")
       # Clean up type
       param$type <- gsub("\\s+", " ", param$type)
       param$type <- sub("\\s*\\*\\s*$", "*", param$type)  # Normalize trailing *
@@ -414,6 +476,8 @@ parse_swig_file <- function(filepath, debug = FALSE) {
   apply_context <- list()
   brace_depth <- 0
   skip_depth <- 0
+  keep_depth <- 0
+  immutable <- FALSE
   i <- 1
 
   dbg <- function(...) if (debug) cat(sprintf(...))
@@ -440,21 +504,31 @@ parse_swig_file <- function(filepath, debug = FALSE) {
         next
       }
 
-      # Check for language-specific ifdef blocks - skip these
-      # We want to skip: #ifdef SWIGPYTHON, #if defined(SWIGJAVA), etc.
-      # But NOT: #ifndef FROM_PYTHON_OGR_I (those are include guards)
-      if (grepl("^#if.*SWIG(PYTHON|JAVA|CSHARP|PERL)", line) ||
-          grepl("^#ifdef\\s+SWIG", line)) {
+      # Conditional blocks. One that selects another SWIG language is skipped
+      # whole; one that is kept is remembered, so that its #else branch -- the
+      # branch written for the languages the guard excluded -- is skipped in
+      # its turn.
+      if (grepl("^#\\s*if", line)) {
+        if (swig_lang_guard_skips(line)) {
+          state <- "SKIP_IFDEF"
+          skip_depth <- 1
+        } else {
+          keep_depth <- keep_depth + 1
+        }
+        i <- i + 1
+        next
+      }
+
+      if (grepl("^#\\s*else", line) && keep_depth > 0) {
+        keep_depth <- keep_depth - 1
         state <- "SKIP_IFDEF"
         skip_depth <- 1
         i <- i + 1
         next
       }
 
-      # Skip #if defined(SWIGXXX) blocks
-      if (grepl("^#if\\s+defined\\s*\\(\\s*SWIG", line)) {
-        state <- "SKIP_IFDEF"
-        skip_depth <- 1
+      if (grepl("^#\\s*endif", line)) {
+        if (keep_depth > 0) keep_depth <- keep_depth - 1
         i <- i + 1
         next
       }
@@ -595,8 +669,31 @@ parse_swig_file <- function(filepath, debug = FALSE) {
         next
       }
 
+      # %immutable / %mutable switch how the declarations that follow are
+      # exposed. An immutable member is a read-only attribute, which is what
+      # an S7 property with a getter and no setter is.
+      if (grepl("^%immutable\\s*;", line)) {
+        immutable <- TRUE
+        i <- i + 1
+        next
+      }
+      if (grepl("^%mutable\\s*;", line)) {
+        immutable <- FALSE
+        i <- i + 1
+        next
+      }
+
       # Skip other SWIG directives
       if (grepl("^%", line)) {
+        i <- i + 1
+        next
+      }
+
+      # Member declaration: "int RasterXSize;". Only the immutable ones are
+      # recorded; a mutable member would need a setter, and GDAL declares none.
+      member <- parse_member(line, current_class$internal_name)
+      if (immutable && !is.null(member)) {
+        current_class$members <- c(current_class$members, list(member))
         i <- i + 1
         next
       }
@@ -652,7 +749,32 @@ parse_swig_file <- function(filepath, debug = FALSE) {
     }
   }
 
+  result$classes <- lapply(result$classes, attach_member_bodies,
+                           text = paste(lines, collapse = "\n"))
+
   result
+}
+
+# SWIG implements each immutable member as a C function in a trailing raw
+# block, named <ShadowType>_<Member>_get. That function body is the mapping
+# from the member to the C API, exactly as a method's %extend body is.
+attach_member_bodies <- function(cls, text) {
+  if (length(cls$members) == 0) return(cls)
+
+  cls$members <- lapply(cls$members, function(member) {
+    pattern <- sprintf("(?s)\\b%s_%s_get\\s*\\([^)]*\\)\\s*\\{(.*?)\\}",
+                       cls$internal_name, member$name)
+    m <- regmatches(text, regexpr(pattern, text, perl = TRUE))
+    if (length(m) == 1) {
+      body <- sub(sprintf("(?s)^.*?%s_%s_get\\s*\\([^)]*\\)\\s*\\{",
+                          cls$internal_name, member$name),
+                  "", m, perl = TRUE)
+      member$get_body <- trimws(sub("\\}\\s*$", "", body))
+    }
+    member
+  })
+
+  cls
 }
 
 # ============================================================================
@@ -733,4 +855,74 @@ if (FALSE) {  # Set to TRUE to test standalone
   cat("\n\nParsing Dataset.i...\n\n")
   result2 <- parse_swig_file(file.path(swig_dir, "Dataset.i"), debug = FALSE)
   print_parsed(result2)
+}
+
+# ============================================================================
+# Deriving the C API call from a %extend body
+# ============================================================================
+
+# Remove one leading C cast, e.g. "(GDALDriverShadow*) x" -> "x".
+strip_cast <- function(expr) {
+  expr <- trimws(expr)
+  repeat {
+    stripped <- sub("^\\([[:space:]]*[A-Za-z_][A-Za-z0-9_:[:space:]]*\\**[[:space:]]*\\)[[:space:]]*",
+                    "", expr)
+    if (identical(stripped, expr)) break
+    expr <- trimws(stripped)
+  }
+  expr
+}
+
+# Split a C argument list on the commas that are not inside parentheses.
+split_c_args <- function(text) {
+  text <- trimws(text)
+  if (text == "") return(character())
+
+  chars <- strsplit(text, "")[[1]]
+  depth <- 0
+  args <- character()
+  current <- character()
+  for (ch in chars) {
+    if (ch == "(") depth <- depth + 1
+    if (ch == ")") depth <- depth - 1
+    if (ch == "," && depth == 0) {
+      args <- c(args, paste(current, collapse = ""))
+      current <- character()
+    } else {
+      current <- c(current, ch)
+    }
+  }
+  c(args, paste(current, collapse = ""))
+}
+
+# The mapping from GDAL's C++ shadow API to its C API is the body of the
+# %extend block, which for most methods is a single call to the C function.
+# Derive that call rather than keeping a lookup table beside the parser.
+#
+# Returns list(func = "GDALGetRasterBand", args = c("self", "nBand")) or NULL
+# when the body is anything else: several statements, a conditional, a loop.
+derive_c_call <- function(body) {
+  if (is.null(body) || length(body) != 1 || is.na(body)) return(NULL)
+
+  lines <- strsplit(body, "\n")[[1]]
+  lines <- vapply(lines, strip_comments, character(1), USE.NAMES = FALSE)
+  lines <- lines[!grepl("^[[:space:]]*#", lines)]
+
+  stmt <- gsub("[[:space:]]+", " ", trimws(paste(lines, collapse = " ")))
+  stmt <- trimws(sub("\\}[[:space:]]*$", "", stmt))
+  if (!grepl(";[[:space:]]*$", stmt)) return(NULL)
+
+  inner <- trimws(sub(";[[:space:]]*$", "", stmt))
+  if (grepl(";", inner)) return(NULL)  # more than one statement
+
+  inner <- trimws(sub("^return\\b", "", inner))
+  inner <- strip_cast(inner)
+
+  m <- regmatches(inner, regexec("^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*\\((.*)\\)$", inner))[[1]]
+  if (length(m) != 3) return(NULL)
+
+  args <- vapply(split_c_args(m[3]), strip_cast, character(1), USE.NAMES = FALSE)
+  if (any(args == "")) return(NULL)
+
+  list(func = m[2], args = args)
 }

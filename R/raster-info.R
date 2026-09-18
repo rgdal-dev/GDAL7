@@ -21,7 +21,12 @@ GDALRasterBand <- S7::new_class(
 )
 
 # ============================================================================
-# Dataset dimension methods (properties in SWIG, need manual bindings)
+# Dataset dimensions
+#
+# GDAL declares these with %immutable, so the generator emits them as S7
+# properties on GDALDataset. These generics are the verb spelling of the same
+# three values, and read them through the properties rather than calling GDAL
+# a second way.
 # ============================================================================
 
 #' Get raster width
@@ -33,7 +38,7 @@ GDALRasterBand <- S7::new_class(
 get_raster_xsize <- S7::new_generic("get_raster_xsize", "x")
 
 S7::method(get_raster_xsize, GDALDataset) <- function(x) {
-    GDAL7_dataset_get_raster_xsize(x@.ptr)
+    x@raster_xsize
 }
 
 #' Get raster height
@@ -45,7 +50,7 @@ S7::method(get_raster_xsize, GDALDataset) <- function(x) {
 get_raster_ysize <- S7::new_generic("get_raster_ysize", "x")
 
 S7::method(get_raster_ysize, GDALDataset) <- function(x) {
-    GDAL7_dataset_get_raster_ysize(x@.ptr)
+    x@raster_ysize
 }
 
 #' Get number of raster bands
@@ -57,7 +62,7 @@ S7::method(get_raster_ysize, GDALDataset) <- function(x) {
 get_raster_count <- S7::new_generic("get_raster_count", "x")
 
 S7::method(get_raster_count, GDALDataset) <- function(x) {
-    GDAL7_dataset_get_raster_count(x@.ptr)
+    x@raster_count
 }
 
 # ============================================================================

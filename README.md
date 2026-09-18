@@ -205,6 +205,49 @@ get_dimensions(arr)
 gdal_close(ds)
 ```
 
+### Constants and capabilities
+
+The enumerators and metadata keys that GDAL declares come through as two
+named vectors, rather than two hundred exported names:
+
+``` r
+gdal_constants("GDT_")[1:6]
+#> GDT_Unknown    GDT_Byte    GDT_Int8  GDT_UInt16   GDT_Int16  GDT_UInt32 
+#>           0           1          14           2           3           4
+gdal_string_constants("DCAP_")[1:3]
+#>                      DCAP_OPEN                    DCAP_CREATE 
+#>                    "DCAP_OPEN"                  "DCAP_CREATE" 
+#>   DCAP_CREATE_MULTIDIMENSIONAL 
+#> "DCAP_CREATE_MULTIDIMENSIONAL"
+```
+
+The dimensions of a dataset are S7 properties, read from GDAL each time
+rather than copied when the object was made:
+
+``` r
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+c(ds@raster_xsize, ds@raster_ysize, ds@raster_count)
+#> [1] 20 10  2
+gdal_close(ds)
+```
+
+A few bindings call GDAL functions newer than the minimum GDAL7
+requires. They always exist and always dispatch; calling one that the
+GDAL in use is too old for raises an error naming the release it needs.
+`gdal7_capabilities()` is how to ask first:
+
+``` r
+gdal_version()[["release"]]
+#> [1] "3.8.4"
+gdal7_capabilities()
+#>                              binding   gdal available
+#> 1     dataset_mark_suppress_on_close 3.12.0     FALSE
+#> 2 dataset_get_close_reports_progress 3.13.0     FALSE
+#> 3             dataset_is_thread_safe 3.10.0     FALSE
+#> 4    dataset_get_thread_safe_dataset 3.10.0     FALSE
+#> 5                 dataset_as_mdarray 3.12.0     FALSE
+```
+
 ## Code of Conduct
 
 Please note that the GDAL7 project is released with a [Contributor Code

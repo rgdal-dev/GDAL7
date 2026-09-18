@@ -73,11 +73,11 @@ get_metadata_list <- S7::new_generic("get_metadata_list", "x", function(x, pszDo
 #' SetMetadata
 #'
 #' @param x A GDALMajorObject object
-#' @param papszMetadata character
+#' @param papszMetadata character (default: NULL)
 #' @param pszDomain character (default: "")
 #' @return integer
 #' @export
-set_metadata <- S7::new_generic("set_metadata", "x", function(x, papszMetadata, pszDomain = "") S7::S7_dispatch())
+set_metadata <- S7::new_generic("set_metadata", "x", function(x, papszMetadata = NULL, pszDomain = "") S7::S7_dispatch())
 
 #' GetMetadataItem
 #'
@@ -123,8 +123,8 @@ S7::method(get_metadata_list, GDALMajorObject) <- function(x, pszDomain = "") {
   GDAL7_majorobject_get_metadata_list(x@.ptr, pszDomain)
 }
 
-S7::method(set_metadata, GDALMajorObject) <- function(x, papszMetadata, pszDomain = "") {
-  GDAL7_majorobject_set_metadata(x@.ptr, papszMetadata, pszDomain)
+S7::method(set_metadata, GDALMajorObject) <- function(x, papszMetadata = NULL, pszDomain = "") {
+  GDAL7_majorobject_set_metadata(x@.ptr, as.list(papszMetadata), pszDomain)
 }
 
 #' SetMetadata (overload 2)

@@ -490,6 +490,51 @@ them to genuinely hard cases with recorded reasons.
 *Exit:* a clean regenerate reproduces the checked-in generated files byte for byte,
 CI proves it on every commit, and the skip list is short enough to read.
 
+*Status: done.* The C call now comes out of the `%extend` body
+(`derive_c_call()` in `data-raw/parse_swig.R`), so the 33-entry lookup table at
+`generate_cpp11.R:411-463` and the `paste0("GDAL", name)` guess beneath it are
+both gone. With the mapping derived rather than guessed, the skip list stops
+being a list: a method is generated when the generator can express it, and when
+it cannot, the reason is written into the generated file. Fifteen Dataset
+methods are left out, each with its reason, and the two duplicated 35-entry
+skip lists are replaced by five names that are hand-written elsewhere in the
+package.
+
+Three things the derivation found that the lookup table had hidden.
+`GetSpatialRef` was being generated and could never have worked: its SWIG body
+clones the reference rather than making one call, and the R side returned an S7
+class that does not exist. `AddBand` and `BuildOverviews` were being skipped for
+"complex params" when the real cause was a parser bug, which dropped the
+pointer off `char **options` and left the type reading as a single `char`. And
+the R defaults for string-list parameters were being emitted as SWIG's `0`,
+which would have reached the binding as a number where it wanted strings.
+
+Version guards are per binding rather than per package. `GDAL7_dataset.cpp`
+wraps a binding whose C function is newer than the oldest release the symbol
+table covers in `#if GDAL_VERSION_NUM >= ...`, and the `#else` branch raises an
+R error naming the release it needs. So the source tree compiles against GDAL
+3.8 through 3.14 and says honestly what it cannot do, rather than failing to
+link. `gdal7_capabilities()` reports the same thing at run time, and
+`gdal_version()` says what GDAL7 is running against.
+
+The versions themselves are read, not remembered: `data-raw/refresh_symbol_versions.R`
+fetches GDAL's public headers at each release tag and records the first release
+each symbol appears in, into `data-raw/gdal-symbol-versions.csv`. That table
+also decides which of GDAL's 281 constants are emitted, and which get a guard.
+It contradicted this document twice: `GDALDatasetMarkSuppressOnClose` is a GDAL
+3.12 C function, not 3.9, and `GDALDatasetGetCloseReportsProgress` is 3.13.
+
+`%immutable` members are parsed, and each becomes an S7 property with a getter,
+which is the first use S7's properties have had in this package:
+`ds@raster_xsize`, `ds@raster_ysize`, `ds@raster_count`. Reading one calls
+GDAL, so it cannot go stale, and the three hand-written bindings that used to
+answer the same question are gone.
+
+The model is vendored at `inst/api/gdal-api.json` with the GDAL version it came
+out of, so `data-raw/orchestrate.R` runs from a clone with no GDAL checkout.
+`.github/workflows/regenerate.yaml` regenerates on every commit and fails if
+anything moved.
+
 ### Stage 4 - Vector via Arrow
 
 `OGR_L_GetArrowStream` plus nanoarrow. Layer listing, SQL execution, spatial and

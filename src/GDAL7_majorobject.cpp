@@ -95,3 +95,5 @@ int GDAL7_majorobject_set_metadata_item(SEXP xp, std::string pszName, std::strin
     return static_cast<int>(status);
 }
 
+// Every MajorObject method GDAL declares is bound above.
+

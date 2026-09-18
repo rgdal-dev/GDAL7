@@ -45,21 +45,45 @@ map_r_type <- function(swig_type) {
   "ANY"
 }
 
+# How a parameter's value travels from R into the binding. The binding's cpp11
+# type decides this, so it is read off the SWIG type the same way the C++ side
+# reads it.
+r_arg_kind <- function(param) {
+  type <- gsub("\\s*\\*", "*", trimws(param$type))
+
+  if (grepl("char\\*\\*", type)) {
+    if (!is.na(param$typemap) && param$typemap == "dict") return("list")
+    return("strings")
+  }
+  if (type %in% c("const char*", "char const*", "char*", "const char")) return("string")
+  if (type == "int" || type %in% ENUM_PARAM_TYPES) return("integer")
+  if (type == "double") return("double")
+  if (type == "bool") return("logical")
+  "other"
+}
+
+# The R default for a parameter, or NULL when there is none to render. SWIG
+# spells an absent string list as 0 or NULL; in R that is NULL, and writing it
+# as 0 would hand the binding a number where it wants strings.
+r_default <- function(param) {
+  kind <- r_arg_kind(param)
+  if (kind %in% c("strings", "list")) return("NULL")
+  if (is.null(param$default)) return(NULL)
+
+  default <- trimws(param$default)
+  if (identical(default, "")) return('""')
+  if (grepl('^(-?[0-9.]+|TRUE|FALSE|NULL|".*")$', default)) return(default)
+  NULL
+}
+
 # Render an S7 generic's formals from the parsed parameters. Giving the generic
 # real formals (rather than just `x`) is what lets SWIG's defaults reach R, and
 # what keeps the generated roxygen @param tags matching the \usage section.
 generic_formals <- function(method) {
   args <- "x"
   for (p in method$params) {
-    if (is.null(p$default)) {
-      args <- c(args, p$name)
-    } else if (identical(trimws(p$default), "")) {
-      args <- c(args, sprintf('%s = ""', p$name))
-    } else if (grepl('^(-?[0-9.]+|TRUE|FALSE|NULL|".*")$', trimws(p$default))) {
-      args <- c(args, sprintf("%s = %s", p$name, trimws(p$default)))
-    } else {
-      args <- c(args, p$name)
-    }
+    default <- r_default(p)
+    args <- c(args, if (is.null(default)) p$name else sprintf("%s = %s", p$name, default))
   }
   paste(args, collapse = ", ")
 }
@@ -75,6 +99,16 @@ new_generic_call <- function(name, method) {
     sprintf('%s <- S7::new_generic("%s", "x", function(%s) S7::S7_dispatch())',
             name, name, generic_formals(method))
   }
+}
+
+# The S7 class an immutable member's value belongs to.
+s7_class_for <- function(swig_type) {
+  switch(map_r_type(swig_type),
+    integer = "S7::class_integer",
+    numeric = "S7::class_double",
+    logical = "S7::class_logical",
+    character = "S7::class_character",
+    "S7::class_any")
 }
 
 # Get cpp11 function name
@@ -98,7 +132,7 @@ NULL
 }
 
 # Generate S7 class definition
-generate_s7_class <- function(parsed_class) {
+generate_s7_class <- function(parsed_class, members = list()) {
   class_name <- parsed_class$public_name
   class_lower <- tolower(class_name)
 
@@ -131,11 +165,18 @@ generate_s7_class <- function(parsed_class) {
   lines <- c(lines, '')
   lines <- c(lines, '  properties = list(')
   lines <- c(lines, '    # Internal pointer - not for direct user access')
-  lines <- c(lines, '    .ptr = S7::class_any')
 
-  # Add properties from %immutable (if we had them parsed)
-  # For now, just the pointer
+  # GDAL declares its read-only attributes with %immutable, which is an S7
+  # property with a getter and no setter. Reading one calls GDAL, so the value
+  # is never a stale copy taken when the object was made.
+  property_lines <- vapply(members, function(member) {
+    sprintf('    %s = S7::new_property(\n      %s,\n      getter = function(self) %s(self@.ptr)\n    )',
+            to_snake_case(member$name),
+            s7_class_for(member$type),
+            get_cpp11_func(class_name, member$name))
+  }, character(1))
 
+  lines <- c(lines, paste(c('    .ptr = S7::class_any', property_lines), collapse = ",\n"))
   lines <- c(lines, '  ),')
   lines <- c(lines, '')
   lines <- c(lines, '  validator = function(self) {')
@@ -150,7 +191,7 @@ generate_s7_class <- function(parsed_class) {
 }
 
 # Generate S7 generics
-generate_s7_generics <- function(parsed_class, skip_methods = character()) {
+generate_s7_generics <- function(parsed_class, methods) {
   class_name <- parsed_class$public_name
 
   lines <- c()
@@ -162,12 +203,7 @@ generate_s7_generics <- function(parsed_class, skip_methods = character()) {
   # Track generated generics to avoid duplicates
   generated <- character()
 
-  for (method in parsed_class$methods) {
-    base_name <- sub("_[0-9]+$", "", method$name)
-
-    # Skip problematic methods
-    if (base_name %in% skip_methods) next
-
+  for (method in methods) {
     generic_name <- to_snake_case(method$name)
 
     # Skip overloads (already generated the generic)
@@ -191,13 +227,8 @@ generate_s7_generics <- function(parsed_class, skip_methods = character()) {
     # Document other parameters
     for (p in method$params) {
       r_type <- map_r_type(p$type)
-      default_str <- if (is.null(p$default)) {
-        ''
-      } else if (identical(trimws(p$default), '')) {
-        ' (default: "")'
-      } else {
-        sprintf(' (default: %s)', trimws(p$default))
-      }
+      default <- r_default(p)
+      default_str <- if (is.null(default)) '' else sprintf(' (default: %s)', default)
       lines <- c(lines, sprintf('#\' @param %s %s%s', p$name, r_type, default_str))
     }
 
@@ -211,7 +242,7 @@ generate_s7_generics <- function(parsed_class, skip_methods = character()) {
 }
 
 # Generate S7 methods
-generate_s7_methods <- function(parsed_class, skip_methods = character()) {
+generate_s7_methods <- function(parsed_class, methods) {
   class_name <- parsed_class$public_name
   class_lower <- tolower(class_name)
 
@@ -221,41 +252,15 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
   lines <- c(lines, '# -----------------------------------------------------------------------------')
   lines <- c(lines, '')
 
-  # Track overload counts
-  method_counts <- list()
-
-  for (method in parsed_class$methods) {
+  for (method in methods) {
     base_name <- sub("_[0-9]+$", "", method$name)
+    is_overload <- grepl("_[0-9]+$", method$name)
+    overload <- if (is_overload) as.integer(sub("^.*_([0-9]+)$", "\\1", method$name)) else 1L
 
-    # Skip problematic methods
-    if (base_name %in% skip_methods) next
-
-    generic_name <- to_snake_case(base_name)
-
-    # Track overloads
-    if (is.null(method_counts[[base_name]])) {
-      method_counts[[base_name]] <- 1
-    } else {
-      method_counts[[base_name]] <- method_counts[[base_name]] + 1
-    }
-
-    # The cpp11 generator names overloads after the first with a _N suffix, so
-    # the binding this method calls has to carry the same suffix. Without it
-    # every overload calls the first one's binding, with the wrong signature.
-    cpp_method_name <- if (method_counts[[base_name]] > 1) {
-      sprintf("%s_%d", base_name, method_counts[[base_name]])
-    } else {
-      base_name
-    }
-    cpp_func <- get_cpp11_func(class_name, cpp_method_name)
-
-    # For overloaded methods, create separate R functions with different names
-    # (R doesn't support true overloading)
-    r_func_name <- if (method_counts[[base_name]] > 1) {
-      sprintf("%s_%d", generic_name, method_counts[[base_name]])
-    } else {
-      generic_name
-    }
+    # The cpp11 generator has already numbered the overloads, and its list is
+    # what this reads, so the binding name always matches the one it emitted.
+    cpp_func <- get_cpp11_func(class_name, method$name)
+    r_func_name <- to_snake_case(method$name)
 
     # Build R parameter list (excluding 'x' which is the object). S7 requires a
     # method's formals to match its generic's exactly when the generic has no
@@ -267,14 +272,15 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
       param_name <- p$name
       r_params <- c(r_params, param_name)
 
-      # Add type coercion if needed
-      if (grepl("int", p$type)) {
-        call_args <- c(call_args, sprintf("as.integer(%s)", param_name))
-      } else if (grepl("double", p$type)) {
-        call_args <- c(call_args, sprintf("as.double(%s)", param_name))
-      } else {
-        call_args <- c(call_args, param_name)
-      }
+      # Coerce to what the binding's cpp11 type accepts. NULL for an absent
+      # string list becomes character(0), which is an empty option list.
+      call_args <- c(call_args, switch(r_arg_kind(p),
+        integer = sprintf("as.integer(%s)", param_name),
+        double = sprintf("as.double(%s)", param_name),
+        logical = sprintf("as.logical(%s)", param_name),
+        strings = sprintf("as.character(%s)", param_name),
+        list = sprintf("as.list(%s)", param_name),
+        param_name))
     }
 
     r_params_str <- generic_formals(method)
@@ -282,8 +288,8 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
     r_return_doc <- map_r_type(method$return_type)
 
     # For overloads after the first, also create the generic
-    if (method_counts[[base_name]] > 1) {
-      lines <- c(lines, sprintf('#\' %s (overload %d)', base_name, method_counts[[base_name]]))
+    if (is_overload) {
+      lines <- c(lines, sprintf('#\' %s (overload %d)', base_name, overload))
       lines <- c(lines, '#\'')
       lines <- c(lines, sprintf('#\' @param x A GDAL%s object', class_name))
       if (length(method$params) == 0) {
@@ -346,12 +352,13 @@ S7::method(print, GDAL%s) <- function(x, ...) {
 }
 
 # Generate complete S7 file for a class
-generate_s7_file <- function(parsed_class, output_path = NULL, skip_methods = character()) {
+generate_s7_file <- function(parsed_class, output_path = NULL,
+                             methods = parsed_class$methods, members = list()) {
   code <- paste(
     generate_s7_header(parsed_class$public_name),
-    generate_s7_class(parsed_class),
-    generate_s7_generics(parsed_class, skip_methods),
-    generate_s7_methods(parsed_class, skip_methods),
+    generate_s7_class(parsed_class, members),
+    generate_s7_generics(parsed_class, methods),
+    generate_s7_methods(parsed_class, methods),
     generate_s7_print(parsed_class),
     sep = "\n"
   )

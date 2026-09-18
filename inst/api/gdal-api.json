@@ -1,0 +1,2748 @@
+{
+  "gdal_version": "3.14.0",
+  "extracted": "2026-09-18",
+  "files": ["MajorObject.i", "Dataset.i", "gdalconst.i"],
+  "classes": [
+    {
+      "file": "MajorObject.i",
+      "internal_name": "GDALMajorObjectShadow",
+      "public_name": "MajorObject",
+      "parent": null,
+      "members": [],
+      "methods": [
+        {
+          "name": "GetDescription",
+          "return_type": "const char *",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetDescription",
+            "args": "self"
+          }
+        },
+        {
+          "name": "SetDescription",
+          "return_type": "void",
+          "newobject": false,
+          "params": [
+            {
+              "name": "pszNewDesc",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALSetDescription",
+            "args": ["self", "pszNewDesc"]
+          }
+        },
+        {
+          "name": "GetMetadataDomainList",
+          "return_type": "char **",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetMetadataDomainList",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetMetadata_Dict",
+          "return_type": "char **",
+          "newobject": false,
+          "params": [
+            {
+              "name": "pszDomain",
+              "type": "const char*",
+              "default": "",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetMetadata",
+            "args": ["self", "pszDomain"]
+          }
+        },
+        {
+          "name": "GetMetadata_List",
+          "return_type": "char **",
+          "newobject": false,
+          "params": [
+            {
+              "name": "pszDomain",
+              "type": "const char*",
+              "default": "",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetMetadata",
+            "args": ["self", "pszDomain"]
+          }
+        },
+        {
+          "name": "SetMetadata",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "papszMetadata",
+              "type": "char **",
+              "default": null,
+              "typemap": "dict",
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "pszDomain",
+              "type": "const char*",
+              "default": "",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALSetMetadata",
+            "args": ["self", "papszMetadata", "pszDomain"]
+          }
+        },
+        {
+          "name": "SetMetadata",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "pszMetadataString",
+              "type": "char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "pszDomain",
+              "type": "const char*",
+              "default": "",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": null
+        },
+        {
+          "name": "GetMetadataItem",
+          "return_type": "const char *",
+          "newobject": false,
+          "params": [
+            {
+              "name": "pszName",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            },
+            {
+              "name": "pszDomain",
+              "type": "const char*",
+              "default": "",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetMetadataItem",
+            "args": ["self", "pszName", "pszDomain"]
+          }
+        },
+        {
+          "name": "SetMetadataItem",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "pszName",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            },
+            {
+              "name": "pszValue",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "pszDomain",
+              "type": "const char*",
+              "default": "",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALSetMetadataItem",
+            "args": ["self", "pszName", "pszValue", "pszDomain"]
+          }
+        }
+      ]
+    },
+    {
+      "file": "Dataset.i",
+      "internal_name": "GDALDatasetShadow",
+      "public_name": "Dataset",
+      "parent": "GDALMajorObjectShadow",
+      "members": [
+        {
+          "name": "RasterXSize",
+          "type": "int",
+          "c_call": {
+            "func": "GDALGetRasterXSize",
+            "args": "h"
+          }
+        },
+        {
+          "name": "RasterYSize",
+          "type": "int",
+          "c_call": {
+            "func": "GDALGetRasterYSize",
+            "args": "h"
+          }
+        },
+        {
+          "name": "RasterCount",
+          "type": "int",
+          "c_call": {
+            "func": "GDALGetRasterCount",
+            "args": "h"
+          }
+        }
+      ],
+      "methods": [
+        {
+          "name": "MarkSuppressOnClose",
+          "return_type": "void",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetMarkSuppressOnClose",
+            "args": "self"
+          }
+        },
+        {
+          "name": "Close",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "callback",
+              "type": "GDALProgressFunc",
+              "default": "NULL",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "callback_data",
+              "type": "void*",
+              "default": "NULL",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALCloseEx",
+            "args": ["self", "callback", "callback_data"]
+          }
+        },
+        {
+          "name": "GetCloseReportsProgress",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetGetCloseReportsProgress",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetDriver",
+          "return_type": "GDALDriverShadow*",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetDatasetDriver",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetRasterBand",
+          "return_type": "GDALRasterBandShadow*",
+          "newobject": false,
+          "params": [
+            {
+              "name": "nBand",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetRasterBand",
+            "args": ["self", "nBand"]
+          }
+        },
+        {
+          "name": "IsThreadSafe",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "nScopeFlags",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetIsThreadSafe",
+            "args": ["self", "nScopeFlags", "nullptr"]
+          }
+        },
+        {
+          "name": "GetThreadSafeDataset",
+          "return_type": "GDALDatasetShadow*",
+          "newobject": false,
+          "params": [
+            {
+              "name": "nScopeFlags",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetThreadSafeDataset",
+            "args": ["self", "nScopeFlags", "nullptr"]
+          }
+        },
+        {
+          "name": "GetRootGroup",
+          "return_type": "GDALGroupHS*",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetGetRootGroup",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetProjection",
+          "return_type": "char const *",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetProjectionRef",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetProjectionRef",
+          "return_type": "char const *",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetProjectionRef",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetSpatialRef",
+          "return_type": "OSRSpatialReferenceShadow *",
+          "newobject": false,
+          "params": [],
+          "c_call": null
+        },
+        {
+          "name": "SetProjection",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "prj",
+              "type": "char const*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALSetProjection",
+            "args": ["self", "prj"]
+          }
+        },
+        {
+          "name": "SetSpatialRef",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "srs",
+              "type": "OSRSpatialReferenceShadow*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALSetSpatialRef",
+            "args": ["self", "srs"]
+          }
+        },
+        {
+          "name": "GetGeoTransform",
+          "return_type": "void",
+          "newobject": false,
+          "params": [
+            {
+              "name": "argout[6]",
+              "type": "double",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": null
+        },
+        {
+          "name": "SetGeoTransform",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "argin[6]",
+              "type": "double",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALSetGeoTransform",
+            "args": ["self", "argin"]
+          }
+        },
+        {
+          "name": "GetExtent",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "argout[4]",
+              "type": "double",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "srs",
+              "type": "OSRSpatialReferenceShadow*",
+              "default": "NULL",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetExtent",
+            "args": ["self", "argout", "srs"]
+          }
+        },
+        {
+          "name": "GetExtentWGS84LongLat",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "argout[4]",
+              "type": "double",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALGetExtentWGS84LongLat",
+            "args": ["self", "argout"]
+          }
+        },
+        {
+          "name": "BuildOverviews",
+          "return_type": "int",
+          "newobject": false,
+          "params": [
+            {
+              "name": "resampling",
+              "type": "const char*",
+              "default": "\"NEAREST\"",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "overviewlist",
+              "type": "int",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "pOverviews",
+              "type": "int*",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "callback",
+              "type": "GDALProgressFunc",
+              "default": "NULL",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "callback_data",
+              "type": "void*",
+              "default": "NULL",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "options",
+              "type": "char**",
+              "default": "NULL",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALBuildOverviewsEx",
+            "args": ["self", "resampling ? resampling : \"NEAREST\"", "overviewlist", "pOverviews", "0", "0", "callback", "callback_data", "options"]
+          }
+        },
+        {
+          "name": "GetGCPCount",
+          "return_type": "int",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetGCPCount",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetGCPProjection",
+          "return_type": "const char *",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetGCPProjection",
+            "args": "self"
+          }
+        },
+        {
+          "name": "FlushCache",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALFlushCache",
+            "args": "self"
+          }
+        },
+        {
+          "name": "AddBand",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "datatype",
+              "type": "GDALDataType",
+              "default": "GDT_Byte",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "options",
+              "type": "char **",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALAddBand",
+            "args": ["self", "datatype", "options"]
+          }
+        },
+        {
+          "name": "CreateMaskBand",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "nFlags",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALCreateDatasetMaskBand",
+            "args": ["self", "nFlags"]
+          }
+        },
+        {
+          "name": "GetFileList",
+          "return_type": "char **",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALGetFileList",
+            "args": "self"
+          }
+        },
+        {
+          "name": "AdviseRead",
+          "return_type": "CPLErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "xoff",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "yoff",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "xsize",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "ysize",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "buf_xsize",
+              "type": "int*",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "buf_ysize",
+              "type": "int*",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "buf_type",
+              "type": "GDALDataType*",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "band_list",
+              "type": "int",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "pband_list",
+              "type": "int*",
+              "default": "0",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            },
+            {
+              "name": "options",
+              "type": "char**",
+              "default": "NULL",
+              "typemap": "CSL",
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": null
+        },
+        {
+          "name": "GetLayer",
+          "return_type": "OGRLayerShadow *",
+          "newobject": false,
+          "params": [
+            {
+              "name": "index",
+              "type": "int",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": null
+        },
+        {
+          "name": "GetLayerByName",
+          "return_type": "OGRLayerShadow *",
+          "newobject": false,
+          "params": [
+            {
+              "name": "layer_name",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": null
+        },
+        {
+          "name": "ResetReading",
+          "return_type": "void",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetResetReading",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetLayerCount",
+          "return_type": "int",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetGetLayerCount",
+            "args": "self"
+          }
+        },
+        {
+          "name": "AbortSQL",
+          "return_type": "OGRErr",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetAbortSQL",
+            "args": "self"
+          }
+        },
+        {
+          "name": "StartTransaction",
+          "return_type": "OGRErr",
+          "newobject": false,
+          "params": [
+            {
+              "name": "force",
+              "type": "int",
+              "default": "FALSE",
+              "typemap": null,
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetStartTransaction",
+            "args": ["self", "force"]
+          }
+        },
+        {
+          "name": "CommitTransaction",
+          "return_type": "OGRErr",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetCommitTransaction",
+            "args": "self"
+          }
+        },
+        {
+          "name": "RollbackTransaction",
+          "return_type": "OGRErr",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetRollbackTransaction",
+            "args": "self"
+          }
+        },
+        {
+          "name": "ClearStatistics",
+          "return_type": "void",
+          "newobject": false,
+          "params": [],
+          "c_call": {
+            "func": "GDALDatasetClearStatistics",
+            "args": "self"
+          }
+        },
+        {
+          "name": "GetFieldDomainNames",
+          "return_type": "char **",
+          "newobject": false,
+          "params": [
+            {
+              "name": "options",
+              "type": "char**",
+              "default": "0",
+              "typemap": "CSL",
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetGetFieldDomainNames",
+            "args": ["self", "options"]
+          }
+        },
+        {
+          "name": "GetFieldDomain",
+          "return_type": "OGRFieldDomainShadow*",
+          "newobject": false,
+          "params": [
+            {
+              "name": "name",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetGetFieldDomain",
+            "args": ["self", "name"]
+          }
+        },
+        {
+          "name": "AddFieldDomain",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "fieldDomain",
+              "type": "OGRFieldDomainShadow*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": null
+        },
+        {
+          "name": "DeleteFieldDomain",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "name",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetDeleteFieldDomain",
+            "args": ["self", "name", "NULL"]
+          }
+        },
+        {
+          "name": "UpdateFieldDomain",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "fieldDomain",
+              "type": "OGRFieldDomainShadow*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetUpdateFieldDomain",
+            "args": ["self", "fieldDomain", "NULL"]
+          }
+        },
+        {
+          "name": "GetRelationshipNames",
+          "return_type": "char **",
+          "newobject": false,
+          "params": [
+            {
+              "name": "options",
+              "type": "char**",
+              "default": "0",
+              "typemap": "CSL",
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetGetRelationshipNames",
+            "args": ["self", "options"]
+          }
+        },
+        {
+          "name": "GetRelationship",
+          "return_type": "GDALRelationshipShadow*",
+          "newobject": false,
+          "params": [
+            {
+              "name": "name",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetGetRelationship",
+            "args": ["self", "name"]
+          }
+        },
+        {
+          "name": "AddRelationship",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "relationship",
+              "type": "GDALRelationshipShadow*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetAddRelationship",
+            "args": ["self", "relationship", "NULL"]
+          }
+        },
+        {
+          "name": "DeleteRelationship",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "name",
+              "type": "const char*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetDeleteRelationship",
+            "args": ["self", "name", "NULL"]
+          }
+        },
+        {
+          "name": "UpdateRelationship",
+          "return_type": "bool",
+          "newobject": false,
+          "params": [
+            {
+              "name": "relationship",
+              "type": "GDALRelationshipShadow*",
+              "default": null,
+              "typemap": null,
+              "output": false,
+              "nonnull": true
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetUpdateRelationship",
+            "args": ["self", "relationship", "NULL"]
+          }
+        },
+        {
+          "name": "AsMDArray",
+          "return_type": "GDALMDArrayHS *",
+          "newobject": false,
+          "params": [
+            {
+              "name": "options",
+              "type": "char**",
+              "default": "NULL",
+              "typemap": "CSL",
+              "output": false,
+              "nonnull": false
+            }
+          ],
+          "c_call": {
+            "func": "GDALDatasetAsMDArray",
+            "args": ["self", "options"]
+          }
+        }
+      ]
+    }
+  ],
+  "constants": [
+    {
+      "name": "GDT_Unknown",
+      "value": "GDT_Unknown",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Byte",
+      "value": "GDT_Byte",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_UInt8",
+      "value": "GDT_UInt8",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Int8",
+      "value": "GDT_Int8",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_UInt16",
+      "value": "GDT_UInt16",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Int16",
+      "value": "GDT_Int16",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_UInt32",
+      "value": "GDT_UInt32",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Int32",
+      "value": "GDT_Int32",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_UInt64",
+      "value": "GDT_UInt64",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Int64",
+      "value": "GDT_Int64",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Float16",
+      "value": "GDT_Float16",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Float32",
+      "value": "GDT_Float32",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_Float64",
+      "value": "GDT_Float64",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_CInt16",
+      "value": "GDT_CInt16",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_CInt32",
+      "value": "GDT_CInt32",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_CFloat16",
+      "value": "GDT_CFloat16",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_CFloat32",
+      "value": "GDT_CFloat32",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_CFloat64",
+      "value": "GDT_CFloat64",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDT_TypeCount",
+      "value": "GDT_TypeCount",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GA_ReadOnly",
+      "value": "GA_ReadOnly",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GA_Update",
+      "value": "GA_Update",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GF_Read",
+      "value": "GF_Read",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GF_Write",
+      "value": "GF_Write",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_NearestNeighbour",
+      "value": "GRIORA_NearestNeighbour",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_Bilinear",
+      "value": "GRIORA_Bilinear",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_Cubic",
+      "value": "GRIORA_Cubic",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_CubicSpline",
+      "value": "GRIORA_CubicSpline",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_Lanczos",
+      "value": "GRIORA_Lanczos",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_Average",
+      "value": "GRIORA_Average",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_RMS",
+      "value": "GRIORA_RMS",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_Mode",
+      "value": "GRIORA_Mode",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRIORA_Gauss",
+      "value": "GRIORA_Gauss",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_Undefined",
+      "value": "GCI_Undefined",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_GrayIndex",
+      "value": "GCI_GrayIndex",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_PaletteIndex",
+      "value": "GCI_PaletteIndex",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_RedBand",
+      "value": "GCI_RedBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_GreenBand",
+      "value": "GCI_GreenBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_BlueBand",
+      "value": "GCI_BlueBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_AlphaBand",
+      "value": "GCI_AlphaBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_HueBand",
+      "value": "GCI_HueBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SaturationBand",
+      "value": "GCI_SaturationBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_LightnessBand",
+      "value": "GCI_LightnessBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_CyanBand",
+      "value": "GCI_CyanBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_MagentaBand",
+      "value": "GCI_MagentaBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_YellowBand",
+      "value": "GCI_YellowBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_BlackBand",
+      "value": "GCI_BlackBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_YCbCr_YBand",
+      "value": "GCI_YCbCr_YBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_YCbCr_CrBand",
+      "value": "GCI_YCbCr_CrBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_YCbCr_CbBand",
+      "value": "GCI_YCbCr_CbBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_PanBand",
+      "value": "GCI_PanBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_CoastalBand",
+      "value": "GCI_CoastalBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_RedEdgeBand",
+      "value": "GCI_RedEdgeBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_IR_Start",
+      "value": "GCI_IR_Start",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_NIRBand",
+      "value": "GCI_NIRBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SWIRBand",
+      "value": "GCI_SWIRBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_MWIRBand",
+      "value": "GCI_MWIRBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_LWIRBand",
+      "value": "GCI_LWIRBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_TIRBand",
+      "value": "GCI_TIRBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_OtherIRBand",
+      "value": "GCI_OtherIRBand",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_IR_End",
+      "value": "GCI_IR_End",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_Start",
+      "value": "GCI_SAR_Start",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_Ka_Band",
+      "value": "GCI_SAR_Ka_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_K_Band",
+      "value": "GCI_SAR_K_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_Ku_Band",
+      "value": "GCI_SAR_Ku_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_X_Band",
+      "value": "GCI_SAR_X_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_C_Band",
+      "value": "GCI_SAR_C_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_S_Band",
+      "value": "GCI_SAR_S_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_L_Band",
+      "value": "GCI_SAR_L_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_P_Band",
+      "value": "GCI_SAR_P_Band",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_SAR_End",
+      "value": "GCI_SAR_End",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GCI_Max",
+      "value": "GCI_Max",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_NearestNeighbour",
+      "value": "GRA_NearestNeighbour",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Bilinear",
+      "value": "GRA_Bilinear",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Cubic",
+      "value": "GRA_Cubic",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_CubicSpline",
+      "value": "GRA_CubicSpline",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Lanczos",
+      "value": "GRA_Lanczos",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Average",
+      "value": "GRA_Average",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_RMS",
+      "value": "GRA_RMS",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Mode",
+      "value": "GRA_Mode",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Max",
+      "value": "GRA_Max",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Min",
+      "value": "GRA_Min",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Med",
+      "value": "GRA_Med",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Q1",
+      "value": "GRA_Q1",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Q3",
+      "value": "GRA_Q3",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRA_Sum",
+      "value": "GRA_Sum",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GPI_Gray",
+      "value": "GPI_Gray",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GPI_RGB",
+      "value": "GPI_RGB",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GPI_CMYK",
+      "value": "GPI_CMYK",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GPI_HLS",
+      "value": "GPI_HLS",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CXT_Element",
+      "value": "CXT_Element",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CXT_Text",
+      "value": "CXT_Text",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CXT_Attribute",
+      "value": "CXT_Attribute",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CXT_Comment",
+      "value": "CXT_Comment",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CXT_Literal",
+      "value": "CXT_Literal",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CE_None",
+      "value": "CE_None",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CE_Debug",
+      "value": "CE_Debug",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CE_Warning",
+      "value": "CE_Warning",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CE_Failure",
+      "value": "CE_Failure",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CE_Fatal",
+      "value": "CE_Fatal",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_None",
+      "value": "CPLE_None",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AppDefined",
+      "value": "CPLE_AppDefined",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_OutOfMemory",
+      "value": "CPLE_OutOfMemory",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_FileIO",
+      "value": "CPLE_FileIO",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_OpenFailed",
+      "value": "CPLE_OpenFailed",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_IllegalArg",
+      "value": "CPLE_IllegalArg",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_NotSupported",
+      "value": "CPLE_NotSupported",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AssertionFailed",
+      "value": "CPLE_AssertionFailed",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_NoWriteAccess",
+      "value": "CPLE_NoWriteAccess",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_UserInterrupt",
+      "value": "CPLE_UserInterrupt",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_ObjectNull",
+      "value": "CPLE_ObjectNull",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_HttpResponse",
+      "value": "CPLE_HttpResponse",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_BucketNotFound",
+      "value": "CPLE_BucketNotFound",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_ObjectNotFound",
+      "value": "CPLE_ObjectNotFound",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AccessDenied",
+      "value": "CPLE_AccessDenied",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_InvalidCredentials",
+      "value": "CPLE_InvalidCredentials",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_SignatureDoesNotMatch",
+      "value": "CPLE_SignatureDoesNotMatch",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_ObjectStorageGenericError",
+      "value": "CPLE_ObjectStorageGenericError",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AWSBucketNotFound",
+      "value": "CPLE_BucketNotFound",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AWSObjectNotFound",
+      "value": "CPLE_ObjectNotFound",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AWSAccessDenied",
+      "value": "CPLE_AccessDenied",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AWSInvalidCredentials",
+      "value": "CPLE_InvalidCredentials",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLE_AWSSignatureDoesNotMatch",
+      "value": "CPLE_SignatureDoesNotMatch",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_ALL",
+      "value": "GDAL_OF_ALL",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_RASTER",
+      "value": "GDAL_OF_RASTER",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_VECTOR",
+      "value": "GDAL_OF_VECTOR",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_GNM",
+      "value": "GDAL_OF_GNM",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_MULTIDIM_RASTER",
+      "value": "GDAL_OF_MULTIDIM_RASTER",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_READONLY",
+      "value": "GDAL_OF_READONLY",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_UPDATE",
+      "value": "GDAL_OF_UPDATE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_SHARED",
+      "value": "GDAL_OF_SHARED",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_VERBOSE_ERROR",
+      "value": "GDAL_OF_VERBOSE_ERROR",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "OF_THREAD_SAFE",
+      "value": "GDAL_OF_THREAD_SAFE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "DMD_LONGNAME",
+      "value": "GDAL_DMD_LONGNAME",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_HELPTOPIC",
+      "value": "GDAL_DMD_HELPTOPIC",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MIMETYPE",
+      "value": "GDAL_DMD_MIMETYPE",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_EXTENSION",
+      "value": "GDAL_DMD_EXTENSION",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CONNECTION_PREFIX",
+      "value": "GDAL_DMD_CONNECTION_PREFIX",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_EXTENSIONS",
+      "value": "GDAL_DMD_EXTENSIONS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_OVERVIEW_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_OVERVIEW_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MULTIDIM_DATASET_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_MULTIDIM_DATASET_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MULTIDIM_GROUP_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_MULTIDIM_GROUP_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MULTIDIM_DIMENSION_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_MULTIDIM_DIMENSION_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MULTIDIM_ARRAY_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_MULTIDIM_ARRAY_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MULTIDIM_ARRAY_OPENOPTIONLIST",
+      "value": "GDAL_DMD_MULTIDIM_ARRAY_OPENOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MULTIDIM_ATTRIBUTE_CREATIONOPTIONLIST",
+      "value": "GDAL_DMD_MULTIDIM_ATTRIBUTE_CREATIONOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_OPENOPTIONLIST",
+      "value": "GDAL_DMD_OPENOPTIONLIST",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CREATIONDATATYPES",
+      "value": "GDAL_DMD_CREATIONDATATYPES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CREATIONFIELDDATATYPES",
+      "value": "GDAL_DMD_CREATIONFIELDDATATYPES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CREATIONFIELDDATASUBTYPES",
+      "value": "GDAL_DMD_CREATIONFIELDDATASUBTYPES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CREATION_FIELD_DEFN_FLAGS",
+      "value": "GDAL_DMD_CREATION_FIELD_DEFN_FLAGS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_UPDATE_ITEMS",
+      "value": "GDAL_DMD_UPDATE_ITEMS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_SUBDATASETS",
+      "value": "GDAL_DMD_SUBDATASETS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_CREATION_FIELD_DOMAIN_TYPES",
+      "value": "GDAL_DMD_CREATION_FIELD_DOMAIN_TYPES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_ALTER_GEOM_FIELD_DEFN_FLAGS",
+      "value": "GDAL_DMD_ALTER_GEOM_FIELD_DEFN_FLAGS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_SUPPORTED_SQL_DIALECTS",
+      "value": "GDAL_DMD_SUPPORTED_SQL_DIALECTS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_NUMERIC_FIELD_WIDTH_INCLUDES_DECIMAL_SEPARATOR",
+      "value": "GDAL_DMD_NUMERIC_FIELD_WIDTH_INCLUDES_DECIMAL_SEPARATOR",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_NUMERIC_FIELD_WIDTH_INCLUDES_SIGN",
+      "value": "GDAL_DMD_NUMERIC_FIELD_WIDTH_INCLUDES_SIGN",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_MAX_STRING_LENGTH",
+      "value": "GDAL_DMD_MAX_STRING_LENGTH",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_OPEN",
+      "value": "GDAL_DCAP_OPEN",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATE",
+      "value": "GDAL_DCAP_CREATE",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATE_MULTIDIMENSIONAL",
+      "value": "GDAL_DCAP_CREATE_MULTIDIMENSIONAL",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATECOPY",
+      "value": "GDAL_DCAP_CREATECOPY",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATE_ONLY_VISIBLE_AT_CLOSE_TIME",
+      "value": "GDAL_DCAP_CREATE_ONLY_VISIBLE_AT_CLOSE_TIME",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATECOPY_MULTIDIMENSIONAL",
+      "value": "GDAL_DCAP_CREATECOPY_MULTIDIMENSIONAL",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_MULTIDIM_RASTER",
+      "value": "GDAL_DCAP_MULTIDIM_RASTER",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_APPEND",
+      "value": "GDAL_DCAP_APPEND",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_UPDATE",
+      "value": "GDAL_DCAP_UPDATE",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_SUBCREATECOPY",
+      "value": "GDAL_DCAP_SUBCREATECOPY",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_VIRTUALIO",
+      "value": "GDAL_DCAP_VIRTUALIO",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_RASTER",
+      "value": "GDAL_DCAP_RASTER",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_VECTOR",
+      "value": "GDAL_DCAP_VECTOR",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_GNM",
+      "value": "GDAL_DCAP_GNM",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATE_LAYER",
+      "value": "GDAL_DCAP_CREATE_LAYER",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_DELETE_LAYER",
+      "value": "GDAL_DCAP_DELETE_LAYER",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CREATE_FIELD",
+      "value": "GDAL_DCAP_CREATE_FIELD",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_DELETE_FIELD",
+      "value": "GDAL_DCAP_DELETE_FIELD",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_REORDER_FIELDS",
+      "value": "GDAL_DCAP_REORDER_FIELDS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_ALTER_FIELD_DEFN_FLAGS",
+      "value": "GDAL_DMD_ALTER_FIELD_DEFN_FLAGS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_ILLEGAL_FIELD_NAMES",
+      "value": "GDAL_DMD_ILLEGAL_FIELD_NAMES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_NOTNULL_FIELDS",
+      "value": "GDAL_DCAP_NOTNULL_FIELDS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_UNIQUE_FIELDS",
+      "value": "GDAL_DCAP_UNIQUE_FIELDS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_DEFAULT_FIELDS",
+      "value": "GDAL_DCAP_DEFAULT_FIELDS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_NOTNULL_GEOMFIELDS",
+      "value": "GDAL_DCAP_NOTNULL_GEOMFIELDS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_NONSPATIAL",
+      "value": "GDAL_DCAP_NONSPATIAL",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_CURVE_GEOMETRIES",
+      "value": "GDAL_DCAP_CURVE_GEOMETRIES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_MEASURED_GEOMETRIES",
+      "value": "GDAL_DCAP_MEASURED_GEOMETRIES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_Z_GEOMETRIES",
+      "value": "GDAL_DCAP_Z_GEOMETRIES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DMD_GEOMETRY_FLAGS",
+      "value": "GDAL_DMD_GEOMETRY_FLAGS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_FEATURE_STYLES",
+      "value": "GDAL_DCAP_FEATURE_STYLES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_FEATURE_STYLES_READ",
+      "value": "GDAL_DCAP_FEATURE_STYLES_READ",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_FEATURE_STYLES_WRITE",
+      "value": "GDAL_DCAP_FEATURE_STYLES_WRITE",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_COORDINATE_EPOCH",
+      "value": "GDAL_DCAP_COORDINATE_EPOCH",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_MULTIPLE_VECTOR_LAYERS",
+      "value": "GDAL_DCAP_MULTIPLE_VECTOR_LAYERS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_MULTIPLE_VECTOR_LAYERS_IN_DIRECTORY",
+      "value": "GDAL_DCAP_MULTIPLE_VECTOR_LAYERS_IN_DIRECTORY",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_FIELD_DOMAINS",
+      "value": "GDAL_DCAP_FIELD_DOMAINS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_RELATIONSHIPS",
+      "value": "GDAL_DCAP_RELATIONSHIPS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDAL_DCAP_CREATE_RELATIONSHIP",
+      "value": "GDAL_DCAP_CREATE_RELATIONSHIP",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDAL_DCAP_DELETE_RELATIONSHIP",
+      "value": "GDAL_DCAP_DELETE_RELATIONSHIP",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDAL_DCAP_UPDATE_RELATIONSHIP",
+      "value": "GDAL_DCAP_UPDATE_RELATIONSHIP",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDAL_DMD_RELATIONSHIP_FLAGS",
+      "value": "GDAL_DMD_RELATIONSHIP_FLAGS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDAL_DMD_RELATIONSHIP_RELATED_TABLE_TYPES",
+      "value": "GDAL_DMD_RELATIONSHIP_RELATED_TABLE_TYPES",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_RENAME_LAYERS",
+      "value": "GDAL_DCAP_RENAME_LAYERS",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_FLUSHCACHE_CONSISTENT_STATE",
+      "value": "GDAL_DCAP_FLUSHCACHE_CONSISTENT_STATE",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DCAP_UPSERT",
+      "value": "GDAL_DCAP_UPSERT",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DIM_TYPE_HORIZONTAL_X",
+      "value": "GDAL_DIM_TYPE_HORIZONTAL_X",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DIM_TYPE_HORIZONTAL_Y",
+      "value": "GDAL_DIM_TYPE_HORIZONTAL_Y",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DIM_TYPE_VERTICAL",
+      "value": "GDAL_DIM_TYPE_VERTICAL",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DIM_TYPE_TEMPORAL",
+      "value": "GDAL_DIM_TYPE_TEMPORAL",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "DIM_TYPE_PARAMETRIC",
+      "value": "GDAL_DIM_TYPE_PARAMETRIC",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDsCAddRelationship",
+      "value": "\"AddRelationship\"",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDsCDeleteRelationship",
+      "value": "\"DeleteRelationship\"",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDsCUpdateRelationship",
+      "value": "\"UpdateRelationship\"",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDsCFastGetExtent",
+      "value": "\"FastGetExtent\"",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "GDsCFastGetExtentWGS84LongLat",
+      "value": "\"FastGetExtentWGS84LongLat\"",
+      "type": "char *",
+      "kind": "string"
+    },
+    {
+      "name": "CPLES_BackslashQuotable",
+      "value": "CPLES_BackslashQuotable",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLES_XML",
+      "value": "CPLES_XML",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLES_XML_BUT_QUOTES",
+      "value": "CPLES_XML_BUT_QUOTES",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLES_URL",
+      "value": "CPLES_URL",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLES_SQL",
+      "value": "CPLES_SQL",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLES_SQLI",
+      "value": "CPLES_SQLI",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "CPLES_CSV",
+      "value": "CPLES_CSV",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFT_Integer",
+      "value": "GFT_Integer",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFT_Real",
+      "value": "GFT_Real",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFT_String",
+      "value": "GFT_String",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFT_Boolean",
+      "value": "GFT_Boolean",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFT_DateTime",
+      "value": "GFT_DateTime",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFT_WKBGeometry",
+      "value": "GFT_WKBGeometry",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Generic",
+      "value": "GFU_Generic",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_PixelCount",
+      "value": "GFU_PixelCount",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Name",
+      "value": "GFU_Name",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Min",
+      "value": "GFU_Min",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Max",
+      "value": "GFU_Max",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_MinMax",
+      "value": "GFU_MinMax",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Red",
+      "value": "GFU_Red",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Green",
+      "value": "GFU_Green",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Blue",
+      "value": "GFU_Blue",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_Alpha",
+      "value": "GFU_Alpha",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_RedMin",
+      "value": "GFU_RedMin",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_GreenMin",
+      "value": "GFU_GreenMin",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_BlueMin",
+      "value": "GFU_BlueMin",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_AlphaMin",
+      "value": "GFU_AlphaMin",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_RedMax",
+      "value": "GFU_RedMax",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_GreenMax",
+      "value": "GFU_GreenMax",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_BlueMax",
+      "value": "GFU_BlueMax",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_AlphaMax",
+      "value": "GFU_AlphaMax",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GFU_MaxCount",
+      "value": "GFU_MaxCount",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRTT_THEMATIC",
+      "value": "GRTT_THEMATIC",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRTT_ATHEMATIC",
+      "value": "GRTT_ATHEMATIC",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GMF_ALL_VALID",
+      "value": "0x01",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GMF_PER_DATASET",
+      "value": "0x02",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GMF_ALPHA",
+      "value": "0x04",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GMF_NODATA",
+      "value": "0x08",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDAL_DATA_COVERAGE_STATUS_UNIMPLEMENTED",
+      "value": "0x01",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDAL_DATA_COVERAGE_STATUS_DATA",
+      "value": "0x02",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GDAL_DATA_COVERAGE_STATUS_EMPTY",
+      "value": "0x04",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GARIO_PENDING",
+      "value": "GARIO_PENDING",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GARIO_UPDATE",
+      "value": "GARIO_UPDATE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GARIO_ERROR",
+      "value": "GARIO_ERROR",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GARIO_COMPLETE",
+      "value": "GARIO_COMPLETE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GTO_TIP",
+      "value": "GTO_TIP",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GTO_BIT",
+      "value": "GTO_BIT",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GTO_BSQ",
+      "value": "GTO_BSQ",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRC_ONE_TO_ONE",
+      "value": "GRC_ONE_TO_ONE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRC_ONE_TO_MANY",
+      "value": "GRC_ONE_TO_MANY",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRC_MANY_TO_ONE",
+      "value": "GRC_MANY_TO_ONE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRC_MANY_TO_MANY",
+      "value": "GRC_MANY_TO_MANY",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRT_COMPOSITE",
+      "value": "GRT_COMPOSITE",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRT_ASSOCIATION",
+      "value": "GRT_ASSOCIATION",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GRT_AGGREGATION",
+      "value": "GRT_AGGREGATION",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_BOOLEAN",
+      "value": "GAAT_BOOLEAN",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_STRING",
+      "value": "GAAT_STRING",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_INTEGER",
+      "value": "GAAT_INTEGER",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_REAL",
+      "value": "GAAT_REAL",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_DATASET",
+      "value": "GAAT_DATASET",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_STRING_LIST",
+      "value": "GAAT_STRING_LIST",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_INTEGER_LIST",
+      "value": "GAAT_INTEGER_LIST",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_REAL_LIST",
+      "value": "GAAT_REAL_LIST",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GAAT_DATASET_LIST",
+      "value": "GAAT_DATASET_LIST",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GADV_NAME",
+      "value": "GADV_NAME",
+      "type": "int",
+      "kind": "int"
+    },
+    {
+      "name": "GADV_OBJECT",
+      "value": "GADV_OBJECT",
+      "type": "int",
+      "kind": "int"
+    }
+  ]
+}

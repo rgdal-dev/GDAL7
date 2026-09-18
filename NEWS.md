@@ -1,5 +1,59 @@
 # GDAL7 (development version)
 
+## Stage 3: the generator
+
+* The C function a binding calls is now derived from the `%extend` body in
+  GDAL's own SWIG file, which is where GDAL writes that mapping down. The
+  hand-maintained table of about 33 method-to-function pairs, and the
+  `paste0("GDAL", name)` guess it fell back on, are gone.
+
+* The skip list is gone with it. A method is generated when the generator can
+  express it; when it cannot, the generated file records which method and why.
+  Fifteen of GDAL's Dataset methods are recorded that way. Five more are named
+  as hand-written elsewhere in the package, which is a different thing and is
+  now labelled as one.
+
+* Twelve Dataset methods that the skip list had been hiding are bound:
+  `reset_reading()`, `abort_sql()`, `start_transaction()`,
+  `commit_transaction()`, `rollback_transaction()`, `clear_statistics()`,
+  `get_field_domain_names()`, `delete_field_domain()`,
+  `get_relationship_names()`, `delete_relationship()`, `set_projection()`,
+  `add_band()` and `create_mask_band()`.
+
+* `gdal_constants()` and `gdal_string_constants()` return GDAL's own
+  enumerators and metadata keys, which the package had none of: `GDT_*`, `GA_*`,
+  `GCI_*`, `GRA_*`, `OF_*`, `CE_*`, `DMD_*`, `DCAP_*` and the rest. They are two
+  named vectors rather than two hundred exported names.
+
+* A binding whose GDAL function is newer than the GDAL in use still exists and
+  still dispatches; calling it raises an error naming the release it needs.
+  `gdal7_capabilities()` says which bindings those are and whether this build
+  has them, and `gdal_version()` reports the GDAL being run against. One source
+  tree now builds against GDAL 3.8 through 3.14.
+
+* A dataset's dimensions are S7 properties: `ds@raster_xsize`,
+  `ds@raster_ysize`, `ds@raster_count`. GDAL declares them with `%immutable`,
+  and the generator now reads that. `get_raster_xsize()` and its two companions
+  still work and read the same properties.
+
+* `get_spatial_ref()` is removed. It could not have worked: GDAL's SWIG body
+  clones the reference rather than making a single call, and the generated R
+  returned an S7 class the package does not define. `get_projection()` gives
+  the WKT.
+
+* The API model extracted from GDAL's SWIG files is vendored at
+  `inst/api/gdal-api.json`, stamped with the GDAL version it came from, so the
+  generators run from a clone with no GDAL checkout. A CI job regenerates on
+  every commit and fails if the checked-in generated code differs.
+
+* Fixed: the SWIG parser dropped the pointer from `char **options`, leaving the
+  parameter reading as a single `char`. That is what "complex params" meant in
+  the old skip list for `AddBand` and `BuildOverviews`.
+
+* Fixed: a `#if !defined(SWIGJAVA)` block was being skipped as if it selected
+  another language, so every constant behind one was invisible, along with the
+  `GDALAsyncReader` class.
+
 ## Stage 2: raster I/O
 
 * `read_raster()` reads a window of a band at a chosen output size, through

@@ -58,11 +58,18 @@ GDAL7/
 
 ## Remaining Work
 
-1. **Properties** - Parse `%immutable` for read-only properties
-2. **Constants** - Parse `%constant` for enums (GDT_*, GA_*, etc.)
-3. **More classes** - Run generators on Dataset, Band, MultiDimensional
-4. **Testing** - Create test suite with actual GDAL files
-5. **Constructor functions** - `gdal_open()`, `gdal_create()`
+Items 1, 2, 4 and 5 below were done in stages 0 to 3; see `ROADMAP.md`.
+`%immutable` members are parsed and become S7 properties, `%constant` is parsed
+and emitted with per-constant version guards, `tests/testthat/` runs against
+fixtures in `inst/extdata`, and `gdal_open()` exists.
+
+1. ~~**Properties** - Parse `%immutable` for read-only properties~~
+2. ~~**Constants** - Parse `%constant` for enums (GDT_*, GA_*, etc.)~~
+3. **More classes** - the generator covers MajorObject and Dataset. Band,
+   Driver and the multidimensional classes are still hand-written.
+4. ~~**Testing** - Create test suite with actual GDAL files~~
+5. ~~**Constructor functions** - `gdal_open()`, `gdal_create()`~~ (`gdal_open()`
+   only; creation is stage 7.)
 
 ## Verified
 
