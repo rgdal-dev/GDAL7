@@ -22,3 +22,6 @@ src/Makevars
 
 # R CMD check output
 *.Rcheck/
+
+# GDAL writes a PAM sidecar beside any dataset whose metadata changes.
+*.aux.xml

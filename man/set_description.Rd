@@ -9,7 +9,7 @@ set_description(x, pszNewDesc)
 \arguments{
 \item{x}{A GDALMajorObject object}
 
-\item{pszNewDesc}{ANY}
+\item{pszNewDesc}{character}
 }
 \description{
 SetDescription

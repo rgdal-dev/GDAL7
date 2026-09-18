@@ -1,5 +1,55 @@
 # GDAL7 (development version)
 
+## Stage 1: safe object lifetimes
+
+* GDAL objects now have real lifetimes. Every handle reaching R carries a
+  record of what must stay alive for it to be valid, and that record chains to
+  the object it came from. A band keeps its dataset open, an array keeps its
+  group and its dataset open, and dropping the last R reference to any of them
+  closes them in the right order. The shared header is
+  `inst/include/gdal7.h`.
+
+* Using an object after the dataset it belongs to has been closed is now an R
+  error rather than a read of freed memory. Before this, `gdal_close(ds)`
+  followed by `get_xsize(band)` was undefined behaviour.
+
+* Datasets are now actually closed. There was no finalizer calling
+  `GDALClose()`, so every dataset opened in a session stayed open until R
+  exited. A loop opening and dropping 500 datasets now shows a flat file
+  descriptor count.
+
+* `GDALGroupRelease()` and `GDALMDArrayRelease()` are now called. Both bindings
+  existed but nothing ever reached them, so multidimensional groups and arrays
+  leaked.
+
+* External pointers are tagged with the kind of object they hold, so passing a
+  band where a dataset is expected gives "Expected a GDALDataset object"
+  instead of a crash. Groups and arrays are no longer accepted by the
+  `GDALMajorObject` bindings, which they are not in the GDAL C API.
+
+* GDAL errors and warnings now arrive as R conditions. They are collected for
+  the duration of each fallible call, so a failure reports what GDAL said about
+  that call rather than whatever was left over from an earlier one, and a
+  warning can be caught, muffled or tested like any other. Previously they went
+  to stderr, out of reach of R.
+
+* Metadata that is absent now reads as `NA` rather than `""`, so
+  `get_metadata_item()` can tell "not set" from "set to the empty string".
+
+* `get_metadata_dict()` returns a named character vector, split on `=`.
+  It and `get_metadata_list()` were byte-identical implementations.
+
+* `get_dimensions()` no longer returns a malformed list. The C level result had
+  `n` leading NULLs in front of its two columns.
+
+* String list conversions use `CPLStringList`, which frees itself if the
+  conversion throws part way through.
+
+* Fixed the generator naming every overload's C++ binding after the first
+  overload, which is how `set_metadata_2()` came to call the list variant. The
+  fix in Stage 0 was in the generated file only, so regenerating would have put
+  the fault back.
+
 ## Stage 0: the package installs and checks
 
 * The declared GDAL floor is now 3.10, up from 3.0.0, which was wrong in any case:

@@ -20,14 +20,14 @@ extern "C" SEXP _GDAL7_GDAL7_dataset_get_raster_band(SEXP xp, SEXP nBand) {
   END_CPP11
 }
 // GDAL7_dataset.cpp
-std::string GDAL7_dataset_get_projection(SEXP xp);
+cpp11::strings GDAL7_dataset_get_projection(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_dataset_get_projection(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_dataset_get_projection(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_dataset.cpp
-std::string GDAL7_dataset_get_projection_ref(SEXP xp);
+cpp11::strings GDAL7_dataset_get_projection_ref(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_dataset_get_projection_ref(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_dataset_get_projection_ref(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -48,7 +48,7 @@ extern "C" SEXP _GDAL7_GDAL7_dataset_get_gcpcount(SEXP xp) {
   END_CPP11
 }
 // GDAL7_dataset.cpp
-std::string GDAL7_dataset_get_gcpprojection(SEXP xp);
+cpp11::strings GDAL7_dataset_get_gcpprojection(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_dataset_get_gcpprojection(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_dataset_get_gcpprojection(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -76,21 +76,21 @@ extern "C" SEXP _GDAL7_GDAL7_dataset_get_layer_count(SEXP xp) {
   END_CPP11
 }
 // GDAL7_driver.cpp
-std::string GDAL7_driver_get_short_name(SEXP xp);
+cpp11::strings GDAL7_driver_get_short_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_driver_get_short_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_driver_get_short_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_driver.cpp
-std::string GDAL7_driver_get_long_name(SEXP xp);
+cpp11::strings GDAL7_driver_get_long_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_driver_get_long_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_driver_get_long_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_driver.cpp
-std::string GDAL7_driver_get_help_topic(SEXP xp);
+cpp11::strings GDAL7_driver_get_help_topic(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_driver_get_help_topic(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_driver_get_help_topic(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -146,7 +146,7 @@ extern "C" SEXP _GDAL7_GDAL7_driver_get_creation_options(SEXP xp) {
   END_CPP11
 }
 // GDAL7_driver.cpp
-std::string GDAL7_driver_get_metadata_item(SEXP xp, std::string name, std::string domain);
+cpp11::strings GDAL7_driver_get_metadata_item(SEXP xp, std::string name, std::string domain);
 extern "C" SEXP _GDAL7_GDAL7_driver_get_metadata_item(SEXP xp, SEXP name, SEXP domain) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_driver_get_metadata_item(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(name), cpp11::as_cpp<cpp11::decay_t<std::string>>(domain)));
@@ -209,7 +209,7 @@ extern "C" SEXP _GDAL7_GDAL7_band_get_data_type(SEXP xp) {
   END_CPP11
 }
 // GDAL7_info.cpp
-std::string GDAL7_band_get_data_type_name(SEXP xp);
+cpp11::strings GDAL7_band_get_data_type_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_band_get_data_type_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_band_get_data_type_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -230,7 +230,7 @@ extern "C" SEXP _GDAL7_GDAL7_band_get_nodata_value(SEXP xp) {
   END_CPP11
 }
 // GDAL7_info.cpp
-std::string GDAL7_band_get_description(SEXP xp);
+cpp11::strings GDAL7_band_get_description(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_band_get_description(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_band_get_description(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -244,7 +244,7 @@ extern "C" SEXP _GDAL7_GDAL7_band_get_color_interpretation(SEXP xp) {
   END_CPP11
 }
 // GDAL7_info.cpp
-std::string GDAL7_band_get_color_interpretation_name(SEXP xp);
+cpp11::strings GDAL7_band_get_color_interpretation_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_band_get_color_interpretation_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_band_get_color_interpretation_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -265,14 +265,14 @@ extern "C" SEXP _GDAL7_GDAL7_band_get_offset(SEXP xp) {
   END_CPP11
 }
 // GDAL7_info.cpp
-std::string GDAL7_band_get_unit_type(SEXP xp);
+cpp11::strings GDAL7_band_get_unit_type(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_band_get_unit_type(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_band_get_unit_type(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_majorobject.cpp
-std::string GDAL7_majorobject_get_description(SEXP xp);
+cpp11::strings GDAL7_majorobject_get_description(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_majorobject_get_description(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_majorobject_get_description(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -322,7 +322,7 @@ extern "C" SEXP _GDAL7_GDAL7_majorobject_set_metadata_2(SEXP xp, SEXP pszMetadat
   END_CPP11
 }
 // GDAL7_majorobject.cpp
-std::string GDAL7_majorobject_get_metadata_item(SEXP xp, std::string pszName, std::string pszDomain);
+cpp11::strings GDAL7_majorobject_get_metadata_item(SEXP xp, std::string pszName, std::string pszDomain);
 extern "C" SEXP _GDAL7_GDAL7_majorobject_get_metadata_item(SEXP xp, SEXP pszName, SEXP pszDomain) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_majorobject_get_metadata_item(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(pszName), cpp11::as_cpp<cpp11::decay_t<std::string>>(pszDomain)));
@@ -343,14 +343,14 @@ extern "C" SEXP _GDAL7_GDAL7_dataset_get_root_group(SEXP xp) {
   END_CPP11
 }
 // GDAL7_multidim.cpp
-std::string GDAL7_group_get_name(SEXP xp);
+cpp11::strings GDAL7_group_get_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_group_get_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_group_get_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_multidim.cpp
-std::string GDAL7_group_get_full_name(SEXP xp);
+cpp11::strings GDAL7_group_get_full_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_group_get_full_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_group_get_full_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -393,14 +393,14 @@ extern "C" SEXP _GDAL7_GDAL7_group_release(SEXP xp) {
   END_CPP11
 }
 // GDAL7_multidim.cpp
-std::string GDAL7_mdarray_get_name(SEXP xp);
+cpp11::strings GDAL7_mdarray_get_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_mdarray_get_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_multidim.cpp
-std::string GDAL7_mdarray_get_full_name(SEXP xp);
+cpp11::strings GDAL7_mdarray_get_full_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_full_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_mdarray_get_full_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -421,14 +421,14 @@ extern "C" SEXP _GDAL7_GDAL7_mdarray_get_dimensions(SEXP xp) {
   END_CPP11
 }
 // GDAL7_multidim.cpp
-std::string GDAL7_mdarray_get_data_type_name(SEXP xp);
+cpp11::strings GDAL7_mdarray_get_data_type_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_data_type_name(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_mdarray_get_data_type_name(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
   END_CPP11
 }
 // GDAL7_multidim.cpp
-std::string GDAL7_mdarray_get_unit(SEXP xp);
+cpp11::strings GDAL7_mdarray_get_unit(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_unit(SEXP xp) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_mdarray_get_unit(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
@@ -472,6 +472,14 @@ extern "C" SEXP _GDAL7_GDAL7_close(SEXP xp) {
     return R_NilValue;
   END_CPP11
 }
+// GDAL7_open.cpp
+void GDAL7_emit_gdal_message(std::string level, std::string message);
+extern "C" SEXP _GDAL7_GDAL7_emit_gdal_message(SEXP level, SEXP message) {
+  BEGIN_CPP11
+    GDAL7_emit_gdal_message(cpp11::as_cpp<cpp11::decay_t<std::string>>(level), cpp11::as_cpp<cpp11::decay_t<std::string>>(message));
+    return R_NilValue;
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
@@ -512,6 +520,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_driver_get_short_name",                (DL_FUNC) &_GDAL7_GDAL7_driver_get_short_name,                1},
     {"_GDAL7_GDAL7_driver_has_open_option",               (DL_FUNC) &_GDAL7_GDAL7_driver_has_open_option,               2},
     {"_GDAL7_GDAL7_driver_test_capability",               (DL_FUNC) &_GDAL7_GDAL7_driver_test_capability,               2},
+    {"_GDAL7_GDAL7_emit_gdal_message",                    (DL_FUNC) &_GDAL7_GDAL7_emit_gdal_message,                    2},
     {"_GDAL7_GDAL7_gdal_open",                            (DL_FUNC) &_GDAL7_GDAL7_gdal_open,                            3},
     {"_GDAL7_GDAL7_get_driver",                           (DL_FUNC) &_GDAL7_GDAL7_get_driver,                           1},
     {"_GDAL7_GDAL7_get_driver_by_name",                   (DL_FUNC) &_GDAL7_GDAL7_get_driver_by_name,                   1},

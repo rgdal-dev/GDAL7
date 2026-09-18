@@ -10,5 +10,5 @@
 
 CXX_STD = CXX17
 
-PKG_CPPFLAGS = $(shell pkg-config --cflags gdal)
+PKG_CPPFLAGS = -I../inst/include $(shell pkg-config --cflags gdal)
 PKG_LIBS = $(shell pkg-config --libs --static gdal)

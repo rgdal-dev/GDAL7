@@ -171,6 +171,14 @@ an ODR violation. Use `CPLStringList` (RAII) from a single shared header under
 
 ## 5. Correctness defects
 
+*Status: items 1 through 8 are closed as of Stage 1.* Item 1 was fixed in the
+tree during Stage 0 and at its source in Stage 1: `data-raw/generate_s7.R` was
+naming every overload's binding after the first overload, so regenerating would
+have put the wrong call back. Items 2, 4, 5, 6 and 8 are covered by
+`tests/testthat/test-errors.R`; item 3 by the `gdal_dsn()` gate added in Stage 0;
+item 7 by the explicit generic formals added in Stage 0.
+
+
 1. `R/aaa-class-majorobject.R:131` - the `set_metadata_2` method calls
    `GDAL7_majorobject_set_metadata()`, the list variant, instead of
    `GDAL7_majorobject_set_metadata_2()`. The C++ function at
@@ -213,9 +221,14 @@ an ODR violation. Use `CPLStringList` (RAII) from a single shared header under
    So `get_metadata_item(ds, "AREA_OR_POINT", "")` requires the domain argument that
    SWIG declares as optional, as the README example shows (`README.md:66`).
 
-8. Encoding. `std::string(s)` on a cpp11 string yields the native encoding. GDAL
-   expects UTF-8 filenames and strings. On a non-UTF-8 locale, or Windows, this
-   corrupts non-ASCII paths and metadata. Translate explicitly at the boundary.
+8. Encoding. ~~`std::string(s)` on a cpp11 string yields the native encoding.~~
+   *Corrected:* this claim was wrong, and reading cpp11 0.4.7 settles it. Inbound,
+   `as_cpp<std::string>` and `r_string::operator std::string()` both go through
+   `Rf_translateCharUTF8` (`cpp11/as.hpp:188`, `cpp11/r_string.hpp:29`). Outbound,
+   every string cpp11 builds is marked `CE_UTF8` (`cpp11/r_string.hpp:18-20`). So
+   the boundary was already UTF-8 in both directions. There is now a round-trip
+   test for it (`tests/testthat/test-errors.R`) so the guarantee is checked rather
+   than assumed.
 
 ---
 
@@ -410,6 +423,27 @@ a `CPLPushErrorHandler` that routes GDAL errors and warnings into R conditions, 
 *Exit:* a test that opens a dataset, takes a band, closes the dataset and then
 touches the band gives an R error, not a crash. A loop opening and dropping datasets
 shows flat file-handle count.
+
+*Status: done.* `inst/include/gdal7.h` holds the whole mechanism: a `Handle`
+carrying the raw GDAL handle, the kind of object it is, and a `shared_ptr` to
+the `Owner` record of whatever must stay alive for it to be valid. Owners chain
+to their parent, so a band keeps its dataset open and an array keeps its group
+and its dataset open; closing any of them marks the chain dead and every
+accessor below it raises an R error instead of reading freed memory. The
+external pointer's tag records the kind, so a band passed where a dataset is
+expected is refused rather than cast. Both exit tests are in
+`tests/testthat/test-lifetime.R`, with 500 open-and-drop cycles showing a flat
+descriptor count.
+
+Two departures from the plan as written. The `prot` slot is not what provides
+the protection: it holds the parent for the R-level object graph, but the
+`shared_ptr` chain is what actually keeps the parent open, because it also
+survives an explicit `gdal_close()` on the parent rather than only a garbage
+collection. And GDAL errors are collected per call by a scoped handler
+(`gdal7::ErrorScope`) rather than raised from inside the GDAL callback: a
+condition raised there could longjmp out of GDAL C++ code, so the messages are
+gathered, the call returns, and only then do they become an R error or R
+warnings.
 
 ### Stage 2 - Raster I/O, the missing core
 

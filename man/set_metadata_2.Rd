@@ -2,20 +2,20 @@
 % Please edit documentation in R/aaa-class-majorobject.R
 \name{set_metadata_2}
 \alias{set_metadata_2}
-\title{SetMetadata, single string overload}
+\title{SetMetadata (overload 2)}
 \usage{
 set_metadata_2(x, pszMetadataString, pszDomain = "")
 }
 \arguments{
 \item{x}{A GDALMajorObject object}
 
-\item{pszMetadataString}{character. A single "NAME=VALUE" string.}
+\item{pszMetadataString}{character}
 
-\item{pszDomain}{character. Metadata domain, "" for the default domain.}
+\item{pszDomain}{character}
 }
 \value{
 integer
 }
 \description{
-SetMetadata, single string overload
+SetMetadata (overload 2)
 }

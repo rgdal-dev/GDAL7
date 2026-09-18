@@ -9,7 +9,7 @@ get_metadata_dict(x, pszDomain = "")
 \arguments{
 \item{x}{A GDALMajorObject object}
 
-\item{pszDomain}{character (default: )}
+\item{pszDomain}{character (default: "")}
 }
 \value{
 character

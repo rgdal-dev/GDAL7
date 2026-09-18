@@ -24,6 +24,7 @@ map_r_type <- function(swig_type) {
     "const char*" = "character",
     "char const*" = "character",
     "char*" = "character",
+    "const char" = "character",
     "char**" = "character",
     "CPLErr" = "integer",
     "OGRErr" = "integer"
@@ -61,6 +62,19 @@ generic_formals <- function(method) {
     }
   }
   paste(args, collapse = ", ")
+}
+
+# Render the new_generic() call. A method that takes nothing but the object
+# keeps S7's own `...` formal, which is what the generated @param ... documents;
+# spelling out `function(x) S7::S7_dispatch()` would drop it and leave the
+# roxygen block describing an argument that is not in the usage.
+new_generic_call <- function(name, method) {
+  if (length(method$params) == 0) {
+    sprintf('%s <- S7::new_generic("%s", "x")', name, name)
+  } else {
+    sprintf('%s <- S7::new_generic("%s", "x", function(%s) S7::S7_dispatch())',
+            name, name, generic_formals(method))
+  }
 }
 
 # Get cpp11 function name
@@ -177,14 +191,19 @@ generate_s7_generics <- function(parsed_class, skip_methods = character()) {
     # Document other parameters
     for (p in method$params) {
       r_type <- map_r_type(p$type)
-      default_str <- if (!is.null(p$default)) sprintf(' (default: %s)', p$default) else ''
+      default_str <- if (is.null(p$default)) {
+        ''
+      } else if (identical(trimws(p$default), '')) {
+        ' (default: "")'
+      } else {
+        sprintf(' (default: %s)', trimws(p$default))
+      }
       lines <- c(lines, sprintf('#\' @param %s %s%s', p$name, r_type, default_str))
     }
 
     lines <- c(lines, sprintf('#\' @return %s', r_return))
     lines <- c(lines, '#\' @export')
-    lines <- c(lines, sprintf('%s <- S7::new_generic("%s", "x", function(%s) S7::S7_dispatch())',
-                              base_generic, base_generic, generic_formals(method)))
+    lines <- c(lines, new_generic_call(base_generic, method))
     lines <- c(lines, '')
   }
 
@@ -220,8 +239,15 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
       method_counts[[base_name]] <- method_counts[[base_name]] + 1
     }
 
-    # Use full method name for cpp11 function (includes _2 suffix for overloads)
-    cpp_func <- get_cpp11_func(class_name, method$name)
+    # The cpp11 generator names overloads after the first with a _N suffix, so
+    # the binding this method calls has to carry the same suffix. Without it
+    # every overload calls the first one's binding, with the wrong signature.
+    cpp_method_name <- if (method_counts[[base_name]] > 1) {
+      sprintf("%s_%d", base_name, method_counts[[base_name]])
+    } else {
+      base_name
+    }
+    cpp_func <- get_cpp11_func(class_name, cpp_method_name)
 
     # For overloaded methods, create separate R functions with different names
     # (R doesn't support true overloading)
@@ -268,8 +294,7 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
       }
       lines <- c(lines, sprintf('#\' @return %s', r_return_doc))
       lines <- c(lines, '#\' @export')
-      lines <- c(lines, sprintf('%s <- S7::new_generic("%s", "x", function(%s) S7::S7_dispatch())',
-                                r_func_name, r_func_name, generic_formals(method)))
+      lines <- c(lines, new_generic_call(r_func_name, method))
       lines <- c(lines, '')
     }
 

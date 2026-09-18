@@ -13,8 +13,31 @@ test_zarr <- function() {
   sprintf('ZARR:"/vsizip/%s/test.zarr"', zip)
 }
 
+# A scratch copy, for tests that write. GDAL drops a .aux.xml sidecar beside a
+# dataset whose metadata changes, and that must never land in inst/extdata.
+test_tif_copy <- function() {
+  path <- tempfile(fileext = ".tif")
+  file.copy(test_tif(), path, overwrite = TRUE)
+  path
+}
+
 skip_if_no_driver <- function(name) {
   if (is.null(gdal_get_driver_by_name(name))) {
     testthat::skip(paste0("GDAL build has no ", name, " driver"))
+  }
+}
+
+# Open file descriptors held by this process. Used to show that datasets are
+# actually closed rather than merely dropped. Only Linux has /proc/self/fd.
+open_fd_count <- function() {
+  if (!dir.exists("/proc/self/fd")) {
+    return(NA_integer_)
+  }
+  length(list.files("/proc/self/fd"))
+}
+
+skip_if_no_fd_count <- function() {
+  if (is.na(open_fd_count())) {
+    testthat::skip("no /proc/self/fd on this platform")
   }
 }

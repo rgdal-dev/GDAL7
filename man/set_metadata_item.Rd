@@ -13,7 +13,7 @@ set_metadata_item(x, pszName, pszValue, pszDomain = "")
 
 \item{pszValue}{character}
 
-\item{pszDomain}{character (default: )}
+\item{pszDomain}{character (default: "")}
 }
 \value{
 integer

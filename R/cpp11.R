@@ -263,3 +263,7 @@ GDAL7_gdal_open <- function(path, update, multidim) {
 GDAL7_close <- function(xp) {
   invisible(.Call(`_GDAL7_GDAL7_close`, xp))
 }
+
+GDAL7_emit_gdal_message <- function(level, message) {
+  invisible(.Call(`_GDAL7_GDAL7_emit_gdal_message`, level, message))
+}

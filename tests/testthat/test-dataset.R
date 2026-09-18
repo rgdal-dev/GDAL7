@@ -50,7 +50,7 @@ test_that("description round-trips and metadata is readable", {
 test_that("using a dataset after close is an error, not a crash", {
   ds <- gdal_open(test_tif())
   gdal_close(ds)
-  expect_error(get_raster_xsize(ds), "Invalid")
+  expect_error(get_raster_xsize(ds), "has been closed")
 })
 
 test_that("the dataset print method dispatches", {

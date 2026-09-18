@@ -11,7 +11,7 @@ set_metadata(x, papszMetadata, pszDomain = "")
 
 \item{papszMetadata}{character}
 
-\item{pszDomain}{character (default: )}
+\item{pszDomain}{character (default: "")}
 }
 \value{
 integer

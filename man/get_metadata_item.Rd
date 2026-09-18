@@ -9,9 +9,9 @@ get_metadata_item(x, pszName, pszDomain = "")
 \arguments{
 \item{x}{A GDALMajorObject object}
 
-\item{pszName}{ANY}
+\item{pszName}{character}
 
-\item{pszDomain}{ANY (default: )}
+\item{pszDomain}{character (default: "")}
 }
 \value{
 character
