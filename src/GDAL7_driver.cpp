@@ -4,6 +4,7 @@
 
 #include <cpp11.hpp>
 #include <gdal.h>
+#include <cpl_minixml.h>
 
 // ============================================================================
 // Driver info methods
@@ -39,13 +40,45 @@ std::string GDAL7_driver_get_help_topic(SEXP xp) {
     return topic ? std::string(topic) : std::string("");
 }
 
+// Recursively look for <Option name="..."> in a driver option list document.
+static bool option_list_has(const CPLXMLNode* node, const char* option_name) {
+    for (const CPLXMLNode* n = node; n != nullptr; n = n->psNext) {
+        if (n->eType == CXT_Element && EQUAL(n->pszValue, "Option")) {
+            const char* name = CPLGetXMLValue(const_cast<CPLXMLNode*>(n), "name", nullptr);
+            if (name && EQUAL(name, option_name)) {
+                return true;
+            }
+        }
+        if (n->psChild && option_list_has(n->psChild, option_name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// There is no GDALDriverHasOpenOption() in the GDAL C API, so this is answered
+// from the driver's own DMD_OPENOPTIONLIST metadata, which every version has.
 [[cpp11::register]]
 bool GDAL7_driver_has_open_option(SEXP xp, std::string option_name) {
     GDALDriverH* ptr = reinterpret_cast<GDALDriverH*>(R_ExternalPtrAddr(xp));
     if (!ptr || !*ptr) {
         cpp11::stop("Invalid driver handle");
     }
-    return GDALDriverHasOpenOption(*ptr, option_name.c_str());
+
+    const char* xml = GDALGetMetadataItem(*ptr, GDAL_DMD_OPENOPTIONLIST, nullptr);
+    if (!xml || !*xml) {
+        return false;
+    }
+
+    CPLXMLNode* root = CPLParseXMLString(xml);
+    if (!root) {
+        CPLErrorReset();
+        return false;
+    }
+
+    const bool found = option_list_has(root, option_name.c_str());
+    CPLDestroyXMLNode(root);
+    return found;
 }
 
 // ============================================================================

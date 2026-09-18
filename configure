@@ -1,0 +1,106 @@
+#!/bin/sh
+# Locate GDAL and write src/Makevars.
+#
+# Preference order:
+#   1. PKG_CPPFLAGS / PKG_LIBS from the environment (full manual override)
+#   2. gdal-config, from $GDAL_CONFIG or the PATH
+#   3. pkg-config gdal
+#
+# GDAL7 needs GDAL 3.0.0 or newer.
+
+GDAL_MIN_VERSION=3.0.0
+
+: "${R_HOME=$(R RHOME)}"
+if [ -z "${R_HOME}" ]; then
+  echo "configure: could not determine R_HOME" >&2
+  exit 1
+fi
+RBIN="${R_HOME}/bin/R"
+
+GDAL_CONFIG="${GDAL_CONFIG:-gdal-config}"
+GDAL_VERSION=""
+SOURCE=""
+
+if [ -n "${PKG_CPPFLAGS}" ] && [ -n "${PKG_LIBS}" ]; then
+  SOURCE="PKG_CPPFLAGS/PKG_LIBS from the environment"
+elif "${GDAL_CONFIG}" --version >/dev/null 2>&1; then
+  GDAL_VERSION=$("${GDAL_CONFIG}" --version)
+  PKG_CPPFLAGS=$("${GDAL_CONFIG}" --cflags)
+  PKG_LIBS=$("${GDAL_CONFIG}" --libs)
+  SOURCE="gdal-config (GDAL ${GDAL_VERSION})"
+elif pkg-config --exists gdal 2>/dev/null; then
+  GDAL_VERSION=$(pkg-config --modversion gdal)
+  PKG_CPPFLAGS=$(pkg-config --cflags gdal)
+  PKG_LIBS=$(pkg-config --libs gdal)
+  SOURCE="pkg-config (GDAL ${GDAL_VERSION})"
+else
+  cat >&2 <<'MSG'
+--------------------------- GDAL NOT FOUND ---------------------------
+
+GDAL7 needs GDAL with its development headers, and could find neither
+gdal-config nor a pkg-config entry for gdal.
+
+  Debian / Ubuntu:  apt-get install libgdal-dev
+  Fedora:           dnf install gdal-devel
+  macOS (homebrew): brew install gdal
+  conda:            conda install -c conda-forge libgdal
+
+If GDAL is installed somewhere non-standard, point the build at it:
+
+  R CMD INSTALL --configure-vars='GDAL_CONFIG=/path/to/gdal-config' .
+
+or set PKG_CPPFLAGS and PKG_LIBS directly.
+
+----------------------------------------------------------------------
+MSG
+  exit 1
+fi
+
+# Refuse a GDAL that is too old, rather than failing later with a confusing
+# compile error about a missing symbol.
+if [ -n "${GDAL_VERSION}" ]; then
+  if ! "${RBIN}" --vanilla --slave -e \
+      "q(status = if (package_version('${GDAL_VERSION}') >= '${GDAL_MIN_VERSION}') 0L else 1L)" \
+      >/dev/null 2>&1; then
+    echo "configure: found GDAL ${GDAL_VERSION}, but GDAL7 needs >= ${GDAL_MIN_VERSION}" >&2
+    exit 1
+  fi
+fi
+
+# Prove the headers and the library actually work together before committing
+# to a build; a mismatched header/library pair is a common broken install.
+CXX=$("${RBIN}" CMD config CXX17 2>/dev/null)
+[ -z "${CXX}" ] && CXX=$("${RBIN}" CMD config CXX 2>/dev/null)
+CXX17STD=$("${RBIN}" CMD config CXX17STD 2>/dev/null)
+
+TESTDIR=$(mktemp -d 2>/dev/null || echo "./.configure-test.$$")
+mkdir -p "${TESTDIR}"
+cat > "${TESTDIR}/conftest.cpp" <<'CPP'
+#include <gdal.h>
+#include <cstdio>
+int main(void) {
+    GDALAllRegister();
+    std::printf("%s\n", GDALVersionInfo("RELEASE_NAME"));
+    return 0;
+}
+CPP
+
+if ! ${CXX} ${CXX17STD} ${PKG_CPPFLAGS} "${TESTDIR}/conftest.cpp" -o "${TESTDIR}/conftest" ${PKG_LIBS} >"${TESTDIR}/conftest.log" 2>&1; then
+  echo "configure: GDAL was found via ${SOURCE}, but a test program did not build." >&2
+  echo "configure: PKG_CPPFLAGS=${PKG_CPPFLAGS}" >&2
+  echo "configure: PKG_LIBS=${PKG_LIBS}" >&2
+  cat "${TESTDIR}/conftest.log" >&2
+  rm -rf "${TESTDIR}"
+  exit 1
+fi
+rm -rf "${TESTDIR}"
+
+echo "configure: GDAL found via ${SOURCE}"
+echo "configure: PKG_CPPFLAGS=${PKG_CPPFLAGS}"
+echo "configure: PKG_LIBS=${PKG_LIBS}"
+
+sed -e "s|@cppflags@|${PKG_CPPFLAGS}|" \
+    -e "s|@libs@|${PKG_LIBS}|" \
+    src/Makevars.in > src/Makevars
+
+exit 0

@@ -44,6 +44,25 @@ map_r_type <- function(swig_type) {
   "ANY"
 }
 
+# Render an S7 generic's formals from the parsed parameters. Giving the generic
+# real formals (rather than just `x`) is what lets SWIG's defaults reach R, and
+# what keeps the generated roxygen @param tags matching the \usage section.
+generic_formals <- function(method) {
+  args <- "x"
+  for (p in method$params) {
+    if (is.null(p$default)) {
+      args <- c(args, p$name)
+    } else if (identical(trimws(p$default), "")) {
+      args <- c(args, sprintf('%s = ""', p$name))
+    } else if (grepl('^(-?[0-9.]+|TRUE|FALSE|NULL|".*")$', trimws(p$default))) {
+      args <- c(args, sprintf("%s = %s", p$name, trimws(p$default)))
+    } else {
+      args <- c(args, p$name)
+    }
+  }
+  paste(args, collapse = ", ")
+}
+
 # Get cpp11 function name
 get_cpp11_func <- function(class_name, method_name) {
   sprintf("GDAL7_%s_%s", tolower(class_name), to_snake_case(method_name))
@@ -84,6 +103,7 @@ generate_s7_class <- function(parsed_class) {
   lines <- c(lines, sprintf('#\' GDAL %s class', class_name))
   lines <- c(lines, '#\'')
   lines <- c(lines, sprintf('#\' @description S7 class wrapping GDAL%s', class_name))
+  lines <- c(lines, '#\' @param .ptr Internal. External pointer to the underlying GDAL object.')
   lines <- c(lines, '#\' @export')
   lines <- c(lines, sprintf('GDAL%s <- S7::new_class(', class_name))
   lines <- c(lines, sprintf('  "GDAL%s",', class_name))
@@ -149,6 +169,10 @@ generate_s7_generics <- function(parsed_class, skip_methods = character()) {
     lines <- c(lines, sprintf('#\' %s', method$name))
     lines <- c(lines, '#\'')
     lines <- c(lines, sprintf('#\' @param x A GDAL%s object', class_name))
+    # Only a generic with no extra parameters keeps S7's default `...` formal.
+    if (length(method$params) == 0) {
+      lines <- c(lines, '#\' @param ... Arguments passed on to methods.')
+    }
 
     # Document other parameters
     for (p in method$params) {
@@ -159,7 +183,8 @@ generate_s7_generics <- function(parsed_class, skip_methods = character()) {
 
     lines <- c(lines, sprintf('#\' @return %s', r_return))
     lines <- c(lines, '#\' @export')
-    lines <- c(lines, sprintf('%s <- S7::new_generic("%s", "x")', base_generic, base_generic))
+    lines <- c(lines, sprintf('%s <- S7::new_generic("%s", "x", function(%s) S7::S7_dispatch())',
+                              base_generic, base_generic, generic_formals(method)))
     lines <- c(lines, '')
   }
 
@@ -206,7 +231,9 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
       generic_name
     }
 
-    # Build R parameter list (excluding 'x' which is the object)
+    # Build R parameter list (excluding 'x' which is the object). S7 requires a
+    # method's formals to match its generic's exactly when the generic has no
+    # `...`, defaults included, so both come from generic_formals().
     r_params <- c("x")
     call_args <- c("x@.ptr")
 
@@ -224,13 +251,25 @@ generate_s7_methods <- function(parsed_class, skip_methods = character()) {
       }
     }
 
-    r_params_str <- paste(r_params, collapse = ", ")
+    r_params_str <- generic_formals(method)
     call_args_str <- paste(call_args, collapse = ", ")
+    r_return_doc <- map_r_type(method$return_type)
 
     # For overloads after the first, also create the generic
     if (method_counts[[base_name]] > 1) {
-      lines <- c(lines, sprintf('#\' @export'))
-      lines <- c(lines, sprintf('%s <- S7::new_generic("%s", "x")', r_func_name, r_func_name))
+      lines <- c(lines, sprintf('#\' %s (overload %d)', base_name, method_counts[[base_name]]))
+      lines <- c(lines, '#\'')
+      lines <- c(lines, sprintf('#\' @param x A GDAL%s object', class_name))
+      if (length(method$params) == 0) {
+        lines <- c(lines, '#\' @param ... Arguments passed on to methods.')
+      }
+      for (p in method$params) {
+        lines <- c(lines, sprintf('#\' @param %s %s', p$name, map_r_type(p$type)))
+      }
+      lines <- c(lines, sprintf('#\' @return %s', r_return_doc))
+      lines <- c(lines, '#\' @export')
+      lines <- c(lines, sprintf('%s <- S7::new_generic("%s", "x", function(%s) S7::S7_dispatch())',
+                                r_func_name, r_func_name, generic_formals(method)))
       lines <- c(lines, '')
     }
 

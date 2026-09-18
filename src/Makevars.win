@@ -1,0 +1,15 @@
+# Windows build (legacy non-UCRT toolchain).
+#
+# Same as Makevars.ucrt; R >= 4.2 uses Makevars.ucrt in preference to this.
+# GDAL comes from the Rtools msys2 distribution, which ships a pkg-config
+# description for it. Install it once with:
+#
+#   pacman -S mingw-w64-ucrt-x86_64-gdal
+#
+# Static linking needs the full transitive library list, which only
+# `pkg-config --static` knows.
+
+CXX_STD = CXX17
+
+PKG_CPPFLAGS = $(shell pkg-config --cflags gdal)
+PKG_LIBS = $(shell pkg-config --libs --static gdal)

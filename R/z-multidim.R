@@ -11,6 +11,7 @@
 #' Represents a group in a multidimensional dataset (NetCDF, Zarr, HDF5, etc.)
 #' Groups can contain arrays (GDALMDArray) and subgroups.
 #'
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALGroup <- S7::new_class(
   "GDALGroup",
@@ -27,6 +28,7 @@ GDALGroup <- S7::new_class(
 #'
 #' Represents a multidimensional array in a GDAL dataset.
 #'
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALMDArray <- S7::new_class(
   "GDALMDArray",
@@ -42,6 +44,7 @@ GDALMDArray <- S7::new_class(
 #' Get root group from a multidimensional dataset
 #'
 #' @param x A GDALDataset opened with multidim = TRUE
+#' @param ... Arguments passed on to methods.
 #' @return A GDALGroup object, or NULL if not a multidimensional dataset
 #' @export
 get_root_group <- S7::new_generic("get_root_group", "x")
@@ -61,6 +64,7 @@ S7::method(get_root_group, GDALDataset) <- function(x) {
 #' Get group name
 #'
 #' @param x A GDALGroup object
+#' @param ... Arguments passed on to methods.
 #' @return Character group name
 #' @export
 get_name <- S7::new_generic("get_name", "x")
@@ -72,6 +76,7 @@ S7::method(get_name, GDALGroup) <- function(x) {
 #' Get group full name (path)
 #'
 #' @param x A GDALGroup object
+#' @param ... Arguments passed on to methods.
 #' @return Character full path name
 #' @export
 get_full_name <- S7::new_generic("get_full_name", "x")
@@ -87,6 +92,7 @@ S7::method(get_full_name, GDALGroup) <- function(x) {
 #' Get names of arrays in a group
 #'
 #' @param x A GDALGroup object
+#' @param ... Arguments passed on to methods.
 #' @return Character vector of array names
 #' @export
 get_mdarray_names <- S7::new_generic("get_mdarray_names", "x")
@@ -101,7 +107,7 @@ S7::method(get_mdarray_names, GDALGroup) <- function(x) {
 #' @param name Array name
 #' @return A GDALMDArray object, or NULL if not found
 #' @export
-open_mdarray <- S7::new_generic("open_mdarray", "x")
+open_mdarray <- S7::new_generic("open_mdarray", "x", function(x, name) S7::S7_dispatch())
 
 S7::method(open_mdarray, GDALGroup) <- function(x, name) {
   ptr <- GDAL7_group_open_mdarray(x@.ptr, name)
@@ -118,6 +124,7 @@ S7::method(open_mdarray, GDALGroup) <- function(x, name) {
 #' Get names of subgroups in a group
 #'
 #' @param x A GDALGroup object
+#' @param ... Arguments passed on to methods.
 #' @return Character vector of subgroup names
 #' @export
 get_group_names <- S7::new_generic("get_group_names", "x")
@@ -132,7 +139,7 @@ S7::method(get_group_names, GDALGroup) <- function(x) {
 #' @param name Subgroup name
 #' @return A GDALGroup object, or NULL if not found
 #' @export
-open_group <- S7::new_generic("open_group", "x")
+open_group <- S7::new_generic("open_group", "x", function(x, name) S7::S7_dispatch())
 
 S7::method(open_group, GDALGroup) <- function(x, name) {
   ptr <- GDAL7_group_open_group(x@.ptr, name)
@@ -157,6 +164,7 @@ S7::method(get_full_name, GDALMDArray) <- function(x) {
 #' Get number of dimensions in an array
 #'
 #' @param x A GDALMDArray object
+#' @param ... Arguments passed on to methods.
 #' @return Integer dimension count
 #' @export
 get_dimension_count <- S7::new_generic("get_dimension_count", "x")
@@ -168,6 +176,7 @@ S7::method(get_dimension_count, GDALMDArray) <- function(x) {
 #' Get dimensions of an array
 #'
 #' @param x A GDALMDArray object
+#' @param ... Arguments passed on to methods.
 #' @return Data frame with dimension names and sizes
 #' @export
 get_dimensions <- S7::new_generic("get_dimensions", "x")
@@ -197,6 +206,7 @@ S7::method(get_nodata_value, GDALMDArray) <- function(x) {
 # Print methods
 # ============================================================================
 
+#' @export
 S7::method(print, GDALGroup) <- function(x, ...) {
   cat("<GDALGroup>\n")
   cat("  Name: ", get_name(x), "\n", sep = "")
@@ -223,6 +233,7 @@ S7::method(print, GDALGroup) <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
 S7::method(print, GDALMDArray) <- function(x, ...) {
   cat("<GDALMDArray>\n")
   cat("  Name: ", get_name(x), "\n", sep = "")

@@ -2,6 +2,7 @@
 "_PACKAGE"
 
 ## usethis namespace: start
-#' @useDynLibGDAL7, .registration =FALSE
+#' @useDynLib GDAL7, .registration = TRUE
+#' @import S7
 ## usethis namespace: end
 NULL

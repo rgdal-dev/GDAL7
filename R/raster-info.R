@@ -10,6 +10,7 @@
 #'
 #' Represents a raster band within a GDAL dataset.
 #'
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALRasterBand <- S7::new_class(
     "GDALRasterBand",
@@ -26,6 +27,7 @@ GDALRasterBand <- S7::new_class(
 #' Get raster width
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return Integer width in pixels
 #' @export
 get_raster_xsize <- S7::new_generic("get_raster_xsize", "x")
@@ -37,6 +39,7 @@ S7::method(get_raster_xsize, GDALDataset) <- function(x) {
 #' Get raster height
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return Integer height in pixels
 #' @export
 get_raster_ysize <- S7::new_generic("get_raster_ysize", "x")
@@ -48,6 +51,7 @@ S7::method(get_raster_ysize, GDALDataset) <- function(x) {
 #' Get number of raster bands
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return Integer number of bands
 #' @export
 get_raster_count <- S7::new_generic("get_raster_count", "x")
@@ -57,11 +61,16 @@ S7::method(get_raster_count, GDALDataset) <- function(x) {
 }
 
 # ============================================================================
-# Override get_raster_band to return our GDALRasterBand class
+# Dataset accessor for a band
 # ============================================================================
 
-# Note: This overrides the generated method which tries to return a class that
-# didn't exist. We define the method here after GDALRasterBand is defined.
+#' Get a raster band from a dataset
+#'
+#' @param x A GDALDataset object
+#' @param nBand Band number, 1-indexed
+#' @return A GDALRasterBand object
+#' @export
+get_raster_band <- S7::new_generic("get_raster_band", "x", function(x, nBand) S7::S7_dispatch())
 
 S7::method(get_raster_band, GDALDataset) <- function(x, nBand) {
     ptr <- GDAL7_dataset_get_band(x@.ptr, as.integer(nBand))
@@ -75,6 +84,7 @@ S7::method(get_raster_band, GDALDataset) <- function(x, nBand) {
 #' Get band width
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Integer width in pixels
 #' @export
 get_xsize <- S7::new_generic("get_xsize", "x")
@@ -86,6 +96,7 @@ S7::method(get_xsize, GDALRasterBand) <- function(x) {
 #' Get band height
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Integer height in pixels
 #' @export
 get_ysize <- S7::new_generic("get_ysize", "x")
@@ -97,6 +108,7 @@ S7::method(get_ysize, GDALRasterBand) <- function(x) {
 #' Get band number
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Integer band number (1-indexed)
 #' @export
 get_band_number <- S7::new_generic("get_band_number", "x")
@@ -112,6 +124,7 @@ S7::method(get_band_number, GDALRasterBand) <- function(x) {
 #' Get band data type (numeric code)
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Integer data type code (see GDAL GDALDataType enum)
 #' @export
 get_data_type <- S7::new_generic("get_data_type", "x")
@@ -123,6 +136,7 @@ S7::method(get_data_type, GDALRasterBand) <- function(x) {
 #' Get band data type name
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Character data type name (e.g., "Byte", "Int16", "Float32")
 #' @export
 get_data_type_name <- S7::new_generic("get_data_type_name", "x")
@@ -138,6 +152,7 @@ S7::method(get_data_type_name, GDALRasterBand) <- function(x) {
 #' Get band block size (tile dimensions)
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Named integer vector with 'x' and 'y' block dimensions
 #' @export
 get_block_size <- S7::new_generic("get_block_size", "x")
@@ -153,6 +168,7 @@ S7::method(get_block_size, GDALRasterBand) <- function(x) {
 #' Get band nodata value
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Numeric nodata value, or NULL if not set
 #' @export
 get_nodata_value <- S7::new_generic("get_nodata_value", "x")
@@ -164,6 +180,7 @@ S7::method(get_nodata_value, GDALRasterBand) <- function(x) {
 #' Get band scale factor
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Numeric scale factor, or NULL if not set
 #' @export
 get_scale <- S7::new_generic("get_scale", "x")
@@ -175,6 +192,7 @@ S7::method(get_scale, GDALRasterBand) <- function(x) {
 #' Get band offset value
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Numeric offset value, or NULL if not set
 #' @export
 get_offset <- S7::new_generic("get_offset", "x")
@@ -186,6 +204,7 @@ S7::method(get_offset, GDALRasterBand) <- function(x) {
 #' Get band unit type
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Character unit type string (e.g., "meters", "degrees")
 #' @export
 get_unit_type <- S7::new_generic("get_unit_type", "x")
@@ -201,6 +220,7 @@ S7::method(get_unit_type, GDALRasterBand) <- function(x) {
 #' Get band color interpretation (numeric code)
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Integer color interpretation code
 #' @export
 get_color_interpretation <- S7::new_generic("get_color_interpretation", "x")
@@ -212,6 +232,7 @@ S7::method(get_color_interpretation, GDALRasterBand) <- function(x) {
 #' Get band color interpretation name
 #'
 #' @param x A GDALRasterBand object
+#' @param ... Arguments passed on to methods.
 #' @return Character color interpretation name (e.g., "Gray", "Red", "Green", "Blue")
 #' @export
 get_color_interpretation_name <- S7::new_generic("get_color_interpretation_name", "x")
@@ -224,6 +245,7 @@ S7::method(get_color_interpretation_name, GDALRasterBand) <- function(x) {
 # Print method for GDALRasterBand
 # ============================================================================
 
+#' @export
 S7::method(print, GDALRasterBand) <- function(x, ...) {
     cat("<GDALRasterBand>\n")
     cat("  Band:       ", get_band_number(x), "\n", sep = "")

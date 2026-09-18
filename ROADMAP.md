@@ -369,13 +369,22 @@ Ship `src/cpp11.cpp` and `R/cpp11.R`. Add LICENSE. Run roxygen and generate
 NAMESPACE from it, fixing `R/GDAL7-package.R:5` (this alone makes the print methods
 work). Create `tests/testthat/` with real tests. Add `configure` plus
 `Makevars.win`/`Makevars.ucrt` with a pkg-config fallback. Add CI across Linux,
-macOS and Windows. Root-cause `data-raw/fix_cpp11.R` rather than carrying it: the
-most likely culprit is the `GDAL7_` prefix on registered entry points interacting
-with cpp11's `_GDAL7_` decoration, so renaming the C++ entry points is a cheap
-experiment that would let the whole post-processing hack be deleted.
+macOS and Windows. Retire `data-raw/fix_cpp11.R`: verified against cpp11 0.4.7
+that `cpp_register()` output is already clean and the fixer is a no-op, so the
+bug it worked around is fixed upstream.
 
 *Exit:* `remotes::install_github("rgdal-dev/GDAL7")` works on a clean machine, and
 `R CMD check --as-cran` is clean on three platforms in CI.
+
+*Status: done.* `R CMD check --as-cran` is at 0 errors, 0 warnings locally
+against GDAL 3.8.4 and R 4.3.3; the remaining notes are environmental (no
+network for the CRAN and timestamp checks, and a compiler flag that comes from
+the distribution's own `Makeconf`). See `NEWS.md` for what changed. Two things
+found along the way that this document had not: the package did not compile
+against GDAL 3.8 at all, because `src/GDAL7_driver.cpp` called
+`GDALDriverHasOpenOption()`, which is not in the GDAL C API; and `fix_cpp11.R`
+was a no-op against current cpp11, so the bug it worked around is fixed
+upstream rather than needing a root cause.
 
 ### Stage 1 - Safe object lifetimes
 

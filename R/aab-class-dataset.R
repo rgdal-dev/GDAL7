@@ -8,6 +8,7 @@ NULL
 #' GDAL Dataset class
 #'
 #' @description S7 class wrapping GDALDataset
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALDataset <- S7::new_class(
   "GDALDataset",
@@ -30,24 +31,10 @@ GDALDataset <- S7::new_class(
 # Generics for GDALDataset
 # -----------------------------------------------------------------------------
 
-#' GetDriver
-#'
-#' @param x A GDALDataset object
-#' @return GDALDriver
-#' @export
-get_driver <- S7::new_generic("get_driver", "x")
-
-#' GetRasterBand
-#'
-#' @param x A GDALDataset object
-#' @param nBand integer
-#' @return GDALRasterBand
-#' @export
-get_raster_band <- S7::new_generic("get_raster_band", "x")
-
 #' GetProjection
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return character
 #' @export
 get_projection <- S7::new_generic("get_projection", "x")
@@ -55,6 +42,7 @@ get_projection <- S7::new_generic("get_projection", "x")
 #' GetProjectionRef
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return character
 #' @export
 get_projection_ref <- S7::new_generic("get_projection_ref", "x")
@@ -62,6 +50,7 @@ get_projection_ref <- S7::new_generic("get_projection_ref", "x")
 #' GetSpatialRef
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return OSRSpatialReference
 #' @export
 get_spatial_ref <- S7::new_generic("get_spatial_ref", "x")
@@ -69,6 +58,7 @@ get_spatial_ref <- S7::new_generic("get_spatial_ref", "x")
 #' GetGCPCount
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return integer
 #' @export
 get_gcpcount <- S7::new_generic("get_gcpcount", "x")
@@ -76,6 +66,7 @@ get_gcpcount <- S7::new_generic("get_gcpcount", "x")
 #' GetGCPProjection
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return character
 #' @export
 get_gcpprojection <- S7::new_generic("get_gcpprojection", "x")
@@ -83,6 +74,7 @@ get_gcpprojection <- S7::new_generic("get_gcpprojection", "x")
 #' FlushCache
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return integer
 #' @export
 flush_cache <- S7::new_generic("flush_cache", "x")
@@ -90,6 +82,7 @@ flush_cache <- S7::new_generic("flush_cache", "x")
 #' GetFileList
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return character
 #' @export
 get_file_list <- S7::new_generic("get_file_list", "x")
@@ -97,6 +90,7 @@ get_file_list <- S7::new_generic("get_file_list", "x")
 #' GetLayerCount
 #'
 #' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
 #' @return integer
 #' @export
 get_layer_count <- S7::new_generic("get_layer_count", "x")
@@ -104,18 +98,6 @@ get_layer_count <- S7::new_generic("get_layer_count", "x")
 # -----------------------------------------------------------------------------
 # Methods for GDALDataset
 # -----------------------------------------------------------------------------
-
-S7::method(get_driver, GDALDataset) <- function(x) {
-  ptr <- GDAL7_dataset_get_driver(x@.ptr)
-  if (is.null(ptr)) return(NULL)
-  GDALDriver(.ptr = ptr)
-}
-
-S7::method(get_raster_band, GDALDataset) <- function(x, nBand) {
-  ptr <- GDAL7_dataset_get_raster_band(x@.ptr, as.integer(nBand))
-  if (is.null(ptr)) return(NULL)
-  GDALRasterBand(.ptr = ptr)
-}
 
 S7::method(get_projection, GDALDataset) <- function(x) {
   GDAL7_dataset_get_projection(x@.ptr)

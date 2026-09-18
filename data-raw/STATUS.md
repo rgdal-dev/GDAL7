@@ -32,7 +32,6 @@ SWIG .i files (GDAL source)
 | `data-raw/parse_swig.R` | Parser for SWIG .i files | No |
 | `data-raw/generate_cpp11.R` | C++ binding generator | No |
 | `data-raw/generate_s7.R` | S7 class generator | No |
-| `data-raw/fix_cpp11.R` | Fixes cpp11 registration bug | No |
 | `data-raw/orchestrate.R` | Runs full pipeline | No |
 | `src/GDAL7_majorobject.cpp` | MajorObject C++ bindings | Yes |
 | `src/GDAL7_dataset.cpp` | Dataset C++ bindings | Yes |
@@ -95,13 +94,12 @@ R CMD INSTALL --no-staged-install .
 
 ## Known Issues & Workarounds
 
-### 1. cpp11 Registration Bug
+### 1. cpp11 Registration Bug (resolved)
 
-**Problem**: `cpp11::cpp_register()` generates duplicate function declarations with incorrect types in an `extern "C"` block, causing compilation errors.
-
-**Workaround**: `fix_cpp11.R` post-processes `src/cpp11.cpp` to remove the bad declarations.
-
-**Location**: Lines 140+ in generated cpp11.cpp
+Older cpp11 emitted duplicate `extern "C"` declarations with the wrong types,
+which `fix_cpp11.R` stripped out. Verified against cpp11 0.4.7: the generated
+`src/cpp11.cpp` is clean and running the old fixer changed nothing (552 -> 552
+lines). `fix_cpp11.R` has been removed.
 
 ### 2. R File Load Order
 

@@ -10,6 +10,7 @@
 #'
 #' Represents a GDAL format driver (e.g., GTiff, GPKG, etc.)
 #'
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALDriver <- S7::new_class(
     "GDALDriver",
@@ -20,8 +21,16 @@ GDALDriver <- S7::new_class(
 )
 
 # ============================================================================
-# Override get_driver to return proper GDALDriver class
+# Dataset accessor for the owning driver
 # ============================================================================
+
+#' Get the driver that opened a dataset
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return A GDALDriver object, or NULL
+#' @export
+get_driver <- S7::new_generic("get_driver", "x")
 
 S7::method(get_driver, GDALDataset) <- function(x) {
     ptr <- GDAL7_dataset_get_driver_ptr(x@.ptr)
@@ -38,6 +47,7 @@ S7::method(get_driver, GDALDataset) <- function(x) {
 #' Get driver short name
 #'
 #' @param x A GDALDriver object
+#' @param ... Arguments passed on to methods.
 #' @return Character driver short name (e.g., "GTiff", "GPKG")
 #' @export
 get_short_name <- S7::new_generic("get_short_name", "x")
@@ -49,6 +59,7 @@ S7::method(get_short_name, GDALDriver) <- function(x) {
 #' Get driver long name
 #'
 #' @param x A GDALDriver object
+#' @param ... Arguments passed on to methods.
 #' @return Character driver long name (e.g., "GeoTIFF", "GeoPackage")
 #' @export
 get_long_name <- S7::new_generic("get_long_name", "x")
@@ -60,6 +71,7 @@ S7::method(get_long_name, GDALDriver) <- function(x) {
 #' Get driver help topic URL
 #'
 #' @param x A GDALDriver object
+#' @param ... Arguments passed on to methods.
 #' @return Character help topic URL
 #' @export
 get_help_topic <- S7::new_generic("get_help_topic", "x")
@@ -78,7 +90,7 @@ S7::method(get_help_topic, GDALDriver) <- function(x) {
 #' @param option_name Name of the open option to check
 #' @return Logical TRUE if driver supports the option
 #' @export
-has_open_option <- S7::new_generic("has_open_option", "x")
+has_open_option <- S7::new_generic("has_open_option", "x", function(x, option_name) S7::S7_dispatch())
 
 S7::method(has_open_option, GDALDriver) <- function(x, option_name) {
     GDAL7_driver_has_open_option(x@.ptr, option_name)
@@ -98,7 +110,7 @@ S7::method(has_open_option, GDALDriver) <- function(x, option_name) {
 #' @param capability Capability name (e.g., "DCAP_RASTER")
 #' @return Logical TRUE if driver has the capability
 #' @export
-test_capability <- S7::new_generic("test_capability", "x")
+test_capability <- S7::new_generic("test_capability", "x", function(x, capability) S7::S7_dispatch())
 
 S7::method(test_capability, GDALDriver) <- function(x, capability) {
     GDAL7_driver_test_capability(x@.ptr, capability)
@@ -109,6 +121,7 @@ S7::method(test_capability, GDALDriver) <- function(x, capability) {
 #' Returns the XML describing creation options for this driver.
 #'
 #' @param x A GDALDriver object
+#' @param ... Arguments passed on to methods.
 #' @return Character XML string describing creation options
 #' @export
 get_creation_options <- S7::new_generic("get_creation_options", "x")
@@ -220,6 +233,7 @@ gdal_drivers <- function(capabilities = NULL) {
 # Print method for GDALDriver
 # ============================================================================
 
+#' @export
 S7::method(print, GDALDriver) <- function(x, ...) {
     cat("<GDALDriver>\n")
     cat("  Short name: ", get_short_name(x), "\n", sep = "")

@@ -28,13 +28,11 @@ unlink("R/aab-class-dataset.R")
 SOURCED <- TRUE
 SOURCED_GEN <- TRUE
 SOURCED_S7_GEN <- TRUE
-SOURCED_FIX_CPP11 <- TRUE
 
 message("=== Loading generators ===")
 source("data-raw/parse_swig.R")
 source("data-raw/generate_cpp11.R")
 source("data-raw/generate_s7.R")
-source("data-raw/fix_cpp11.R")
 
 # Skip list for Dataset - methods that don't generate correctly yet
 # (GDAL 3.9+ functions, complex signatures, callbacks, arrays, etc.)
@@ -49,7 +47,11 @@ dataset_skip <- c(
   "GetFieldDomain", "AddFieldDomain", "DeleteFieldDomain", "UpdateFieldDomain",
   "GetRelationship", "AddRelationship", "DeleteRelationship", "UpdateRelationship",
   "AsMDArray", "StartTransaction", "CommitTransaction", "RollbackTransaction",
-  "AbortSQL", "ResetReading", "GetLayer", "GetLayerByName", "ClearStatistics"
+  "AbortSQL", "ResetReading", "GetLayer", "GetLayerByName", "ClearStatistics",
+  # Hand-written in R/driver.R and R/raster-info.R, where the classes they
+  # return are defined. Generating them too would re-register the same methods
+  # and make S7 warn about overwriting on every load.
+  "GetDriver", "GetRasterBand"
 )
 
 # =============================================================================
@@ -77,9 +79,6 @@ generate_s7_file(cls, "R/aab-class-dataset.R", skip_methods = dataset_skip)  # a
 # =============================================================================
 message("=== Generating cpp11 registration ===")
 cpp11::cpp_register()
-
-message("=== Fixing cpp11.cpp ===")
-fix_cpp11()
 
 # =============================================================================
 # Done!
