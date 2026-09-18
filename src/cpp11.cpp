@@ -480,9 +480,95 @@ extern "C" SEXP _GDAL7_GDAL7_emit_gdal_message(SEXP level, SEXP message) {
     return R_NilValue;
   END_CPP11
 }
+// GDAL7_rasterio.cpp
+SEXP GDAL7_dataset_get_geotransform(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_dataset_get_geotransform(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_get_geotransform(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+void GDAL7_dataset_set_geotransform(SEXP xp, cpp11::doubles gt);
+extern "C" SEXP _GDAL7_GDAL7_dataset_set_geotransform(SEXP xp, SEXP gt) {
+  BEGIN_CPP11
+    GDAL7_dataset_set_geotransform(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(gt));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+cpp11::list GDAL7_apply_geotransform(cpp11::doubles gt, cpp11::doubles pixel, cpp11::doubles line);
+extern "C" SEXP _GDAL7_GDAL7_apply_geotransform(SEXP gt, SEXP pixel, SEXP line) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_apply_geotransform(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(gt), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(pixel), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(line)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+SEXP GDAL7_inv_geotransform(cpp11::doubles gt);
+extern "C" SEXP _GDAL7_GDAL7_inv_geotransform(SEXP gt) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_inv_geotransform(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(gt)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+int GDAL7_band_get_overview_count(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_band_get_overview_count(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_band_get_overview_count(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+SEXP GDAL7_band_get_overview(SEXP xp, int index);
+extern "C" SEXP _GDAL7_GDAL7_band_get_overview(SEXP xp, SEXP index) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_band_get_overview(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<int>>(index)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+cpp11::list GDAL7_band_get_overview_sizes(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_band_get_overview_sizes(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_band_get_overview_sizes(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+cpp11::doubles GDAL7_band_read(SEXP xp, cpp11::doubles window, cpp11::integers out_size, std::string resample);
+extern "C" SEXP _GDAL7_GDAL7_band_read(SEXP xp, SEXP window, SEXP out_size, SEXP resample) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_band_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles window, cpp11::integers out_size, std::string resample);
+extern "C" SEXP _GDAL7_GDAL7_dataset_read(SEXP xp, SEXP bands, SEXP window, SEXP out_size, SEXP resample) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample)));
+  END_CPP11
+}
+// GDAL7_summary.cpp
+cpp11::integers GDAL7_data_types();
+extern "C" SEXP _GDAL7_GDAL7_data_types() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_data_types());
+  END_CPP11
+}
+// GDAL7_summary.cpp
+cpp11::integers GDAL7_color_interpretations();
+extern "C" SEXP _GDAL7_GDAL7_color_interpretations() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_color_interpretations());
+  END_CPP11
+}
+// GDAL7_summary.cpp
+cpp11::list GDAL7_dataset_summary(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_dataset_summary(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_summary(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"_GDAL7_GDAL7_apply_geotransform",                   (DL_FUNC) &_GDAL7_GDAL7_apply_geotransform,                   3},
     {"_GDAL7_GDAL7_band_get_band_number",                 (DL_FUNC) &_GDAL7_GDAL7_band_get_band_number,                 1},
     {"_GDAL7_GDAL7_band_get_block_size",                  (DL_FUNC) &_GDAL7_GDAL7_band_get_block_size,                  1},
     {"_GDAL7_GDAL7_band_get_color_interpretation",        (DL_FUNC) &_GDAL7_GDAL7_band_get_color_interpretation,        1},
@@ -492,11 +578,17 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_band_get_description",                 (DL_FUNC) &_GDAL7_GDAL7_band_get_description,                 1},
     {"_GDAL7_GDAL7_band_get_nodata_value",                (DL_FUNC) &_GDAL7_GDAL7_band_get_nodata_value,                1},
     {"_GDAL7_GDAL7_band_get_offset",                      (DL_FUNC) &_GDAL7_GDAL7_band_get_offset,                      1},
+    {"_GDAL7_GDAL7_band_get_overview",                    (DL_FUNC) &_GDAL7_GDAL7_band_get_overview,                    2},
+    {"_GDAL7_GDAL7_band_get_overview_count",              (DL_FUNC) &_GDAL7_GDAL7_band_get_overview_count,              1},
+    {"_GDAL7_GDAL7_band_get_overview_sizes",              (DL_FUNC) &_GDAL7_GDAL7_band_get_overview_sizes,              1},
     {"_GDAL7_GDAL7_band_get_scale",                       (DL_FUNC) &_GDAL7_GDAL7_band_get_scale,                       1},
     {"_GDAL7_GDAL7_band_get_unit_type",                   (DL_FUNC) &_GDAL7_GDAL7_band_get_unit_type,                   1},
     {"_GDAL7_GDAL7_band_get_xsize",                       (DL_FUNC) &_GDAL7_GDAL7_band_get_xsize,                       1},
     {"_GDAL7_GDAL7_band_get_ysize",                       (DL_FUNC) &_GDAL7_GDAL7_band_get_ysize,                       1},
+    {"_GDAL7_GDAL7_band_read",                            (DL_FUNC) &_GDAL7_GDAL7_band_read,                            4},
     {"_GDAL7_GDAL7_close",                                (DL_FUNC) &_GDAL7_GDAL7_close,                                1},
+    {"_GDAL7_GDAL7_color_interpretations",                (DL_FUNC) &_GDAL7_GDAL7_color_interpretations,                0},
+    {"_GDAL7_GDAL7_data_types",                           (DL_FUNC) &_GDAL7_GDAL7_data_types,                           0},
     {"_GDAL7_GDAL7_dataset_flush_cache",                  (DL_FUNC) &_GDAL7_GDAL7_dataset_flush_cache,                  1},
     {"_GDAL7_GDAL7_dataset_get_band",                     (DL_FUNC) &_GDAL7_GDAL7_dataset_get_band,                     2},
     {"_GDAL7_GDAL7_dataset_get_driver",                   (DL_FUNC) &_GDAL7_GDAL7_dataset_get_driver,                   1},
@@ -504,6 +596,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_dataset_get_file_list",                (DL_FUNC) &_GDAL7_GDAL7_dataset_get_file_list,                1},
     {"_GDAL7_GDAL7_dataset_get_gcpcount",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_get_gcpcount,                 1},
     {"_GDAL7_GDAL7_dataset_get_gcpprojection",            (DL_FUNC) &_GDAL7_GDAL7_dataset_get_gcpprojection,            1},
+    {"_GDAL7_GDAL7_dataset_get_geotransform",             (DL_FUNC) &_GDAL7_GDAL7_dataset_get_geotransform,             1},
     {"_GDAL7_GDAL7_dataset_get_layer_count",              (DL_FUNC) &_GDAL7_GDAL7_dataset_get_layer_count,              1},
     {"_GDAL7_GDAL7_dataset_get_projection",               (DL_FUNC) &_GDAL7_GDAL7_dataset_get_projection,               1},
     {"_GDAL7_GDAL7_dataset_get_projection_ref",           (DL_FUNC) &_GDAL7_GDAL7_dataset_get_projection_ref,           1},
@@ -513,6 +606,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_dataset_get_raster_ysize",             (DL_FUNC) &_GDAL7_GDAL7_dataset_get_raster_ysize,             1},
     {"_GDAL7_GDAL7_dataset_get_root_group",               (DL_FUNC) &_GDAL7_GDAL7_dataset_get_root_group,               1},
     {"_GDAL7_GDAL7_dataset_get_spatial_ref",              (DL_FUNC) &_GDAL7_GDAL7_dataset_get_spatial_ref,              1},
+    {"_GDAL7_GDAL7_dataset_read",                         (DL_FUNC) &_GDAL7_GDAL7_dataset_read,                         5},
+    {"_GDAL7_GDAL7_dataset_set_geotransform",             (DL_FUNC) &_GDAL7_GDAL7_dataset_set_geotransform,             2},
+    {"_GDAL7_GDAL7_dataset_summary",                      (DL_FUNC) &_GDAL7_GDAL7_dataset_summary,                      1},
     {"_GDAL7_GDAL7_driver_get_creation_options",          (DL_FUNC) &_GDAL7_GDAL7_driver_get_creation_options,          1},
     {"_GDAL7_GDAL7_driver_get_help_topic",                (DL_FUNC) &_GDAL7_GDAL7_driver_get_help_topic,                1},
     {"_GDAL7_GDAL7_driver_get_long_name",                 (DL_FUNC) &_GDAL7_GDAL7_driver_get_long_name,                 1},
@@ -533,6 +629,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_group_open_mdarray",                   (DL_FUNC) &_GDAL7_GDAL7_group_open_mdarray,                   2},
     {"_GDAL7_GDAL7_group_release",                        (DL_FUNC) &_GDAL7_GDAL7_group_release,                        1},
     {"_GDAL7_GDAL7_init",                                 (DL_FUNC) &_GDAL7_GDAL7_init,                                 0},
+    {"_GDAL7_GDAL7_inv_geotransform",                     (DL_FUNC) &_GDAL7_GDAL7_inv_geotransform,                     1},
     {"_GDAL7_GDAL7_majorobject_get_description",          (DL_FUNC) &_GDAL7_GDAL7_majorobject_get_description,          1},
     {"_GDAL7_GDAL7_majorobject_get_metadata_dict",        (DL_FUNC) &_GDAL7_GDAL7_majorobject_get_metadata_dict,        2},
     {"_GDAL7_GDAL7_majorobject_get_metadata_domain_list", (DL_FUNC) &_GDAL7_GDAL7_majorobject_get_metadata_domain_list, 1},

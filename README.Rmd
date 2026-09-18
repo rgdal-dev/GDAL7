@@ -43,62 +43,129 @@ does that as part of regenerating the bindings.
 
 ## Example
 
-This is a basic example. 
+The examples below run against a small GeoTIFF that ships with the package, so
+they need no network.
 
 ```{r example}
 library(GDAL7)
-dsn <- "/vsicurl/https://projects.pawsey.org.au/idea-gebco-tif/GEBCO_2024.tif"
-dsn2 <- "WMTS:https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"
-#dsn <- "/vsicurl/https://raw.githubusercontent.com/mdsumner/rema-ovr/main/REMA-2m_dem_ovr.vrt"
 
+dsn <- system.file("extdata/test.tif", package = "GDAL7")
 ds <- gdal_open(dsn)
-get_description(ds)                          #` - Get object description
-set_description(ds, dsn2)                    #` - Set object description
-gdal_close(ds)
-ds <- gdal_open(dsn2)
-get_metadata_domain_list(ds)                 #` - List metadata domains
-get_metadata_list(ds, "DERIVED_SUBDATASETS") #` - Get metadata as character vector
-get_metadata_dict(ds, "IMAGE_STRUCTURE")     #` - Get metadata as key=value pairs
-get_metadata_item(ds, "AREA_OR_POINT", "")   #` - Get single metadata item
-#set_metadata(ds, metadata, domain)          #` - Set metadata
-#set_metadata_item(ds, "AREA_OR_POINT", 
-#                             "Point", "")   #` - Set single item
+
+#### MajorObject methods, shared by datasets, bands and drivers
+
+basename(get_description(ds))                # object description
+get_metadata_domain_list(ds)                 # metadata domains
+get_metadata_list(ds, "")                    # metadata as KEY=VALUE strings
+get_metadata_dict(ds, "")                    # the same, as a named vector
+get_metadata_item(ds, "AREA_OR_POINT")       # one item, NA when not set
+get_metadata_item(ds, "NO_SUCH_ITEM")
 
 #### Dataset methods
-get_projection(ds)      #` - Get projection as WKT string
-get_projection_ref(ds)  #` - Alias for get_projection
-get_file_list(ds)       #` - Get list of files comprising dataset
-get_gcpcount(ds)        #` - Get number of GCPs
-get_gcpprojection(ds)   #` - Get GCP projection string
-get_layer_count(ds)     #` - Get number of vector layers
-#flush_cache(ds)         #` - Flush pending writes
+
+get_projection(ds)      # projection as WKT
+basename(get_file_list(ds))  # the files this dataset is made of
+get_gcpcount(ds)        # number of GCPs
+get_layer_count(ds)     # number of vector layers
 
 c(get_raster_xsize(ds), get_raster_ysize(ds))
-
 get_raster_count(ds)
 
-#### bands
+get_driver(ds)
 
-## do not use this after ds has been gdal_close(ds)
+#### Bands
 
 band <- get_raster_band(ds, 1L)
 band
-get_color_interpretation_name(band)
+
+get_data_type_name(band)
 get_block_size(band)
+get_nodata_value(band)
+```
+
+A band belongs to its dataset, so closing the dataset retires the band with it.
+Reaching for one afterwards is an error rather than a crash:
+
+```{r lifetime, error = TRUE}
+gdal_close(ds)
+get_xsize(band)
+```
+
+### Reading pixels
+
+A read names a window and, separately, the size to return it at. GDAL picks an
+overview level that can serve the output size, so a large window at a small
+output size costs only the bytes of that level. The fixture here is a small COG
+with two overview levels.
+
+```{r read}
+ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"))
+band <- get_raster_band(ds, 1)
+
+get_overview_sizes(band)
+
+# 512x256 down to 4x2, averaged.
+read_raster(band, out_size = c(4, 2), resample = "average")
+
+# An 8x8 window down to 2x2. The window may be fractional.
+read_raster(band, window = c(0, 0, 8, 8), out_size = c(2, 2),
+            resample = "average")
+
 gdal_close(ds)
 ```
 
-## Run a test/demo script
+`gdal_info()` gathers everything `gdalinfo` reports that does not need a pass
+over the pixels, in a single call rather than one per property:
 
-```{r sample}
-source("inst/examples/test_raster_info.R")
-
-source("inst/examples/test_driver.R")
-
-source("inst/examples/test_multidim.R")
+```{r info}
+info <- gdal_info(system.file("extdata/overviews.tif", package = "GDAL7"))
+info$size
+info$geotransform
+info$band_info
 ```
 
+### Remote data
+
+Any DSN GDAL understands works, which is the point of the `/vsicurl/` and
+service drivers: no download step, and only the bytes actually needed are read.
+
+```{r remote, eval = FALSE}
+gebco <- "/vsicurl/https://data.source.coop/alexgleith/gebco-2024/GEBCO_2024.tif"
+
+ds <- gdal_open(gebco)
+c(get_raster_xsize(ds), get_raster_ysize(ds))
+get_block_size(get_raster_band(ds, 1L))
+gdal_close(ds)
+
+wmts <- paste0(
+  "WMTS:https://services.arcgisonline.com/arcgis/rest/services/",
+  "World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"
+)
+
+ds <- gdal_open(wmts)
+get_metadata_domain_list(ds)
+gdal_close(ds)
+```
+
+### Multidimensional data
+
+```{r multidim}
+zarr <- sprintf(
+  'ZARR:"/vsizip/%s/test.zarr"',
+  system.file("extdata/test.zarr.zip", package = "GDAL7")
+)
+
+ds <- gdal_open(zarr, multidim = TRUE)
+grp <- get_root_group(ds)
+grp
+
+arr <- open_mdarray(grp, get_mdarray_names(grp)[1])
+arr
+
+get_dimensions(arr)
+gdal_close(ds)
+```
 
 ## Code of Conduct
-  
+
 Please note that the GDAL7 project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.

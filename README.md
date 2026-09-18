@@ -4,15 +4,14 @@
 # GDAL7
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
 The goal of GDAL7 is to model the GDAL api in R via SWIG.
 
 ## Installation
 
-You need GDAL with its development headers (`gdal-config` on its `PATH`, or
-pkg-config able to find `gdal`), then:
+You need GDAL with its development headers (`gdal-config` on its `PATH`,
+or pkg-config able to find `gdal`), then:
 
 ``` r
 remotes::install_github("rgdal-dev/GDAL7")
@@ -25,208 +24,185 @@ Or from a clone:
 system("R CMD INSTALL --no-staged-install .")
 ```
 
-The cpp11 registration files (`src/cpp11.cpp`, `R/cpp11.R`) are committed, so no
-generation step is needed to install. You only need `cpp11::cpp_register()` after
-adding or changing a `[[cpp11::register]]` function; `data-raw/orchestrate.R`
-does that as part of regenerating the bindings.
+The cpp11 registration files (`src/cpp11.cpp`, `R/cpp11.R`) are
+committed, so no generation step is needed to install. You only need
+`cpp11::cpp_register()` after adding or changing a `[[cpp11::register]]`
+function; `data-raw/orchestrate.R` does that as part of regenerating the
+bindings.
 
 ## Example
 
-This is a basic example.
+The examples below run against a small GeoTIFF that ships with the
+package, so they need no network.
 
 ``` r
 library(GDAL7)
-dsn <- "/vsicurl/https://projects.pawsey.org.au/idea-gebco-tif/GEBCO_2024.tif"
-dsn2 <- "WMTS:https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"
-#dsn <- "/vsicurl/https://raw.githubusercontent.com/mdsumner/rema-ovr/main/REMA-2m_dem_ovr.vrt"
 
+dsn <- system.file("extdata/test.tif", package = "GDAL7")
 ds <- gdal_open(dsn)
-get_description(ds)                          #` - Get object description
-#> [1] "/vsicurl/https://projects.pawsey.org.au/idea-gebco-tif/GEBCO_2024.tif"
-set_description(ds, dsn2)                    #` - Set object description
-gdal_close(ds)
-ds <- gdal_open(dsn2)
-get_metadata_domain_list(ds)                 #` - List metadata domains
-#> [1] "SUBDATASETS"         ""                    "IMAGE_STRUCTURE"    
-#> [4] "DERIVED_SUBDATASETS"
-get_metadata_list(ds, "DERIVED_SUBDATASETS") #` - Get metadata as character vector
-#> [1] "DERIVED_SUBDATASET_1_NAME=DERIVED_SUBDATASET:LOGAMPLITUDE:WMTS:https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"       
-#> [2] "DERIVED_SUBDATASET_1_DESC=log10 of amplitude of input bands from WMTS:https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"
-get_metadata_dict(ds, "IMAGE_STRUCTURE")     #` - Get metadata as key=value pairs
-#> [1] "INTERLEAVE=PIXEL"
-get_metadata_item(ds, "AREA_OR_POINT", "")   #` - Get single metadata item
-#> [1] ""
-#set_metadata(ds, metadata, domain)          #` - Set metadata
-#set_metadata_item(ds, "AREA_OR_POINT", 
-#                             "Point", "")   #` - Set single item
+
+#### MajorObject methods, shared by datasets, bands and drivers
+
+basename(get_description(ds))                # object description
+#> [1] "test.tif"
+get_metadata_domain_list(ds)                 # metadata domains
+#> [1] "IMAGE_STRUCTURE"     "DERIVED_SUBDATASETS" ""
+get_metadata_list(ds, "")                    # metadata as KEY=VALUE strings
+#> [1] "AREA_OR_POINT=Area"
+get_metadata_dict(ds, "")                    # the same, as a named vector
+#> AREA_OR_POINT 
+#>        "Area"
+get_metadata_item(ds, "AREA_OR_POINT")       # one item, NA when not set
+#> [1] "Area"
+get_metadata_item(ds, "NO_SUCH_ITEM")
+#> [1] NA
 
 #### Dataset methods
-get_projection(ds)      #` - Get projection as WKT string
-#> [1] "PROJCS[\"WGS 84 / Pseudo-Mercator\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Mercator_1SP\"],PARAMETER[\"central_meridian\",0],PARAMETER[\"scale_factor\",1],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],EXTENSION[\"PROJ4\",\"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs\"],AUTHORITY[\"EPSG\",\"3857\"]]"
-get_projection_ref(ds)  #` - Alias for get_projection
-#> [1] "PROJCS[\"WGS 84 / Pseudo-Mercator\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Mercator_1SP\"],PARAMETER[\"central_meridian\",0],PARAMETER[\"scale_factor\",1],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],EXTENSION[\"PROJ4\",\"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs\"],AUTHORITY[\"EPSG\",\"3857\"]]"
-get_file_list(ds)       #` - Get list of files comprising dataset
-#> character(0)
-get_gcpcount(ds)        #` - Get number of GCPs
+
+get_projection(ds)      # projection as WKT
+#> [1] "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]"
+basename(get_file_list(ds))  # the files this dataset is made of
+#> [1] "test.tif"
+get_gcpcount(ds)        # number of GCPs
 #> [1] 0
-get_gcpprojection(ds)   #` - Get GCP projection string
-#> [1] ""
-get_layer_count(ds)     #` - Get number of vector layers
+get_layer_count(ds)     # number of vector layers
 #> [1] 0
-#flush_cache(ds)         #` - Flush pending writes
 
 c(get_raster_xsize(ds), get_raster_ysize(ds))
-#> [1] 1073741766 1070224430
-
+#> [1] 20 10
 get_raster_count(ds)
-#> [1] 4
+#> [1] 2
 
-#### bands
+get_driver(ds)
+#> <GDALDriver>
+#>   Short name: GTiff
+#>   Long name:  GeoTIFF
+#>   Help:       drivers/raster/gtiff.html
+#>   Capabilities: raster, create, copy, vsi
 
-## do not use this after ds has been gdal_close(ds)
+#### Bands
 
 band <- get_raster_band(ds, 1L)
 band
-#> <GDAL7::GDALRasterBand>
-#>  @ .ptr:<externalptr>
-get_color_interpretation_name(band)
-#> [1] "Red"
+#> <GDALRasterBand>
+#>   Band:       1
+#>   Size:       20 x 10
+#>   Type:       Int16
+#>   Block size: 20 x 10
+#>   NoData:     -32768
+#>   Color:      Gray
+
+get_data_type_name(band)
+#> [1] "Int16"
 get_block_size(band)
-#>   x   y 
-#> 128 128
+#>  x  y 
+#> 20 10
+get_nodata_value(band)
+#> [1] -32768
+```
+
+A band belongs to its dataset, so closing the dataset retires the band
+with it. Reaching for one afterwards is an error rather than a crash:
+
+``` r
+gdal_close(ds)
+get_xsize(band)
+#> Error: This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed
+```
+
+### Reading pixels
+
+A read names a window and, separately, the size to return it at. GDAL
+picks an overview level that can serve the output size, so a large
+window at a small output size costs only the bytes of that level. The
+fixture here is a small COG with two overview levels.
+
+``` r
+ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"))
+band <- get_raster_band(ds, 1)
+
+get_overview_sizes(band)
+#>   xsize ysize
+#> 1   256   128
+#> 2   128    64
+
+# 512x256 down to 4x2, averaged.
+read_raster(band, out_size = c(4, 2), resample = "average")
+#> [1]  318  446  574  702  830  958 1086 1214
+
+# An 8x8 window down to 2x2. The window may be fractional.
+read_raster(band, window = c(0, 0, 8, 8), out_size = c(2, 2),
+            resample = "average")
+#> [1]  8 12 24 28
+
 gdal_close(ds)
 ```
 
-## Run a test/demo script
+`gdal_info()` gathers everything `gdalinfo` reports that does not need a
+pass over the pixels, in a single call rather than one per property:
 
 ``` r
-source("inst/examples/test_raster_info.R")
-#> Test file: /perm_storage/home/mdsumner/gdal/autotest/gcore/data/byte.tif 
-#> 
-#> === Dataset Dimensions ===
-#> Width:  20 pixels
-#> Height: 20 pixels
-#> Bands:  1
-#> 
-#> === Band 1 ===
-#> <GDAL7::GDALRasterBand>
-#>  @ .ptr:<externalptr> 
-#> 
-#> === Test with multi-band file ===
-#> File: /perm_storage/home/mdsumner/gdal/autotest/gcore/data/rgbsmall.tif 
-#> Size: 50 x 50 
-#> Bands: 3 
-#> 
-#> Band 1 : Byte - Red 
-#> Band 2 : Byte - Green 
-#> Band 3 : Byte - Blue 
-#> 
-#> Success!
+info <- gdal_info(system.file("extdata/overviews.tif", package = "GDAL7"))
+info$size
+#> xsize ysize 
+#>   512   256
+info$geotransform
+#> [1] -180.000000    0.703125    0.000000   90.000000    0.000000   -0.703125
+info$band_info
+#>   band  type block_x block_y nodata scale offset color unit overviews
+#> 1    1 Int16     128     128 -32768    NA     NA  Gray              2
+```
 
-source("inst/examples/test_driver.R")
-#> === Driver Count ===
-#> Registered drivers: 204 
-#> 
-#> === Get Driver by Name ===
-#> <GDAL7::GDALDriver>
-#>  @ .ptr:<externalptr> 
-#> 
-#> === Get Driver from Dataset ===
-#> Driver for byte.tif :
-#> <GDAL7::GDALDriver>
-#>  @ .ptr:<externalptr> 
-#> 
-#> === Common Drivers ===
-#>   GTiff      GeoTIFF                        [RC]
-#>   GPKG       GeoPackage                     [RVC]
-#>   GeoJSON    GeoJSON                        [VC]
-#>   PNG        Portable Network Graphics      [R]
-#>   JPEG       JPEG JFIF                      [R]
-#>   netCDF     Network Common Data Format     [RVC]
-#>   Zarr       Zarr                           [RC]
-#>   COG        Cloud optimized GeoTIFF generator [RC]
-#> 
-#> === List Raster Drivers ===
-#> Total raster drivers: 145 
-#> First 10:
-#>    short_name                                  long_name create
-#> 1     DERIVED Derived datasets using VRT pixel functions  FALSE
-#> 2         GTI                     GDAL Raster Tile Index  FALSE
-#> 3   SNAP_TIFF    Sentinel Application Processing GeoTIFF  FALSE
-#> 4       GTiff                                    GeoTIFF   TRUE
-#> 5         COG          Cloud optimized GeoTIFF generator   TRUE
-#> 6   LIBERTIFF          GeoTIFF (using LIBERTIFF library)  FALSE
-#> 7         VRT                             Virtual Raster   TRUE
-#> 8        NITF       National Imagery Transmission Format   TRUE
-#> 9      RPFTOC           Raster Product Format TOC format  FALSE
-#> 10    ECRGTOC                            ECRG TOC format  FALSE
-#> 
-#> === List Vector Drivers ===
-#> Total vector drivers: 75 
-#> First 10:
-#>      short_name                                            long_name create
-#> 24          MEM In Memory raster, vector and multidimensional raster   TRUE
-#> 35       PCIDSK                                 PCIDSK Database File   TRUE
-#> 41       netCDF                           Network Common Data Format   TRUE
-#> 47         PDS4                         NASA Planetary Data System 4   TRUE
-#> 48        VICAR                                      MIPL VICAR file   TRUE
-#> 51  JP2OpenJPEG        JPEG-2000 driver based on JP2OpenJPEG library  FALSE
-#> 68          PDF                                       Geospatial PDF   TRUE
-#> 69      MBTiles                                              MBTiles   TRUE
-#> 102         BAG                           Bathymetry Attributed Grid   TRUE
-#> 121        EEDA                                Earth Engine Data API  FALSE
-#> 
-#> Success!
+### Remote data
 
-source("inst/examples/test_multidim.R")
-#> === Test Multidimensional API ===
-#> 
-#> Zarr driver: Zarr
-#> netCDF driver: Network Common Data Format
-#> 
-#> 
-#> === Opening in multidim mode: ===
-#> /perm_storage/home/mdsumner/gdal/autotest/gdrivers/data/netcdf/alldatatypes.nc 
-#> 
-#> Root group:
-#> <GDAL7::GDALGroup>
-#>  @ .ptr:<externalptr> 
-#> 
-#> Subgroups:  group 
-#> 
-#> === Arrays ===
-#> <GDAL7::GDALMDArray>
-#>  @ .ptr:<externalptr> 
-#> 
-#> <GDAL7::GDALMDArray>
-#>  @ .ptr:<externalptr> 
-#> 
-#> <GDAL7::GDALMDArray>
-#>  @ .ptr:<externalptr> 
-#> 
-#> <GDAL7::GDALMDArray>
-#>  @ .ptr:<externalptr> 
-#> 
-#> <GDAL7::GDALMDArray>
-#>  @ .ptr:<externalptr> 
-#> 
-#> 
-#> === Test with remote Zarr ===
-#> Opening: ZARR:"/vsicurl/https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_salt_2023.parq" 
-#> <GDAL7::GDALGroup>
-#>  @ .ptr:<externalptr> 
-#> [1] "/"
-#> [1] "/"
-#> character(0)
-#> 
-#> First array:
-#> <GDAL7::GDALMDArray>
-#>  @ .ptr:<externalptr> 
-#> [1] 1
+Any DSN GDAL understands works, which is the point of the `/vsicurl/`
+and service drivers: no download step, and only the bytes actually
+needed are read.
+
+``` r
+gebco <- "/vsicurl/https://data.source.coop/alexgleith/gebco-2024/GEBCO_2024.tif"
+
+ds <- gdal_open(gebco)
+c(get_raster_xsize(ds), get_raster_ysize(ds))
+get_block_size(get_raster_band(ds, 1L))
+gdal_close(ds)
+
+wmts <- paste0(
+  "WMTS:https://services.arcgisonline.com/arcgis/rest/services/",
+  "World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml,layer=World_Imagery"
+)
+
+ds <- gdal_open(wmts)
+get_metadata_domain_list(ds)
+gdal_close(ds)
+```
+
+### Multidimensional data
+
+``` r
+zarr <- sprintf(
+  'ZARR:"/vsizip/%s/test.zarr"',
+  system.file("extdata/test.zarr.zip", package = "GDAL7")
+)
+
+ds <- gdal_open(zarr, multidim = TRUE)
+grp <- get_root_group(ds)
+grp
+#> <GDALGroup>
+#>   Name: /
+#>   Arrays (3): X, Y, test
+
+arr <- open_mdarray(grp, get_mdarray_names(grp)[1])
+arr
+#> <GDALMDArray>
+#>   Name: X
+#>   Type: Float64
+#>   Dimensions: X=4
+
+get_dimensions(arr)
 #>   name size
-#> 1 Time 5479
-#> 
-#> Success!
+#> 1    X    4
+gdal_close(ds)
 ```
 
 ## Code of Conduct

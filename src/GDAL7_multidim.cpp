@@ -186,7 +186,16 @@ cpp11::strings GDAL7_mdarray_get_data_type_name(SEXP xp) {
         return gdal7::chr(nullptr);
     }
 
-    cpp11::strings out = gdal7::chr(GDALExtendedDataTypeGetName(dt));
+    // GDALExtendedDataTypeGetName() only names a type the format gave a name
+    // to, which for a plain numeric array is the empty string. The useful
+    // answer there is the ordinary GDAL data type underneath.
+    const char* name = GDALExtendedDataTypeGetName(dt);
+    if ((name == nullptr || *name == '\0') &&
+        GDALExtendedDataTypeGetClass(dt) == GEDTC_NUMERIC) {
+        name = GDALGetDataTypeName(GDALExtendedDataTypeGetNumericDataType(dt));
+    }
+
+    cpp11::strings out = gdal7::chr(name);
     GDALExtendedDataTypeRelease(dt);
     return out;
 }

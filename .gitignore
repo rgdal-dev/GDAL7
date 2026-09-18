@@ -25,3 +25,6 @@ src/Makevars
 
 # GDAL writes a PAM sidecar beside any dataset whose metadata changes.
 *.aux.xml
+
+# rmarkdown leaves a preview next to the github_document output.
+README.html

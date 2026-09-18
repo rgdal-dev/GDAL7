@@ -40,7 +40,6 @@ dataset_skip <- c(
   "MarkSuppressOnClose", "Close", "GetCloseReportsProgress",
   "IsThreadSafe", "GetThreadSafeDataset", "GetRootGroup",
   "SetProjection", "SetSpatialRef",
-  "GetGeoTransform", "SetGeoTransform",
   "GetExtent", "GetExtentWGS84LongLat",
   "BuildOverviews", "AddBand", "CreateMaskBand", "AdviseRead",
   "GetFieldDomainNames", "GetRelationshipNames",
@@ -51,7 +50,10 @@ dataset_skip <- c(
   # Hand-written in R/driver.R and R/raster-info.R, where the classes they
   # return are defined. Generating them too would re-register the same methods
   # and make S7 warn about overwriting on every load.
-  "GetDriver", "GetRasterBand"
+  "GetDriver", "GetRasterBand",
+  # Hand-written in R/raster-io.R. The generator has no way to express an array
+  # in or out of a C function, and these two carry a double[6] each way.
+  "GetGeoTransform", "SetGeoTransform"
 )
 
 # =============================================================================

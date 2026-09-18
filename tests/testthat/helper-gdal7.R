@@ -41,3 +41,10 @@ skip_if_no_fd_count <- function() {
     testthat::skip("no /proc/self/fd on this platform")
   }
 }
+
+# A 512x256 COG with two overview levels and a value that varies per pixel, so
+# a resampled read has a checkable answer. Built from a raw gradient with
+# gdal_translate -of COG -co OVERVIEW_RESAMPLING=AVERAGE.
+test_cog <- function() {
+  system.file("extdata", "overviews.tif", package = "GDAL7", mustWork = TRUE)
+}

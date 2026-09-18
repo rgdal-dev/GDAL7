@@ -456,6 +456,30 @@ type codes mean something.
 *Exit:* reading a window of a remote COG at a reduced output size is one call, and
 returns the same numbers as `gdalinfo` / `gdal_translate` on the same window.
 
+*Status: done.* `read_raster()` is `GDALRasterIOEx` with a floating point
+window, an independent output size and a chosen resampling algorithm, so a
+large window at a small output size is served from whichever overview level
+fits and costs only that level's bytes. The exit criterion is a test: against
+`inst/extdata/overviews.tif`, a 512x256 to 4x2 average read and an 8x8 to 2x2
+average read both return exactly what `gdal_translate -r average` writes for
+the same windows, and those numbers are in `tests/testthat/test-rasterio.R`
+with the command that produced them.
+
+On a dataset `read_raster()` takes several bands through
+`GDALDatasetRasterIOEx`, which is one pass over the data rather than one per
+band. `gdal_info()` is the batched summary section 6 asked for: driver, size,
+projection, geotransform, files, metadata and a per-band data frame in a single
+call. Geotransforms go both ways, `apply_geotransform()` and
+`inv_geotransform()` are vectorised over whole coordinate vectors, overviews
+can be counted, sized and opened, and `gdal_data_types()` and
+`gdal_color_interpretations()` are read out of the running GDAL rather than
+hard coded, so the integer codes elsewhere in the package can be looked up.
+
+One thing found on the way, which the README had been showing all along:
+`get_data_type_name()` on a multidimensional array returned "" for every plain
+numeric array, because `GDALExtendedDataTypeGetName()` names only types the
+format itself named. It now falls back to the ordinary GDAL type underneath.
+
 ### Stage 3 - Make the generator true
 
 Derive the C call from the captured `%extend` body (section 2). Emit constants. Emit

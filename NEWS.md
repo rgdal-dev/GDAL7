@@ -1,5 +1,42 @@
 # GDAL7 (development version)
 
+## Stage 2: raster I/O
+
+* `read_raster()` reads a window of a band at a chosen output size, through
+  `GDALRasterIOEx`. The window and the output size are independent and the
+  window may be fractional, so a large window at a small output size is served
+  from an overview and costs only that level's bytes. That is what makes a
+  large raster over `/vsicurl/` usable interactively. Resampling is chosen by
+  the caller.
+
+* `read_raster()` on a dataset reads several bands in one pass rather than one
+  pass per band.
+
+* `gdal_info()` returns the whole dataset summary in a single call: driver,
+  size, projection, geotransform, files, metadata, and a data frame with one
+  row per band. The same summary reached one accessor at a time is seven calls
+  per band plus a handful for the dataset.
+
+* Geotransforms in both directions: `get_geotransform()`,
+  `set_geotransform()`, and `apply_geotransform()` / `inv_geotransform()`,
+  which are vectorised over whole coordinate vectors. A dataset with no
+  geotransform returns NULL rather than the identity GDAL reports for it.
+
+* Overview introspection: `get_overview_count()`, `get_overview_sizes()` and
+  `get_overview()`. An overview band belongs to the same dataset as the band it
+  came from and keeps it open.
+
+* `gdal_data_types()` and `gdal_color_interpretations()` give the `GDT_*` and
+  `GCI_*` codes as named integer vectors, read out of the running GDAL rather
+  than hard coded.
+
+* Fixed `get_data_type_name()` on a multidimensional array, which returned an
+  empty string for every plain numeric array.
+
+* The README example now runs against fixtures that ship with the package, so
+  it knits with no network and stops going stale. The remote example uses a
+  GEBCO COG on source.coop in place of a link that had gone.
+
 ## configure fixes
 
 * A development build of GDAL is no longer refused. `gdal-config --version`

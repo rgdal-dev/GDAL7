@@ -267,3 +267,51 @@ GDAL7_close <- function(xp) {
 GDAL7_emit_gdal_message <- function(level, message) {
   invisible(.Call(`_GDAL7_GDAL7_emit_gdal_message`, level, message))
 }
+
+GDAL7_dataset_get_geotransform <- function(xp) {
+  .Call(`_GDAL7_GDAL7_dataset_get_geotransform`, xp)
+}
+
+GDAL7_dataset_set_geotransform <- function(xp, gt) {
+  invisible(.Call(`_GDAL7_GDAL7_dataset_set_geotransform`, xp, gt))
+}
+
+GDAL7_apply_geotransform <- function(gt, pixel, line) {
+  .Call(`_GDAL7_GDAL7_apply_geotransform`, gt, pixel, line)
+}
+
+GDAL7_inv_geotransform <- function(gt) {
+  .Call(`_GDAL7_GDAL7_inv_geotransform`, gt)
+}
+
+GDAL7_band_get_overview_count <- function(xp) {
+  .Call(`_GDAL7_GDAL7_band_get_overview_count`, xp)
+}
+
+GDAL7_band_get_overview <- function(xp, index) {
+  .Call(`_GDAL7_GDAL7_band_get_overview`, xp, index)
+}
+
+GDAL7_band_get_overview_sizes <- function(xp) {
+  .Call(`_GDAL7_GDAL7_band_get_overview_sizes`, xp)
+}
+
+GDAL7_band_read <- function(xp, window, out_size, resample) {
+  .Call(`_GDAL7_GDAL7_band_read`, xp, window, out_size, resample)
+}
+
+GDAL7_dataset_read <- function(xp, bands, window, out_size, resample) {
+  .Call(`_GDAL7_GDAL7_dataset_read`, xp, bands, window, out_size, resample)
+}
+
+GDAL7_data_types <- function() {
+  .Call(`_GDAL7_GDAL7_data_types`)
+}
+
+GDAL7_color_interpretations <- function() {
+  .Call(`_GDAL7_GDAL7_color_interpretations`)
+}
+
+GDAL7_dataset_summary <- function(xp) {
+  .Call(`_GDAL7_GDAL7_dataset_summary`, xp)
+}
