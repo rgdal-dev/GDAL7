@@ -1,5 +1,11 @@
 test_that("a failed open reports what GDAL said", {
-  expect_error(gdal_open("/no/such/file/at/all.tif"), "No such file or directory")
+  path <- "/no/such/file/at/all.tif"
+
+  # GDAL words a missing file differently on each platform, so what is asserted
+  # is that GDAL's own message came through at all, naming the file, rather
+  # than the bare fallback GDAL7 uses when GDAL says nothing.
+  expect_error(gdal_open(path), "^Failed to open dataset: .")
+  expect_error(gdal_open(path), "all\\.tif")
 })
 
 test_that("GDAL errors do not carry over from an earlier call", {
