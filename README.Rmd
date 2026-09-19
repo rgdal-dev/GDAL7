@@ -1,5 +1,9 @@
 ---
-output: github_document
+output:
+  github_document:
+    # -smart keeps pandoc from turning ASCII quotes and dashes into their
+    # typographic forms, which would put non-ASCII bytes in a shipped file.
+    md_extensions: -smart
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -149,20 +153,51 @@ gdal_close(ds)
 
 ### Multidimensional data
 
-```{r multidim}
-zarr <- sprintf(
-  'ZARR:"/vsizip/%s/test.zarr"',
-  system.file("extdata/test.zarr.zip", package = "GDAL7")
-)
+NetCDF, Zarr and HDF5 hold arrays of any number of dimensions rather than bands
+of pixels. GDAL7 navigates them and reads them.
 
-ds <- gdal_open(zarr, multidim = TRUE)
+```{r multidim}
+ds <- gdal_open(system.file("extdata/multidim.zarr", package = "GDAL7"),
+                multidim = TRUE)
 grp <- get_root_group(ds)
 grp
 
-arr <- open_mdarray(grp, get_mdarray_names(grp)[1])
+arr <- open_mdarray(grp, "temperature")
 arr
 
 get_dimensions(arr)
+```
+
+A read takes an origin, a count along each dimension and a step. The `dim` of
+what comes back is the reverse of the array's own dimension order, and carries
+the dimension names, so there is never a question of which axis is which.
+
+```{r mdread}
+values <- read_mdarray(arr)
+dim(values)
+
+# The first time step, every second longitude.
+read_mdarray(arr, start = c(1, 1, 1), count = c(1, 4, 3), step = c(1, 1, 2))
+```
+
+Where the values sit, and what the format says about them:
+
+```{r mdcoords}
+get_dimension_values(arr)
+
+get_attributes(arr)
+```
+
+A view slices lazily, in GDAL's own syntax, and a two-dimensional array can be
+handed to the raster side of the package as an ordinary dataset.
+
+```{r mdview}
+first <- get_view(arr, "[0,:,:]")
+get_dimensions(first)
+
+raster <- as_classic_dataset(first)
+c(get_raster_xsize(raster), get_raster_ysize(raster))
+
 gdal_close(ds)
 ```
 

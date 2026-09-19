@@ -12,8 +12,12 @@ get_dimensions(x, ...)
 \item{...}{Arguments passed on to methods.}
 }
 \value{
-Data frame with dimension names and sizes
+A data frame with one row per dimension: its \code{name} and \code{size}, the
+\code{type} and \code{direction} the format gave it (both may be empty), and
+\code{indexed}, whether it has a coordinate variable.
 }
 \description{
-Get dimensions of an array
+Dimensions are reported in GDAL's order, slowest varying first, which is the
+order a format declares them in. \code{read_mdarray()} returns its \code{dim} the other
+way round; see there for why.
 }

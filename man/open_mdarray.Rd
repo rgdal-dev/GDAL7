@@ -9,7 +9,8 @@ open_mdarray(x, name)
 \arguments{
 \item{x}{A GDALGroup object}
 
-\item{name}{Array name}
+\item{name}{The array's name within this group, or a path from the root of
+the dataset such as \code{"/weather/temperature"}.}
 }
 \value{
 A GDALMDArray object, or NULL if not found

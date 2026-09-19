@@ -219,9 +219,9 @@ test_that("a multidimensional array reports its numeric type", {
 
   ds <- gdal_open(test_zarr(), multidim = TRUE)
   grp <- get_root_group(ds)
-  arr <- open_mdarray(grp, "test")
+  arr <- open_mdarray(grp, "temperature")
 
   # GDALExtendedDataTypeGetName() is empty for a plain numeric array, so the
   # ordinary GDAL type underneath is what gets reported.
-  expect_equal(get_data_type_name(arr), "Int16")
+  expect_equal(get_data_type_name(arr), "Float64")
 })

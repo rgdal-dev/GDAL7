@@ -163,20 +163,94 @@ cpp11::list GDAL7_mdarray_get_dimensions(SEXP xp) {
 
     cpp11::writable::strings names(static_cast<R_xlen_t>(count));
     cpp11::writable::doubles sizes(static_cast<R_xlen_t>(count));
+    cpp11::writable::strings types(static_cast<R_xlen_t>(count));
+    cpp11::writable::strings directions(static_cast<R_xlen_t>(count));
+    cpp11::writable::logicals indexed(static_cast<R_xlen_t>(count));
 
     for (size_t i = 0; i < count; i++) {
-        names[i] = cpp11::r_string(GDALDimensionGetName(dims[i]));
-        sizes[i] = static_cast<double>(GDALDimensionGetSize(dims[i]));
+        const R_xlen_t at = static_cast<R_xlen_t>(i);
+        names[at] = cpp11::r_string(GDALDimensionGetName(dims[i]));
+        sizes[at] = static_cast<double>(GDALDimensionGetSize(dims[i]));
+
+        // The type and direction are how a format says which dimension is the
+        // horizontal X, which is Y, which is time, and which way Y runs. A
+        // format that does not say leaves them empty.
+        const char* type = GDALDimensionGetType(dims[i]);
+        types[at] = cpp11::r_string(type == nullptr ? "" : type);
+        const char* direction = GDALDimensionGetDirection(dims[i]);
+        directions[at] = cpp11::r_string(direction == nullptr ? "" : direction);
+
+        // Whether the dimension has a coordinate variable, which is what
+        // GDAL7_mdarray_get_dimension_variables then hands back.
+        GDALMDArrayH indexing = GDALDimensionGetIndexingVariable(dims[i]);
+        indexed[at] = indexing != nullptr ? TRUE : FALSE;
+        if (indexing != nullptr) {
+            GDALMDArrayRelease(indexing);
+        }
     }
 
     GDALReleaseDimensions(dims, count);
 
     // Built empty and pushed into: a list sized `count` up front would have
-    // left `count` NULLs in front of the two columns.
+    // left `count` NULLs in front of the columns.
     cpp11::writable::list result;
     result.push_back(cpp11::named_arg("name") = names);
     result.push_back(cpp11::named_arg("size") = sizes);
+    result.push_back(cpp11::named_arg("type") = types);
+    result.push_back(cpp11::named_arg("direction") = directions);
+    result.push_back(cpp11::named_arg("indexed") = indexed);
     return result;
+}
+
+// The coordinate variable of each dimension, or NULL where a dimension has
+// none. One call rather than one per dimension, because reading the
+// coordinates is the usual next thing after reading the array.
+[[cpp11::register]]
+cpp11::list GDAL7_mdarray_get_dimension_variables(SEXP xp) {
+    GDALMDArrayH h = mdarray(xp);
+
+    gdal7::ErrorScope err;
+    size_t count = 0;
+    GDALDimensionH* dims = GDALMDArrayGetDimensions(h, &count);
+
+    cpp11::writable::list out(static_cast<R_xlen_t>(count));
+    for (size_t i = 0; i < count; i++) {
+        GDALMDArrayH indexing = GDALDimensionGetIndexingVariable(dims[i]);
+        if (indexing == nullptr) {
+            out[static_cast<R_xlen_t>(i)] = R_NilValue;
+            continue;
+        }
+        out[static_cast<R_xlen_t>(i)] = gdal7::wrap(indexing, gdal7::Kind::MDArray, xp);
+    }
+
+    GDALReleaseDimensions(dims, count);
+    err.flush();
+    return out;
+}
+
+// The arrays a format names as this one's coordinates. Not the same question
+// as the dimensions' own indexing variables: a swath, for instance, carries
+// two-dimensional latitude and longitude arrays that index no dimension.
+[[cpp11::register]]
+cpp11::list GDAL7_mdarray_get_coordinate_variables(SEXP xp) {
+    GDALMDArrayH h = mdarray(xp);
+
+    gdal7::ErrorScope err;
+    size_t count = 0;
+    GDALMDArrayH* arrays = GDALMDArrayGetCoordinateVariables(h, &count);
+
+    cpp11::writable::list out(static_cast<R_xlen_t>(count));
+    for (size_t i = 0; i < count; i++) {
+        out[static_cast<R_xlen_t>(i)] =
+            gdal7::wrap(arrays[i], gdal7::Kind::MDArray, xp);
+    }
+
+    // Each array now belongs to an R object, which will release it. Only the
+    // list GDAL allocated to carry them is freed here, which is what a count
+    // of zero asks for.
+    GDALReleaseArrays(arrays, 0);
+    err.flush();
+    return out;
 }
 
 [[cpp11::register]]
@@ -219,4 +293,277 @@ SEXP GDAL7_mdarray_get_nodata_value(SEXP xp) {
 [[cpp11::register]]
 void GDAL7_mdarray_release(SEXP xp) {
     gdal7::close(xp, gdal7::Kind::MDArray);
+}
+
+// ============================================================================
+// Attributes
+// ============================================================================
+
+namespace {
+
+// One attribute's value as an R vector. GDAL attributes are themselves small
+// arrays, so a scalar and a vector come back through the same call and a
+// length-1 result is just the common case.
+SEXP attribute_value(GDALAttributeH attr) {
+    GDALExtendedDataTypeH dt = GDALAttributeGetDataType(attr);
+    const bool is_string =
+        dt != nullptr && GDALExtendedDataTypeGetClass(dt) == GEDTC_STRING;
+    if (dt != nullptr) {
+        GDALExtendedDataTypeRelease(dt);
+    }
+
+    if (is_string) {
+        char** values = GDALAttributeReadAsStringArray(attr);
+        cpp11::strings out = gdal7::from_csl(values);
+        CSLDestroy(values);
+        return out;
+    }
+
+    size_t count = 0;
+    double* values = GDALAttributeReadAsDoubleArray(attr, &count);
+    if (values == nullptr) {
+        // A compound type has no numeric reading. GDAL's own string form of it
+        // is better than dropping the attribute.
+        return gdal7::chr(GDALAttributeReadAsString(attr));
+    }
+
+    cpp11::writable::doubles out(static_cast<R_xlen_t>(count));
+    for (size_t i = 0; i < count; i++) {
+        out[i] = values[i];
+    }
+    CPLFree(values);
+    return out;
+}
+
+// The attributes of a group or an array, as a named list.
+cpp11::list attributes_list(GDALAttributeH* attrs, size_t count) {
+    cpp11::writable::list out(static_cast<R_xlen_t>(count));
+    cpp11::writable::strings names(static_cast<R_xlen_t>(count));
+
+    for (size_t i = 0; i < count; i++) {
+        const char* name = GDALAttributeGetName(attrs[i]);
+        names[i] = cpp11::r_string(name == nullptr ? "" : name);
+        out[static_cast<R_xlen_t>(i)] = attribute_value(attrs[i]);
+    }
+
+    GDALReleaseAttributes(attrs, count);
+    out.names() = names;
+    return out;
+}
+
+}  // namespace
+
+[[cpp11::register]]
+cpp11::list GDAL7_mdarray_get_attributes(SEXP xp) {
+    GDALMDArrayH h = mdarray(xp);
+
+    gdal7::ErrorScope err;
+    size_t count = 0;
+    GDALAttributeH* attrs = GDALMDArrayGetAttributes(h, &count, nullptr);
+    cpp11::list out = attributes_list(attrs, count);
+    err.flush();
+    return out;
+}
+
+[[cpp11::register]]
+cpp11::list GDAL7_group_get_attributes(SEXP xp) {
+    GDALGroupH h = group(xp);
+
+    gdal7::ErrorScope err;
+    size_t count = 0;
+    GDALAttributeH* attrs = GDALGroupGetAttributes(h, &count, nullptr);
+    cpp11::list out = attributes_list(attrs, count);
+    err.flush();
+    return out;
+}
+
+// ============================================================================
+// Scaling, units and georeferencing
+// ============================================================================
+
+[[cpp11::register]]
+SEXP GDAL7_mdarray_get_scale(SEXP xp) {
+    int has_value = 0;
+    const double value = GDALMDArrayGetScale(mdarray(xp), &has_value);
+    return has_value ? cpp11::as_sexp(value) : R_NilValue;
+}
+
+[[cpp11::register]]
+SEXP GDAL7_mdarray_get_offset(SEXP xp) {
+    int has_value = 0;
+    const double value = GDALMDArrayGetOffset(mdarray(xp), &has_value);
+    return has_value ? cpp11::as_sexp(value) : R_NilValue;
+}
+
+[[cpp11::register]]
+cpp11::strings GDAL7_mdarray_crs(SEXP xp) {
+    OGRSpatialReferenceH srs = GDALMDArrayGetSpatialRef(mdarray(xp));
+    if (srs == nullptr) {
+        return gdal7::chr(nullptr);
+    }
+
+    char* wkt = nullptr;
+    gdal7::ErrorScope err;
+    const OGRErr status = OSRExportToWkt(srs, &wkt);
+    OSRDestroySpatialReference(srs);
+    if (status != OGRERR_NONE || wkt == nullptr) {
+        CPLFree(wkt);
+        err.flush();
+        return gdal7::chr(nullptr);
+    }
+    cpp11::strings out = gdal7::chr(wkt);
+    CPLFree(wkt);
+    err.flush();
+    return out;
+}
+
+// ============================================================================
+// Reading
+// ============================================================================
+
+namespace {
+
+// One index vector, checked against the array's own rank. Indices arrive as
+// doubles because a dimension can be longer than an R integer.
+template <typename T>
+std::vector<T> index_vector(cpp11::doubles values, size_t rank, const char* what) {
+    if (static_cast<size_t>(values.size()) != rank) {
+        cpp11::stop("`%s` needs one value per dimension: %d, not %d", what,
+                    static_cast<int>(rank), static_cast<int>(values.size()));
+    }
+
+    std::vector<T> out(rank);
+    for (size_t i = 0; i < rank; i++) {
+        const double value = values[static_cast<R_xlen_t>(i)];
+        if (!R_FINITE(value)) {
+            cpp11::stop("`%s` must be finite", what);
+        }
+        out[i] = static_cast<T>(value);
+    }
+    return out;
+}
+
+}  // namespace
+
+// Read a hyperslab into a plain double vector.
+//
+// `start` is zero based here; the R side does the translation. The values come
+// back in the array's own memory order, fastest-varying dimension last, which
+// is what lets the R side put a `dim` on the result without moving anything.
+[[cpp11::register]]
+cpp11::doubles GDAL7_mdarray_read(SEXP xp, cpp11::doubles start, cpp11::doubles count,
+                                  cpp11::doubles step) {
+    GDALMDArrayH h = mdarray(xp);
+
+    const size_t rank = GDALMDArrayGetDimensionCount(h);
+    std::vector<GUInt64> offsets = index_vector<GUInt64>(start, rank, "start");
+    std::vector<size_t> counts = index_vector<size_t>(count, rank, "count");
+    std::vector<GInt64> steps = index_vector<GInt64>(step, rank, "step");
+
+    // The element count is checked here rather than left to overflow, because
+    // the product is what sizes the buffer GDAL is about to write into.
+    double elements = 1;
+    for (size_t i = 0; i < rank; i++) {
+        if (counts[i] == 0) {
+            elements = 0;
+            break;
+        }
+        elements *= static_cast<double>(counts[i]);
+    }
+    if (elements > static_cast<double>(R_XLEN_T_MAX)) {
+        cpp11::stop("That slice holds more values than an R vector can");
+    }
+
+    const R_xlen_t n = static_cast<R_xlen_t>(elements);
+    cpp11::writable::doubles out(n);
+    if (n == 0) {
+        return out;
+    }
+
+    // C order: the last dimension is contiguous, each earlier one strides over
+    // the whole of everything after it.
+    std::vector<GPtrDiff_t> strides(rank);
+    GPtrDiff_t stride = 1;
+    for (size_t i = rank; i > 0; i--) {
+        strides[i - 1] = stride;
+        stride *= static_cast<GPtrDiff_t>(counts[i - 1]);
+    }
+
+    // Float64 whatever the array holds, for the same reason the raster reads
+    // do it: one return type covers every array, and only Int64 past 2^53
+    // loses anything.
+    GDALExtendedDataTypeH type = GDALExtendedDataTypeCreate(GDT_Float64);
+
+    gdal7::ErrorScope err;
+    const int ok = GDALMDArrayRead(h, offsets.data(), counts.data(), steps.data(),
+                                   strides.data(), type, REAL(out), REAL(out),
+                                   static_cast<size_t>(n) * sizeof(double));
+    GDALExtendedDataTypeRelease(type);
+
+    if (!ok) {
+        err.stop("Could not read that slice of the array");
+    }
+    err.flush();
+
+    return out;
+}
+
+// ============================================================================
+// Views and the bridge back to classic raster
+// ============================================================================
+
+[[cpp11::register]]
+SEXP GDAL7_mdarray_get_view(SEXP xp, std::string expr) {
+    GDALMDArrayH h = mdarray(xp);
+
+    gdal7::ErrorScope err;
+    GDALMDArrayH view = GDALMDArrayGetView(h, expr.c_str());
+    if (view == nullptr) {
+        err.stop("Could not take that view of the array");
+    }
+
+    // The view is its own object with its own release, and names the array it
+    // was taken from as its parent so that array cannot go away beneath it.
+    SEXP out = PROTECT(gdal7::wrap(view, gdal7::Kind::MDArray, xp));
+    err.flush();
+    UNPROTECT(1);
+    return out;
+}
+
+// A two-dimensional slice of an array, seen as an ordinary GDAL raster. This
+// is the bridge back to everything the raster side of the package can do.
+[[cpp11::register]]
+SEXP GDAL7_mdarray_as_classic_dataset(SEXP xp, double x_dim, double y_dim) {
+    GDALMDArrayH h = mdarray(xp);
+
+    gdal7::ErrorScope err;
+    GDALDatasetH ds = GDALMDArrayAsClassicDataset(
+        h, static_cast<size_t>(x_dim), static_cast<size_t>(y_dim));
+    if (ds == nullptr) {
+        err.stop("Could not view that array as a classic raster");
+    }
+
+    SEXP out = PROTECT(gdal7::wrap(ds, gdal7::Kind::Dataset, xp));
+    err.flush();
+    UNPROTECT(1);
+    return out;
+}
+
+// Open an array by its path from the root, rather than by name within one
+// group. "/group/subgroup/array" is how a NetCDF or Zarr user thinks of it.
+[[cpp11::register]]
+SEXP GDAL7_group_open_mdarray_from_fullname(SEXP xp, std::string name) {
+    GDALGroupH h = group(xp);
+
+    gdal7::ErrorScope err;
+    GDALMDArrayH arr = GDALGroupOpenMDArrayFromFullname(h, name.c_str(), nullptr);
+    if (arr == nullptr) {
+        err.flush();
+        return R_NilValue;
+    }
+
+    SEXP out = PROTECT(gdal7::wrap(arr, gdal7::Kind::MDArray, xp));
+    err.flush();
+    UNPROTECT(1);
+    return out;
 }

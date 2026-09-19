@@ -557,6 +557,20 @@ extern "C" SEXP _GDAL7_GDAL7_mdarray_get_dimensions(SEXP xp) {
   END_CPP11
 }
 // GDAL7_multidim.cpp
+cpp11::list GDAL7_mdarray_get_dimension_variables(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_dimension_variables(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_dimension_variables(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+cpp11::list GDAL7_mdarray_get_coordinate_variables(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_coordinate_variables(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_coordinate_variables(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
 cpp11::strings GDAL7_mdarray_get_data_type_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_data_type_name(SEXP xp) {
   BEGIN_CPP11
@@ -583,6 +597,69 @@ extern "C" SEXP _GDAL7_GDAL7_mdarray_release(SEXP xp) {
   BEGIN_CPP11
     GDAL7_mdarray_release(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp));
     return R_NilValue;
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+cpp11::list GDAL7_mdarray_get_attributes(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_attributes(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_attributes(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+cpp11::list GDAL7_group_get_attributes(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_group_get_attributes(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_group_get_attributes(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+SEXP GDAL7_mdarray_get_scale(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_scale(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_scale(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+SEXP GDAL7_mdarray_get_offset(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_offset(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_offset(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+cpp11::strings GDAL7_mdarray_crs(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_crs(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_crs(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+cpp11::doubles GDAL7_mdarray_read(SEXP xp, cpp11::doubles start, cpp11::doubles count, cpp11::doubles step);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_read(SEXP xp, SEXP start, SEXP count, SEXP step) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(start), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(count), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(step)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+SEXP GDAL7_mdarray_get_view(SEXP xp, std::string expr);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_view(SEXP xp, SEXP expr) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_view(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(expr)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+SEXP GDAL7_mdarray_as_classic_dataset(SEXP xp, double x_dim, double y_dim);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_as_classic_dataset(SEXP xp, SEXP x_dim, SEXP y_dim) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_as_classic_dataset(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<double>>(x_dim), cpp11::as_cpp<cpp11::decay_t<double>>(y_dim)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+SEXP GDAL7_group_open_mdarray_from_fullname(SEXP xp, std::string name);
+extern "C" SEXP _GDAL7_GDAL7_group_open_mdarray_from_fullname(SEXP xp, SEXP name) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_group_open_mdarray_from_fullname(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(name)));
   END_CPP11
 }
 // GDAL7_open.cpp
@@ -919,12 +996,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_get_driver",                           (DL_FUNC) &_GDAL7_GDAL7_get_driver,                           1},
     {"_GDAL7_GDAL7_get_driver_by_name",                   (DL_FUNC) &_GDAL7_GDAL7_get_driver_by_name,                   1},
     {"_GDAL7_GDAL7_get_driver_count",                     (DL_FUNC) &_GDAL7_GDAL7_get_driver_count,                     0},
+    {"_GDAL7_GDAL7_group_get_attributes",                 (DL_FUNC) &_GDAL7_GDAL7_group_get_attributes,                 1},
     {"_GDAL7_GDAL7_group_get_full_name",                  (DL_FUNC) &_GDAL7_GDAL7_group_get_full_name,                  1},
     {"_GDAL7_GDAL7_group_get_group_names",                (DL_FUNC) &_GDAL7_GDAL7_group_get_group_names,                1},
     {"_GDAL7_GDAL7_group_get_mdarray_names",              (DL_FUNC) &_GDAL7_GDAL7_group_get_mdarray_names,              1},
     {"_GDAL7_GDAL7_group_get_name",                       (DL_FUNC) &_GDAL7_GDAL7_group_get_name,                       1},
     {"_GDAL7_GDAL7_group_open_group",                     (DL_FUNC) &_GDAL7_GDAL7_group_open_group,                     2},
     {"_GDAL7_GDAL7_group_open_mdarray",                   (DL_FUNC) &_GDAL7_GDAL7_group_open_mdarray,                   2},
+    {"_GDAL7_GDAL7_group_open_mdarray_from_fullname",     (DL_FUNC) &_GDAL7_GDAL7_group_open_mdarray_from_fullname,     2},
     {"_GDAL7_GDAL7_group_release",                        (DL_FUNC) &_GDAL7_GDAL7_group_release,                        1},
     {"_GDAL7_GDAL7_init",                                 (DL_FUNC) &_GDAL7_GDAL7_init,                                 0},
     {"_GDAL7_GDAL7_integer_constants",                    (DL_FUNC) &_GDAL7_GDAL7_integer_constants,                    0},
@@ -950,13 +1029,22 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_majorobject_set_metadata",             (DL_FUNC) &_GDAL7_GDAL7_majorobject_set_metadata,             3},
     {"_GDAL7_GDAL7_majorobject_set_metadata_2",           (DL_FUNC) &_GDAL7_GDAL7_majorobject_set_metadata_2,           3},
     {"_GDAL7_GDAL7_majorobject_set_metadata_item",        (DL_FUNC) &_GDAL7_GDAL7_majorobject_set_metadata_item,        4},
+    {"_GDAL7_GDAL7_mdarray_as_classic_dataset",           (DL_FUNC) &_GDAL7_GDAL7_mdarray_as_classic_dataset,           3},
+    {"_GDAL7_GDAL7_mdarray_crs",                          (DL_FUNC) &_GDAL7_GDAL7_mdarray_crs,                          1},
+    {"_GDAL7_GDAL7_mdarray_get_attributes",               (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_attributes,               1},
+    {"_GDAL7_GDAL7_mdarray_get_coordinate_variables",     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_coordinate_variables,     1},
     {"_GDAL7_GDAL7_mdarray_get_data_type_name",           (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_data_type_name,           1},
     {"_GDAL7_GDAL7_mdarray_get_dimension_count",          (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_dimension_count,          1},
+    {"_GDAL7_GDAL7_mdarray_get_dimension_variables",      (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_dimension_variables,      1},
     {"_GDAL7_GDAL7_mdarray_get_dimensions",               (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_dimensions,               1},
     {"_GDAL7_GDAL7_mdarray_get_full_name",                (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_full_name,                1},
     {"_GDAL7_GDAL7_mdarray_get_name",                     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_name,                     1},
     {"_GDAL7_GDAL7_mdarray_get_nodata_value",             (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_nodata_value,             1},
+    {"_GDAL7_GDAL7_mdarray_get_offset",                   (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_offset,                   1},
+    {"_GDAL7_GDAL7_mdarray_get_scale",                    (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_scale,                    1},
     {"_GDAL7_GDAL7_mdarray_get_unit",                     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_unit,                     1},
+    {"_GDAL7_GDAL7_mdarray_get_view",                     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_view,                     2},
+    {"_GDAL7_GDAL7_mdarray_read",                         (DL_FUNC) &_GDAL7_GDAL7_mdarray_read,                         4},
     {"_GDAL7_GDAL7_mdarray_release",                      (DL_FUNC) &_GDAL7_GDAL7_mdarray_release,                      1},
     {"_GDAL7_GDAL7_release_arrow_stream",                 (DL_FUNC) &_GDAL7_GDAL7_release_arrow_stream,                 1},
     {"_GDAL7_GDAL7_string_constants",                     (DL_FUNC) &_GDAL7_GDAL7_string_constants,                     0},

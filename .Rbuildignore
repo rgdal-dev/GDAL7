@@ -6,3 +6,4 @@
 ^ROADMAP\.md$
 ^\.github$
 ^README\.html$
+^inst/examples$

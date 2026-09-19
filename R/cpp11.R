@@ -312,6 +312,14 @@ GDAL7_mdarray_get_dimensions <- function(xp) {
   .Call(`_GDAL7_GDAL7_mdarray_get_dimensions`, xp)
 }
 
+GDAL7_mdarray_get_dimension_variables <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_dimension_variables`, xp)
+}
+
+GDAL7_mdarray_get_coordinate_variables <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_coordinate_variables`, xp)
+}
+
 GDAL7_mdarray_get_data_type_name <- function(xp) {
   .Call(`_GDAL7_GDAL7_mdarray_get_data_type_name`, xp)
 }
@@ -326,6 +334,42 @@ GDAL7_mdarray_get_nodata_value <- function(xp) {
 
 GDAL7_mdarray_release <- function(xp) {
   invisible(.Call(`_GDAL7_GDAL7_mdarray_release`, xp))
+}
+
+GDAL7_mdarray_get_attributes <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_attributes`, xp)
+}
+
+GDAL7_group_get_attributes <- function(xp) {
+  .Call(`_GDAL7_GDAL7_group_get_attributes`, xp)
+}
+
+GDAL7_mdarray_get_scale <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_scale`, xp)
+}
+
+GDAL7_mdarray_get_offset <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_offset`, xp)
+}
+
+GDAL7_mdarray_crs <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_crs`, xp)
+}
+
+GDAL7_mdarray_read <- function(xp, start, count, step) {
+  .Call(`_GDAL7_GDAL7_mdarray_read`, xp, start, count, step)
+}
+
+GDAL7_mdarray_get_view <- function(xp, expr) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_view`, xp, expr)
+}
+
+GDAL7_mdarray_as_classic_dataset <- function(xp, x_dim, y_dim) {
+  .Call(`_GDAL7_GDAL7_mdarray_as_classic_dataset`, xp, x_dim, y_dim)
+}
+
+GDAL7_group_open_mdarray_from_fullname <- function(xp, name) {
+  .Call(`_GDAL7_GDAL7_group_open_mdarray_from_fullname`, xp, name)
 }
 
 GDAL7_init <- function() {

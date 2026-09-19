@@ -5,12 +5,16 @@ test_tif <- function() {
   system.file("extdata", "test.tif", package = "GDAL7", mustWork = TRUE)
 }
 
-# The Zarr fixture ships zipped: a Zarr store is a tree of dot-files, which
-# R CMD check reports as hidden files, and GDAL reads it in place through
-# /vsizip/ anyway.
+# A 3 by 4 by 5 array over time, latitude and longitude, holding 1 to 60 in
+# reading order with one cell set to nodata, plus units, a scale and an offset,
+# attributes and a coordinate variable per dimension. Built by
+# data-raw/make_multidim_fixture.R.
+#
+# It is a Zarr V3 store rather than V2 because the V3 layout has no
+# dot-prefixed files, so it ships as an ordinary directory instead of a zip
+# that every test would have to name through /vsizip/.
 test_zarr <- function() {
-  zip <- system.file("extdata", "test.zarr.zip", package = "GDAL7", mustWork = TRUE)
-  sprintf('ZARR:"/vsizip/%s/test.zarr"', zip)
+  system.file("extdata", "multidim.zarr", package = "GDAL7", mustWork = TRUE)
 }
 
 # A scratch copy, for tests that write. GDAL drops a .aux.xml sidecar beside a

@@ -351,10 +351,15 @@ what would let another package depend on GDAL7.
 
 ### 7.6 Actually use S7 properties
 
+*Status: done in Stage 3.* `%immutable` members are parsed, and the generator
+emits each as an S7 property with a getter: `ds@raster_xsize`, `ds@raster_ysize`
+and `ds@raster_count`, which is every member GDAL's Dataset declares. The
+paragraph below is what the position was before that.
+
 "Properties with getters/setters" is reason number one for choosing S7
 (`data-raw/GDAL7-rationale.md:89`), and the rationale's own example at `:104-108`
 shows `raster_xsize` as a property. Zero properties exist in the package; everything
-is a generic, and `%immutable` is still unparsed (`data-raw/PARSER_STATUS.md:61`).
+is a generic, and `%immutable` is unparsed.
 
 Moving the accessor half of the API to properties (`ds@xsize`, `ds@bands`,
 `band@nodata`, `band@block`) reads better, matches the stated design, and cuts the
@@ -378,10 +383,17 @@ progress callback directly.
 
 ### 7.9 Test fixtures that need neither network nor a personal path
 
-`inst/examples/*.R` hardcode `/perm_storage/home/mdsumner/gdal/autotest/...` and hit
-remote URLs. The `MEM` driver plus `/vsimem/` can build fixtures in-process, which
-makes the test suite hermetic and CI possible on every platform. This is a
-prerequisite for section 3's CI item, not a separate nicety.
+*Status: done.* `tests/testthat/` runs entirely against fixtures that ship in
+`inst/extdata`: `test.tif`, `overviews.tif`, `test.gpkg` and `multidim.zarr`. No
+test touches the network or a path outside the installed package, which is what
+made the cross-platform CI matrix possible.
+
+`inst/examples/*.R`, the scripts this item was written about, still hardcode
+`/perm_storage/home/mdsumner/gdal/autotest/...` and remote URLs. They are no
+longer shipped: `.Rbuildignore` excludes them, so nobody installs a script that
+can only work on one machine. They stay in the repository as a record of what the
+prototype was driven by, and everything they exercise is covered hermetically by
+the test suite.
 
 ---
 
@@ -577,13 +589,30 @@ still open, which the ownership chain from stage 1 already knew how to answer.
 
 ### Stage 5 - Multidimensional read
 
+*Status: done.* `read_mdarray()` is `GDALMDArrayRead` with a start, a count and a
+step, the step signed so a dimension can be read backwards. The result's `dim`
+is the reverse of the array's own dimension order, named, which is both the
+order ncdf4 and RNetCDF use and the order the values already arrive in, so
+nothing is moved to produce it. Nodata becomes `NA` unless asked otherwise.
+Around it: `get_attributes()` for a group or an array, `get_dimension_values()`
+and `get_coordinate_variables()` for where the values sit, `get_view()` for
+GDAL's own lazy slicing syntax, `as_classic_dataset()` for the bridge back to
+the raster side, and `mdarray_info()` as the one-call summary. `get_dimensions()`
+now also reports each dimension's type and direction, which is how
+`as_classic_dataset()` knows which dimension is X and which is Y without being
+told.
+
 `GDALMDArrayRead` with start/count/step/stride, attributes, coordinate variables,
 `GetView` for slicing, `AsClassicDataset` for the bridge back to raster. This is the
-stage the existing multidim skeleton was pointed at; right now it can navigate
-groups and arrays but cannot read a value.
+stage the existing multidim skeleton was pointed at; before it, the skeleton could
+navigate groups and arrays but not read a value.
 
-*Exit:* a Zarr or NetCDF array slices and reads into an R array with correct
-dimension order and nodata handling.
+*Exit:* met. `tests/testthat/test-multidim.R` slices `inst/extdata/multidim.zarr`,
+a 3 by 4 by 5 Zarr store holding 1 to 60 in reading order, and checks the values,
+the dimension order, the reversed read, the strided read and the nodata cell
+against that. The fixture is Zarr V3, whose layout has no dot-prefixed files, so
+it ships as an ordinary directory; GDAL writes Zarr itself, so no external
+library is needed to rebuild it.
 
 ### Stage 6 - Algorithms and pipelines
 
@@ -607,14 +636,18 @@ VSI, `CPLSetConfigOption`, thread-safe datasets from section 6.
 
 ## 9. Housekeeping
 
-`data-raw/` carries two copies of each design document
-(`GDAL7-rationale.md` / `gdal7-rationale.md`, `GDAL7-dev-guide.md` /
-`gdal7-dev-guide.md`) which have already drifted: the lowercase copies say S7 v0.2.0
-Nov 2024, the uppercase say v0.2.1 Nov 2025. Keep one of each.
+*Closed in Stage 5.* The duplicate design documents are gone: `data-raw/` carried
+two copies of each (`GDAL7-rationale.md` / `gdal7-rationale.md`,
+`GDAL7-dev-guide.md` / `gdal7-dev-guide.md`) which had already drifted, the
+lowercase copies saying S7 v0.2.0 Nov 2024 against the uppercase v0.2.1 Nov 2025.
+The uppercase copies were kept, being the ones whose code matches the package's
+own `GDAL7_` naming.
 
-`data-raw/STATUS.md` and `data-raw/PARSER_STATUS.md` both predate the driver, band
-and multidim work and now describe those classes as unimplemented
-(`STATUS.md:91-94`, `:134-137`). Either update them or fold them into this document.
+`data-raw/STATUS.md` and `data-raw/PARSER_STATUS.md` were snapshots of the
+proof-of-concept era and described the driver, band and multidim classes as
+unimplemented long after they existed. They are replaced by `data-raw/README.md`,
+which says what the scripts are and how to run them and leaves the plan to this
+document.
 
 ---
 

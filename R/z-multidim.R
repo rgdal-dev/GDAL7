@@ -104,13 +104,21 @@ S7::method(get_mdarray_names, GDALGroup) <- function(x) {
 #' Open an array from a group
 #'
 #' @param x A GDALGroup object
-#' @param name Array name
+#' @param name The array's name within this group, or a path from the root of
+#'   the dataset such as `"/weather/temperature"`.
 #' @return A GDALMDArray object, or NULL if not found
 #' @export
 open_mdarray <- S7::new_generic("open_mdarray", "x", function(x, name) S7::S7_dispatch())
 
 S7::method(open_mdarray, GDALGroup) <- function(x, name) {
-  ptr <- GDAL7_group_open_mdarray(x@.ptr, name)
+  name <- as.character(name)
+  # A name with a slash in it is a path from the root, which is how a NetCDF or
+  # Zarr user refers to an array in a nested group.
+  ptr <- if (grepl("/", name, fixed = TRUE)) {
+    GDAL7_group_open_mdarray_from_fullname(x@.ptr, name)
+  } else {
+    GDAL7_group_open_mdarray(x@.ptr, name)
+  }
   if (is.null(ptr)) {
     return(NULL)
   }
@@ -175,9 +183,15 @@ S7::method(get_dimension_count, GDALMDArray) <- function(x) {
 
 #' Get dimensions of an array
 #'
+#' Dimensions are reported in GDAL's order, slowest varying first, which is the
+#' order a format declares them in. `read_mdarray()` returns its `dim` the other
+#' way round; see there for why.
+#'
 #' @param x A GDALMDArray object
 #' @param ... Arguments passed on to methods.
-#' @return Data frame with dimension names and sizes
+#' @return A data frame with one row per dimension: its `name` and `size`, the
+#'   `type` and `direction` the format gave it (both may be empty), and
+#'   `indexed`, whether it has a coordinate variable.
 #' @export
 get_dimensions <- S7::new_generic("get_dimensions", "x")
 
@@ -186,6 +200,9 @@ S7::method(get_dimensions, GDALMDArray) <- function(x) {
   data.frame(
     name = result$name,
     size = result$size,
+    type = result$type,
+    direction = result$direction,
+    indexed = result$indexed,
     stringsAsFactors = FALSE
   )
 }
@@ -200,6 +217,317 @@ S7::method(get_unit_type, GDALMDArray) <- function(x) {
 
 S7::method(get_nodata_value, GDALMDArray) <- function(x) {
   GDAL7_mdarray_get_nodata_value(x@.ptr)
+}
+
+# ============================================================================
+# Attributes, scaling and georeferencing
+# ============================================================================
+
+#' Get the attributes of a group or an array
+#'
+#' Attributes are a format's own annotations: units, long names, conventions,
+#' valid ranges. They are returned all at once because reading them one at a
+#' time is what makes inspecting a large NetCDF slow.
+#'
+#' @param x A GDALGroup or GDALMDArray object
+#' @param ... Arguments passed on to methods.
+#' @return A named list. Each element is a character or numeric vector, of
+#'   whatever length the attribute has.
+#' @export
+get_attributes <- S7::new_generic("get_attributes", "x")
+
+S7::method(get_attributes, GDALGroup) <- function(x) {
+  GDAL7_group_get_attributes(x@.ptr)
+}
+
+S7::method(get_attributes, GDALMDArray) <- function(x) {
+  GDAL7_mdarray_get_attributes(x@.ptr)
+}
+
+S7::method(get_scale, GDALMDArray) <- function(x) {
+  GDAL7_mdarray_get_scale(x@.ptr)
+}
+
+S7::method(get_offset, GDALMDArray) <- function(x) {
+  GDAL7_mdarray_get_offset(x@.ptr)
+}
+
+S7::method(get_projection, GDALMDArray) <- function(x) {
+  GDAL7_mdarray_crs(x@.ptr)
+}
+
+# ============================================================================
+# Coordinates
+# ============================================================================
+
+#' Get the coordinate variables of an array
+#'
+#' The arrays a format names as this one's coordinates. This is not quite the
+#' same question as which dimensions are indexed: a swath carries latitude and
+#' longitude arrays that are two-dimensional and index no dimension at all. For
+#' the ordinary gridded case, [get_dimension_values()] is the shorter road.
+#'
+#' @param x A GDALMDArray object
+#' @param ... Arguments passed on to methods.
+#' @return A list of GDALMDArray objects, empty when the format names none.
+#' @export
+get_coordinate_variables <- S7::new_generic("get_coordinate_variables", "x")
+
+S7::method(get_coordinate_variables, GDALMDArray) <- function(x) {
+  lapply(GDAL7_mdarray_get_coordinate_variables(x@.ptr), function(ptr) {
+    GDALMDArray(.ptr = ptr)
+  })
+}
+
+#' Get the coordinate values along each dimension
+#'
+#' Reads each dimension's coordinate variable in full. For a gridded array this
+#' is the time, latitude and longitude the values are placed at.
+#'
+#' @param x A GDALMDArray object
+#' @param ... Arguments passed on to methods.
+#' @return A named list with one element per dimension, in the array's own
+#'   dimension order. A dimension with no coordinate variable is NULL.
+#' @export
+get_dimension_values <- S7::new_generic("get_dimension_values", "x")
+
+S7::method(get_dimension_values, GDALMDArray) <- function(x) {
+  dims <- get_dimensions(x)
+  values <- lapply(GDAL7_mdarray_get_dimension_variables(x@.ptr), function(ptr) {
+    if (is.null(ptr)) {
+      return(NULL)
+    }
+    read_mdarray(GDALMDArray(.ptr = ptr))
+  })
+  names(values) <- dims$name
+  values
+}
+
+# ============================================================================
+# Reading
+# ============================================================================
+
+#' Read from a multidimensional array
+#'
+#' Reads a hyperslab: an origin, a count of values along each dimension, and a
+#' step between them. With no arguments it reads the whole array.
+#'
+#' The result's `dim` is the reverse of the array's own dimension order, so a
+#' `(time, lat, lon)` array reads into an R array indexed `[lon, lat, time]`.
+#' That is the order ncdf4 and RNetCDF use, and it is also the
+#' order the values already arrive in, so nothing is moved to produce it. The
+#' names on `dim` say which is which. A one-dimensional array comes back as a
+#' plain vector.
+#'
+#' @param x A GDALMDArray object
+#' @param start Origin of the read, one value per dimension, in the array's own
+#'   dimension order and counting from 1. Defaults to the start of each
+#'   dimension.
+#' @param count How many values to read along each dimension. Defaults to as
+#'   many as `start` and `step` allow.
+#' @param step Distance between values along each dimension, which may be
+#'   negative to read backwards. Defaults to 1.
+#' @param nodata_as_na Whether to turn the array's nodata value into `NA`.
+#'   TRUE by default.
+#' @return A numeric array, or a plain numeric vector for a one-dimensional
+#'   array.
+#' @export
+#' @examples
+#' path <- system.file("extdata/multidim.zarr", package = "GDAL7")
+#' ds <- gdal_open(path, multidim = TRUE)
+#' arr <- open_mdarray(get_root_group(ds), "temperature")
+#'
+#' dim(read_mdarray(arr))
+#'
+#' # The first time step, every second longitude.
+#' read_mdarray(arr, start = c(1, 1, 1), count = c(1, 4, 3), step = c(1, 1, 2))
+#'
+#' gdal_close(ds)
+read_mdarray <- S7::new_generic(
+  "read_mdarray", "x",
+  function(x, start = NULL, count = NULL, step = NULL, nodata_as_na = TRUE) {
+    S7::S7_dispatch()
+  }
+)
+
+S7::method(read_mdarray, GDALMDArray) <- function(x, start = NULL, count = NULL,
+                                                  step = NULL, nodata_as_na = TRUE) {
+  dims <- get_dimensions(x)
+  rank <- nrow(dims)
+  sizes <- dims$size
+
+  start <- slab_argument(start, rank, 1, "start")
+  step <- slab_argument(step, rank, 1, "step")
+
+  if (any(start < 1) || any(start > sizes)) {
+    stop("`start` must be within the array: counting from 1, up to ",
+         paste(sizes, collapse = " by "), call. = FALSE)
+  }
+  if (any(step == 0)) {
+    stop("`step` cannot be 0", call. = FALSE)
+  }
+
+  # How many values each dimension has left, reading from `start` in the
+  # direction `step` points.
+  available <- ifelse(step > 0,
+                      (sizes - start) %/% step + 1,
+                      (start - 1) %/% -step + 1)
+  count <- slab_argument(count, rank, available, "count")
+
+  if (any(count < 0)) {
+    stop("`count` cannot be negative", call. = FALSE)
+  }
+  if (any(count > available)) {
+    over <- which(count > available)[1]
+    stop("`count` reads past the end of dimension ", dims$name[over],
+         ": ", count[over], " values, with ", available[over], " to read",
+         call. = FALSE)
+  }
+
+  values <- GDAL7_mdarray_read(x@.ptr, start - 1, count, step)
+
+  if (isTRUE(nodata_as_na)) {
+    nodata <- get_nodata_value(x)
+    if (!is.null(nodata) && !is.na(nodata)) {
+      values[!is.na(values) & values == nodata] <- NA_real_
+    }
+  }
+
+  if (rank > 1) {
+    # Reversed, which is the order the values are already in: the array's last
+    # dimension varies fastest, and so does an R array's first.
+    dim(values) <- rev(count)
+    names(dim(values)) <- rev(dims$name)
+  }
+  values
+}
+
+# One of `start`, `count`, `step`: absent, one value for every dimension, or
+# one value to use for all of them.
+slab_argument <- function(value, rank, default, what) {
+  if (is.null(value)) {
+    value <- default
+  }
+  value <- as.double(value)
+  if (anyNA(value)) {
+    stop("`", what, "` cannot be missing", call. = FALSE)
+  }
+  if (length(value) == 1L && rank != 1L) {
+    value <- rep(value, rank)
+  }
+  if (length(value) != rank) {
+    stop("`", what, "` needs one value per dimension: ", rank,
+         ", not ", length(value), call. = FALSE)
+  }
+  value
+}
+
+# ============================================================================
+# Views and the bridge back to classic raster
+# ============================================================================
+
+#' Take a view of an array
+#'
+#' A view is a slice, a transpose or a reordering expressed in GDAL's own view
+#' syntax, evaluated lazily: nothing is read until the view itself is read.
+#' `"[0,:,:]"` is the first slice along the first dimension, `"[:,::-1,:]"`
+#' flips the second, and `"[...]"` is the whole array. Indices in a view
+#' expression are GDAL's, counting from 0.
+#'
+#' @param x A GDALMDArray object
+#' @param expr The view expression.
+#' @return A GDALMDArray object, which reads like any other.
+#' @export
+#' @examples
+#' path <- system.file("extdata/multidim.zarr", package = "GDAL7")
+#' ds <- gdal_open(path, multidim = TRUE)
+#' arr <- open_mdarray(get_root_group(ds), "temperature")
+#'
+#' # Drop the time dimension by taking its first slice.
+#' first <- get_view(arr, "[0,:,:]")
+#' get_dimensions(first)
+#'
+#' gdal_close(ds)
+get_view <- S7::new_generic("get_view", "x", function(x, expr) S7::S7_dispatch())
+
+S7::method(get_view, GDALMDArray) <- function(x, expr) {
+  GDALMDArray(.ptr = GDAL7_mdarray_get_view(x@.ptr, as.character(expr)))
+}
+
+#' See a two-dimensional slice of an array as an ordinary raster
+#'
+#' This is the bridge back to the rest of the package: the result is a
+#' GDALDataset, so [read_raster()], [get_geotransform()] and the band accessors
+#' all work on it. The array must have exactly two dimensions; take a
+#' [get_view()] of it first if it has more.
+#'
+#' @param x A GDALMDArray object
+#' @param x_dim,y_dim Which dimension is the raster's X and which its Y,
+#'   counting from 1 in the array's own dimension order. By default the format's
+#'   own horizontal X and Y dimensions are used, falling back to the last two.
+#' @return A GDALDataset object.
+#' @export
+as_classic_dataset <- S7::new_generic(
+  "as_classic_dataset", "x",
+  function(x, x_dim = NULL, y_dim = NULL) S7::S7_dispatch()
+)
+
+S7::method(as_classic_dataset, GDALMDArray) <- function(x, x_dim = NULL, y_dim = NULL) {
+  dims <- get_dimensions(x)
+  rank <- nrow(dims)
+  if (rank < 2L) {
+    stop("A raster needs two dimensions; this array has ", rank, call. = FALSE)
+  }
+
+  if (is.null(x_dim)) {
+    x_dim <- match("HORIZONTAL_X", dims$type)
+    if (is.na(x_dim)) x_dim <- rank
+  }
+  if (is.null(y_dim)) {
+    y_dim <- match("HORIZONTAL_Y", dims$type)
+    if (is.na(y_dim)) y_dim <- rank - 1L
+  }
+
+  x_dim <- as.integer(x_dim)
+  y_dim <- as.integer(y_dim)
+  if (anyNA(c(x_dim, y_dim)) || x_dim < 1L || y_dim < 1L ||
+      x_dim > rank || y_dim > rank || x_dim == y_dim) {
+    stop("`x_dim` and `y_dim` must be two different dimensions of the array, ",
+         "counting from 1 up to ", rank, call. = FALSE)
+  }
+
+  GDALDataset(.ptr = GDAL7_mdarray_as_classic_dataset(x@.ptr, x_dim - 1, y_dim - 1))
+}
+
+# ============================================================================
+# One-call summary
+# ============================================================================
+
+#' Everything about an array in one call
+#'
+#' The multidimensional counterpart of [gdal_info()]: name, type, unit, nodata,
+#' scaling, coordinate reference system, dimensions and attributes, fetched
+#' together rather than one accessor at a time.
+#'
+#' @param x A GDALMDArray object
+#' @param ... Arguments passed on to methods.
+#' @return A list.
+#' @export
+mdarray_info <- S7::new_generic("mdarray_info", "x")
+
+S7::method(mdarray_info, GDALMDArray) <- function(x) {
+  list(
+    name = get_name(x),
+    full_name = get_full_name(x),
+    data_type = get_data_type_name(x),
+    unit = get_unit_type(x),
+    nodata = get_nodata_value(x),
+    scale = get_scale(x),
+    offset = get_offset(x),
+    crs = get_projection(x),
+    dimensions = get_dimensions(x),
+    attributes = get_attributes(x)
+  )
 }
 
 # ============================================================================

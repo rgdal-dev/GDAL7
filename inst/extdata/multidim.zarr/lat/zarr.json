@@ -1,0 +1,30 @@
+{
+  "zarr_format":3,
+  "node_type":"array",
+  "shape":[
+    4
+  ],
+  "data_type":"float64",
+  "chunk_grid":{
+    "name":"regular",
+    "configuration":{
+      "chunk_shape":[
+        4
+      ]
+    }
+  },
+  "chunk_key_encoding":{
+    "name":"default",
+    "configuration":{
+      "separator":"\/"
+    }
+  },
+  "fill_value":"NaN",
+  "attributes":{
+    "standard_name":"latitude",
+    "units":"degrees_north"
+  },
+  "dimension_names":[
+    "lat"
+  ]
+}

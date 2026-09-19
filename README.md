@@ -179,29 +179,93 @@ gdal_close(ds)
 
 ### Multidimensional data
 
-``` r
-zarr <- sprintf(
-  'ZARR:"/vsizip/%s/test.zarr"',
-  system.file("extdata/test.zarr.zip", package = "GDAL7")
-)
+NetCDF, Zarr and HDF5 hold arrays of any number of dimensions rather
+than bands of pixels. GDAL7 navigates them and reads them.
 
-ds <- gdal_open(zarr, multidim = TRUE)
+``` r
+ds <- gdal_open(system.file("extdata/multidim.zarr", package = "GDAL7"),
+                multidim = TRUE)
 grp <- get_root_group(ds)
 grp
 #> <GDALGroup>
 #>   Name: /
-#>   Arrays (3): X, Y, test
+#>   Arrays (4): lon, temperature, lat, time
 
-arr <- open_mdarray(grp, get_mdarray_names(grp)[1])
+arr <- open_mdarray(grp, "temperature")
 arr
 #> <GDALMDArray>
-#>   Name: X
+#>   Name: temperature
 #>   Type: Float64
-#>   Dimensions: X=4
+#>   Dimensions: time=3, lat=4, lon=5
+#>   Unit: degC
+#>   NoData: -999
 
 get_dimensions(arr)
-#>   name size
-#> 1    X    4
+#>   name size         type direction indexed
+#> 1 time    3     TEMPORAL              TRUE
+#> 2  lat    4 HORIZONTAL_Y     NORTH    TRUE
+#> 3  lon    5 HORIZONTAL_X      EAST    TRUE
+```
+
+A read takes an origin, a count along each dimension and a step. The
+`dim` of what comes back is the reverse of the array's own dimension
+order, and carries the dimension names, so there is never a question of
+which axis is which.
+
+``` r
+values <- read_mdarray(arr)
+dim(values)
+#>  lon  lat time 
+#>    5    4    3
+
+# The first time step, every second longitude.
+read_mdarray(arr, start = c(1, 1, 1), count = c(1, 4, 3), step = c(1, 1, 2))
+#> , , 1
+#> 
+#>      [,1] [,2] [,3] [,4]
+#> [1,]    1    6   11   16
+#> [2,]    3   NA   13   18
+#> [3,]    5   10   15   20
+```
+
+Where the values sit, and what the format says about them:
+
+``` r
+get_dimension_values(arr)
+#> $time
+#> [1] 0 1 2
+#> 
+#> $lat
+#> [1] -40 -41 -42 -43
+#> 
+#> $lon
+#> [1] 140 141 142 143 144
+
+get_attributes(arr)
+#> $coordinates
+#> [1] "lat lon"
+#> 
+#> $long_name
+#> [1] "air temperature"
+#> 
+#> $valid_range
+#> [1] -50  50
+```
+
+A view slices lazily, in GDAL's own syntax, and a two-dimensional array
+can be handed to the raster side of the package as an ordinary dataset.
+
+``` r
+first <- get_view(arr, "[0,:,:]")
+get_dimensions(first)
+#>   name size         type direction indexed
+#> 1  lat    4 HORIZONTAL_Y     NORTH    TRUE
+#> 2  lon    5 HORIZONTAL_X      EAST    TRUE
+
+raster <- as_classic_dataset(first)
+c(get_raster_xsize(raster), get_raster_ysize(raster))
+#> [1] 5 4
+
 gdal_close(ds)
 ```
 

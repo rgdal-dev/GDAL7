@@ -1,5 +1,46 @@
 # GDAL7 (development version)
 
+## Stage 5: multidimensional read
+
+* `read_mdarray()` reads a hyperslab of a multidimensional array: an origin, a
+  count along each dimension, and a step, which may be negative to read a
+  dimension backwards. With no arguments it reads the whole array. The result's
+  `dim` is the reverse of the array's own dimension order and carries the
+  dimension names, so a `(time, lat, lon)` array reads into an R array indexed
+  `[lon, lat, time]`. That is the order ncdf4 and RNetCDF use, and it is also
+  the order the values already arrive in, so nothing is rearranged to produce
+  it. The array's nodata value becomes `NA` unless `nodata_as_na = FALSE`.
+
+* `get_dimension_values()` reads the coordinate variable of every dimension at
+  once: the times, latitudes and longitudes the values are placed at.
+  `get_coordinate_variables()` gives the arrays a format names as coordinates,
+  which is the different question a swath answers.
+
+* `get_attributes()` returns a group's or an array's own annotations as a named
+  list, all in one call. `get_scale()`, `get_offset()`, `get_unit_type()` and
+  `get_projection()` now work on an array, and `mdarray_info()` fetches the
+  whole description in one go.
+
+* `get_view()` takes a slice, a transpose or a reordering in GDAL's own view
+  syntax, evaluated lazily, and `as_classic_dataset()` presents a
+  two-dimensional array as an ordinary GDAL raster, which is the bridge back to
+  `read_raster()` and the band accessors. It picks the X and Y dimensions from
+  the ones the format declares as horizontal.
+
+* `open_mdarray()` now accepts a path from the root of the dataset, such as
+  `"/weather/temperature"`, as well as a name within one group.
+
+* `get_dimensions()` gained `type`, `direction` and `indexed` columns.
+
+* The Zarr test fixture is replaced by `inst/extdata/multidim.zarr`, a 3 by 4 by
+  5 array over time, latitude and longitude with a nodata cell, a scale and
+  offset, attributes and a coordinate variable per dimension. It is Zarr V3, so
+  it ships as a plain directory rather than the zip the V2 store needed.
+
+* `data-raw/STATUS.md` and `data-raw/PARSER_STATUS.md` described the package as
+  it was during the proof of concept and are replaced by `data-raw/README.md`.
+  The duplicate lowercase copies of the two design documents are gone.
+
 ## Stage 4: vector via Arrow
 
 * `read_vector()` reads a whole vector layer into a data frame in one call,

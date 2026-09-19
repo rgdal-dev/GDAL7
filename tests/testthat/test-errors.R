@@ -36,7 +36,7 @@ test_that("the dict and list views of metadata differ", {
   expect_true("AREA_OR_POINT" %in% names(as_dict))
 })
 
-test_that("dimensions come back as a two column list", {
+test_that("dimensions come back as a data frame, one row per dimension", {
   skip_if_no_driver("Zarr")
 
   ds <- gdal_open(test_zarr(), multidim = TRUE)
@@ -45,7 +45,7 @@ test_that("dimensions come back as a two column list", {
 
   dims <- get_dimensions(arr)
   expect_s3_class(dims, "data.frame")
-  expect_named(dims, c("name", "size"))
+  expect_named(dims, c("name", "size", "type", "direction", "indexed"))
   expect_equal(nrow(dims), get_dimension_count(arr))
 })
 
