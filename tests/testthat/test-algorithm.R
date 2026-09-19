@@ -60,15 +60,21 @@ test_that("an algorithm describes itself and its arguments", {
   expect_s3_class(args, "data.frame")
   expect_named(args, c("name", "type", "description", "required",
                        "positional", "input", "output", "choices"))
-  expect_true(all(c("input", "output", "dst-crs", "resampling") %in% args$name))
+  expect_true(all(c("input", "output", "resampling") %in% args$name))
 
   expect_true(args$required[args$name == "input"])
   expect_true(args$output[args$name == "output"])
-  expect_identical(args$type[args$name == "dst-crs"], "string")
+
+  # GDAL 3.13 renamed this argument from dst-crs to output-crs and kept the old
+  # spelling as a hidden alias, which GDAL does not list. So the argument is
+  # found by asking which name this GDAL reports rather than by assuming one.
+  crs <- intersect(c("output-crs", "dst-crs"), args$name)
+  expect_length(crs, 1L)
+  expect_identical(args$type[args$name == crs], "string")
 
   # Arguments with a fixed set of values carry it, the rest carry nothing.
   expect_true("nearest" %in% args$choices[[which(args$name == "resampling")]])
-  expect_length(args$choices[[which(args$name == "dst-crs")]], 0L)
+  expect_length(args$choices[[which(args$name == crs)]], 0L)
 })
 
 test_that("a name that is not there is answered with the ones that are", {
