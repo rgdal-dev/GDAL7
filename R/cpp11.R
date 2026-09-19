@@ -496,6 +496,10 @@ GDAL7_dataset_set_crs <- function(xp, crs) {
   invisible(.Call(`_GDAL7_GDAL7_dataset_set_crs`, xp, crs))
 }
 
+GDAL7_dataset_get_crs <- function(xp) {
+  .Call(`_GDAL7_GDAL7_dataset_get_crs`, xp)
+}
+
 GDAL7_crs_to_wkt <- function(crs, format, multiline) {
   .Call(`_GDAL7_GDAL7_crs_to_wkt`, crs, format, multiline)
 }

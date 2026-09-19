@@ -510,6 +510,39 @@ void GDAL7_dataset_set_crs(SEXP xp, std::string crs) {
     err.flush();
 }
 
+// A dataset's own coordinate reference system, as WKT2. GDALGetProjectionRef
+// gives WKT1, which cannot carry what a modern CRS says, so the spatial
+// reference is asked for directly and exported the way crs_to_wkt() does.
+// A dataset with no CRS gives back NA rather than an empty string, which is
+// what GDAL reports and is indistinguishable from a CRS that failed to parse.
+[[cpp11::register]]
+cpp11::strings GDAL7_dataset_get_crs(SEXP xp) {
+    GDALDatasetH h = dataset(xp);
+
+    gdal7::ErrorScope err;
+    OGRSpatialReferenceH srs = GDALGetSpatialRef(h);
+    if (srs == nullptr) {
+        err.flush();
+        return cpp11::writable::strings({cpp11::r_string(NA_STRING)});
+    }
+
+    CPLStringList options;
+    options.AddNameValue("FORMAT", "WKT2");
+    options.AddNameValue("MULTILINE", "NO");
+
+    char* wkt = nullptr;
+    const OGRErr status = OSRExportToWktEx(srs, &wkt, options.List());
+    if (status != OGRERR_NONE || wkt == nullptr) {
+        CPLFree(wkt);
+        err.stop("Could not write this dataset's coordinate reference system as WKT");
+    }
+
+    cpp11::writable::strings out({cpp11::r_string(wkt)});
+    CPLFree(wkt);
+    err.flush();
+    return out;
+}
+
 // The same conversion on its own, for checking a CRS string or turning one
 // into WKT. WKT2 is asked for by name rather than taken as the default,
 // because GDAL's plain export still writes WKT1 for compatibility, and WKT1

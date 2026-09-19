@@ -41,12 +41,12 @@ test_that("dimensions come back as a data frame, one row per dimension", {
 
   ds <- gdal_open(test_zarr(), multidim = TRUE)
   grp <- get_root_group(ds)
-  arr <- open_mdarray(grp, get_mdarray_names(grp)[[1]])
+  arr <- open_mdarray(grp, grp@mdarray_names[[1]])
 
-  dims <- get_dimensions(arr)
+  dims <- arr@dimensions
   expect_s3_class(dims, "data.frame")
   expect_named(dims, c("name", "size", "type", "direction", "indexed"))
-  expect_equal(nrow(dims), get_dimension_count(arr))
+  expect_equal(nrow(dims), arr@dimension_count)
 })
 
 test_that("a name that is not in the group is NULL, quietly", {

@@ -2,21 +2,21 @@ test_that("a closed dataset reports itself closed", {
   ds <- gdal_open(test_tif())
   gdal_close(ds)
 
-  expect_error(get_raster_xsize(ds), "has been closed")
-  expect_error(get_description(ds), "has been closed")
+  expect_error(ds@raster_xsize, "has been closed")
+  expect_error(ds@description, "has been closed")
 })
 
 test_that("closing a dataset invalidates bands taken from it", {
   ds <- gdal_open(test_tif())
   band <- get_raster_band(ds, 1)
 
-  expect_equal(get_xsize(band), 20L)
+  expect_equal(band@xsize, 20L)
 
   gdal_close(ds)
 
   # The point of the exercise: this must be an R error, not a segfault.
-  expect_error(get_xsize(band), "the GDALDataset it belongs to has been closed")
-  expect_error(get_band_number(band), "the GDALDataset it belongs to has been closed")
+  expect_error(band@xsize, "the GDALDataset it belongs to has been closed")
+  expect_error(band@band_number, "the GDALDataset it belongs to has been closed")
 })
 
 test_that("a band keeps its dataset open after the dataset is dropped", {
@@ -28,8 +28,8 @@ test_that("a band keeps its dataset open after the dataset is dropped", {
   gc()
   gc()
 
-  expect_equal(get_xsize(band), 20L)
-  expect_equal(get_ysize(band), 10L)
+  expect_equal(band@xsize, 20L)
+  expect_equal(band@ysize, 10L)
 })
 
 test_that("closing a dataset twice is harmless", {
@@ -65,12 +65,12 @@ test_that("closing a dataset invalidates its groups and arrays", {
 
   ds <- gdal_open(test_zarr(), multidim = TRUE)
   grp <- get_root_group(ds)
-  arr <- open_mdarray(grp, get_mdarray_names(grp)[[1]])
+  arr <- open_mdarray(grp, grp@mdarray_names[[1]])
 
   gdal_close(ds)
 
-  expect_error(get_name(grp), "the GDALDataset it belongs to has been closed")
-  expect_error(get_name(arr), "the GDALDataset it belongs to has been closed")
+  expect_error(grp@name, "the GDALDataset it belongs to has been closed")
+  expect_error(arr@name, "the GDALDataset it belongs to has been closed")
 })
 
 test_that("an array keeps its group and dataset alive", {
@@ -79,14 +79,14 @@ test_that("an array keeps its group and dataset alive", {
   arr <- local({
     ds <- gdal_open(test_zarr(), multidim = TRUE)
     grp <- get_root_group(ds)
-    open_mdarray(grp, get_mdarray_names(grp)[[1]])
+    open_mdarray(grp, grp@mdarray_names[[1]])
   })
 
   gc()
   gc()
 
-  expect_true(nchar(get_name(arr)) > 0)
-  expect_true(get_dimension_count(arr) > 0)
+  expect_true(nchar(arr@name) > 0)
+  expect_true(arr@dimension_count > 0)
 })
 
 test_that("opening and dropping datasets does not leak file handles", {

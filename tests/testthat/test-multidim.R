@@ -6,7 +6,7 @@ test_that("a multidimensional dataset exposes a root group", {
 
   grp <- get_root_group(ds)
   expect_s3_class(grp, "GDAL7::GDALGroup")
-  expect_identical(get_full_name(grp), "/")
+  expect_identical(grp@full_name, "/")
 })
 
 test_that("arrays can be listed and opened from a group", {
@@ -16,13 +16,13 @@ test_that("arrays can be listed and opened from a group", {
   on.exit(gdal_close(ds))
   grp <- get_root_group(ds)
 
-  names <- get_mdarray_names(grp)
+  names <- grp@mdarray_names
   expect_type(names, "character")
   expect_gt(length(names), 0L)
 
   arr <- open_mdarray(grp, names[[1]])
   expect_s3_class(arr, "GDAL7::GDALMDArray")
-  expect_identical(get_name(arr), names[[1]])
+  expect_identical(arr@name, names[[1]])
   expect_null(open_mdarray(grp, "no-such-array"))
 })
 
@@ -34,10 +34,10 @@ test_that("array dimensions come back as a data frame", {
   grp <- get_root_group(ds)
   arr <- open_mdarray(grp, "temperature")
 
-  n <- get_dimension_count(arr)
+  n <- arr@dimension_count
   expect_identical(n, 3L)
 
-  dims <- get_dimensions(arr)
+  dims <- arr@dimensions
   expect_s3_class(dims, "data.frame")
   expect_named(dims, c("name", "size", "type", "direction", "indexed"))
   expect_identical(nrow(dims), n)
@@ -45,8 +45,8 @@ test_that("array dimensions come back as a data frame", {
   expect_identical(dims$size, c(3, 4, 5))
   expect_true(all(dims$indexed))
 
-  expect_type(get_data_type_name(arr), "character")
-  expect_type(get_unit_type(arr), "character")
+  expect_type(arr@data_type_name, "character")
+  expect_type(arr@unit_type, "character")
 })
 
 test_that("subgroup listing works on a flat group", {
@@ -56,7 +56,7 @@ test_that("subgroup listing works on a flat group", {
   on.exit(gdal_close(ds))
   grp <- get_root_group(ds)
 
-  expect_type(get_group_names(grp), "character")
+  expect_type(grp@group_names, "character")
   expect_null(open_group(grp, "no-such-group"))
 })
 
@@ -69,7 +69,7 @@ test_that("the multidim print methods dispatch", {
 
   expect_match(capture.output(print(grp))[1], "^<GDALGroup>$")
 
-  arr <- open_mdarray(grp, get_mdarray_names(grp)[[1]])
+  arr <- open_mdarray(grp, grp@mdarray_names[[1]])
   expect_match(capture.output(print(arr))[1], "^<GDALMDArray>$")
 })
 
@@ -173,7 +173,7 @@ test_that("each dimension's coordinate values come back together", {
   on.exit(gdal_close(ds))
   arr <- open_mdarray(get_root_group(ds), "temperature")
 
-  values <- get_dimension_values(arr)
+  values <- arr@dimension_values
   expect_named(values, c("time", "lat", "lon"))
   expect_identical(values$time, c(0, 1, 2))
   expect_identical(values$lat, c(-40, -41, -42, -43))
@@ -187,8 +187,8 @@ test_that("coordinate variables are the arrays the format names", {
   on.exit(gdal_close(ds))
   arr <- open_mdarray(get_root_group(ds), "temperature")
 
-  coords <- get_coordinate_variables(arr)
-  expect_identical(vapply(coords, get_name, ""), c("lat", "lon"))
+  coords <- arr@coordinate_variables
+  expect_identical(vapply(coords, function(a) a@name, ""), c("lat", "lon"))
 
   # They outlive the list they came in, which is the ownership question.
   first <- coords[[1]]
@@ -205,12 +205,12 @@ test_that("attributes read as a named list of vectors", {
   grp <- get_root_group(ds)
   arr <- open_mdarray(grp, "temperature")
 
-  attrs <- get_attributes(arr)
+  attrs <- arr@attributes
   expect_type(attrs, "list")
   expect_identical(attrs$long_name, "air temperature")
   expect_identical(attrs$valid_range, c(-50, 50))
 
-  expect_type(get_attributes(grp), "list")
+  expect_type(grp@attributes, "list")
 })
 
 test_that("scale, offset, unit and nodata are reported", {
@@ -220,20 +220,20 @@ test_that("scale, offset, unit and nodata are reported", {
   on.exit(gdal_close(ds))
   arr <- open_mdarray(get_root_group(ds), "temperature")
 
-  expect_identical(get_scale(arr), 2)
-  expect_identical(get_offset(arr), 0.5)
-  expect_identical(get_unit_type(arr), "degC")
-  expect_identical(get_nodata_value(arr), -999)
+  expect_identical(arr@scale, 2)
+  expect_identical(arr@offset, 0.5)
+  expect_identical(arr@unit_type, "degC")
+  expect_identical(arr@nodata_value, -999)
 
   # An array the format says nothing about answers NULL rather than 1 and 0.
   lon <- open_mdarray(get_root_group(ds), "lon")
-  expect_null(get_scale(lon))
-  expect_null(get_offset(lon))
+  expect_null(lon@scale)
+  expect_null(lon@offset)
 
   # Zarr writes a fill value for every array whether or not one was asked for,
   # and for a floating point array that value is NaN. R already reads NaN as
   # missing, so there is nothing for read_mdarray() to substitute.
-  expect_identical(get_nodata_value(lon), NaN)
+  expect_identical(lon@nodata_value, NaN)
   expect_identical(read_mdarray(lon), c(140, 141, 142, 143, 144))
 })
 
@@ -266,7 +266,7 @@ test_that("a view slices without reading", {
 
   first <- get_view(arr, "[0,:,:]")
   expect_s3_class(first, "GDAL7::GDALMDArray")
-  expect_identical(get_dimension_count(first), 2L)
+  expect_identical(first@dimension_count, 2L)
 
   whole <- read_mdarray(arr)
   expect_identical(read_mdarray(first), whole[, , 1])
@@ -282,7 +282,7 @@ test_that("an array can be opened by its path from the root", {
   grp <- get_root_group(ds)
 
   arr <- open_mdarray(grp, "/temperature")
-  expect_identical(get_full_name(arr), "/temperature")
+  expect_identical(arr@full_name, "/temperature")
 
   # A path that is not there is NULL, with GDAL's own explanation of which part
   # of it was missing carried across as a warning.
@@ -301,8 +301,8 @@ test_that("a two-dimensional array is also a raster", {
   # named here.
   raster <- as_classic_dataset(get_view(arr, "[0,:,:]"))
   expect_s3_class(raster, "GDAL7::GDALDataset")
-  expect_identical(get_raster_xsize(raster), 5L)
-  expect_identical(get_raster_ysize(raster), 4L)
+  expect_identical(raster@raster_xsize, 5L)
+  expect_identical(raster@raster_ysize, 4L)
 
   values <- read_raster(raster, out_size = c(5, 4))[[1]]
   expect_identical(values, as.vector(read_mdarray(arr, nodata_as_na = FALSE))[1:20])

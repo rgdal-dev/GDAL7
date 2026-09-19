@@ -5,8 +5,8 @@ test_that("the driver registry is populated", {
 test_that("drivers can be fetched by name and by index", {
   drv <- gdal_get_driver_by_name("GTiff")
   expect_s3_class(drv, "GDAL7::GDALDriver")
-  expect_identical(get_short_name(drv), "GTiff")
-  expect_match(get_long_name(drv), "GeoTIFF")
+  expect_identical(drv@short_name, "GTiff")
+  expect_match(drv@long_name, "GeoTIFF")
 
   expect_s3_class(gdal_get_driver(0L), "GDAL7::GDALDriver")
   expect_null(gdal_get_driver_by_name("NoSuchDriverExists"))

@@ -4,7 +4,7 @@
 \alias{GDALMajorObject}
 \title{GDAL MajorObject class}
 \usage{
-GDALMajorObject(.ptr = NULL)
+GDALMajorObject(.ptr)
 }
 \arguments{
 \item{.ptr}{Internal. External pointer to the underlying GDAL object.}

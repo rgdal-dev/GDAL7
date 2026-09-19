@@ -15,6 +15,10 @@ GDALDataset <- S7::new_class(
   package = "GDAL7",
   parent = GDALMajorObject,
 
+  constructor = function(.ptr) {
+    S7::new_object(GDALMajorObject(.ptr = .ptr), .ptr = .ptr)
+  },
+
   properties = list(
     # Internal pointer - not for direct user access
     .ptr = S7::class_any,
@@ -29,6 +33,54 @@ GDALDataset <- S7::new_class(
     raster_count = S7::new_property(
       S7::class_integer,
       getter = function(self) GDAL7_dataset_raster_count(self@.ptr)
+    ),
+    projection = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_dataset_get_projection(self@.ptr),
+      setter = function(self, value) {
+        GDAL7_dataset_set_projection(self@.ptr, value)
+        self
+      }
+    ),
+    projection_ref = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_dataset_get_projection_ref(self@.ptr)
+    ),
+    gcp_count = S7::new_property(
+      S7::class_integer,
+      getter = function(self) GDAL7_dataset_get_gcpcount(self@.ptr)
+    ),
+    gcp_projection = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_dataset_get_gcpprojection(self@.ptr)
+    ),
+    file_list = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_dataset_get_file_list(self@.ptr)
+    ),
+    layer_count = S7::new_property(
+      S7::class_integer,
+      getter = function(self) GDAL7_dataset_get_layer_count(self@.ptr)
+    ),
+    geotransform = S7::new_property(
+      S7::class_any,
+      getter = function(self) dataset_geotransform(self),
+      setter = function(self, value) {
+        dataset_set_geotransform(self, value)
+        self
+      }
+    ),
+    crs = S7::new_property(
+      S7::class_character,
+      getter = function(self) dataset_crs(self),
+      setter = function(self, value) {
+        dataset_set_crs(self, value)
+        self
+      }
+    ),
+    layers = S7::new_property(
+      S7::class_any,
+      getter = function(self) dataset_layers(self)
     )
   ),
 
@@ -59,46 +111,6 @@ mark_suppress_on_close <- S7::new_generic("mark_suppress_on_close", "x")
 #' @export
 get_close_reports_progress <- S7::new_generic("get_close_reports_progress", "x")
 
-#' GetProjection
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return character
-#' @export
-get_projection <- S7::new_generic("get_projection", "x")
-
-#' GetProjectionRef
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return character
-#' @export
-get_projection_ref <- S7::new_generic("get_projection_ref", "x")
-
-#' SetProjection
-#'
-#' @param x A GDALDataset object
-#' @param prj character
-#' @return integer
-#' @export
-set_projection <- S7::new_generic("set_projection", "x", function(x, prj) S7::S7_dispatch())
-
-#' GetGCPCount
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return integer
-#' @export
-get_gcpcount <- S7::new_generic("get_gcpcount", "x")
-
-#' GetGCPProjection
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return character
-#' @export
-get_gcpprojection <- S7::new_generic("get_gcpprojection", "x")
-
 #' FlushCache
 #'
 #' @param x A GDALDataset object
@@ -124,14 +136,6 @@ add_band <- S7::new_generic("add_band", "x", function(x, datatype, options = NUL
 #' @export
 create_mask_band <- S7::new_generic("create_mask_band", "x", function(x, nFlags) S7::S7_dispatch())
 
-#' GetFileList
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return character
-#' @export
-get_file_list <- S7::new_generic("get_file_list", "x")
-
 #' ResetReading
 #'
 #' @param x A GDALDataset object
@@ -139,14 +143,6 @@ get_file_list <- S7::new_generic("get_file_list", "x")
 #' @return NULL
 #' @export
 reset_reading <- S7::new_generic("reset_reading", "x")
-
-#' GetLayerCount
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return integer
-#' @export
-get_layer_count <- S7::new_generic("get_layer_count", "x")
 
 #' AbortSQL
 #'
@@ -241,26 +237,6 @@ S7::method(get_close_reports_progress, GDALDataset) <- function(x) {
   GDAL7_dataset_get_close_reports_progress(x@.ptr)
 }
 
-S7::method(get_projection, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_projection(x@.ptr)
-}
-
-S7::method(get_projection_ref, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_projection_ref(x@.ptr)
-}
-
-S7::method(set_projection, GDALDataset) <- function(x, prj) {
-  GDAL7_dataset_set_projection(x@.ptr, prj)
-}
-
-S7::method(get_gcpcount, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_gcpcount(x@.ptr)
-}
-
-S7::method(get_gcpprojection, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_gcpprojection(x@.ptr)
-}
-
 S7::method(flush_cache, GDALDataset) <- function(x) {
   GDAL7_dataset_flush_cache(x@.ptr)
 }
@@ -273,17 +249,9 @@ S7::method(create_mask_band, GDALDataset) <- function(x, nFlags) {
   GDAL7_dataset_create_mask_band(x@.ptr, as.integer(nFlags))
 }
 
-S7::method(get_file_list, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_file_list(x@.ptr)
-}
-
 S7::method(reset_reading, GDALDataset) <- function(x) {
   GDAL7_dataset_reset_reading(x@.ptr)
   invisible(x)
-}
-
-S7::method(get_layer_count, GDALDataset) <- function(x) {
-  GDAL7_dataset_get_layer_count(x@.ptr)
 }
 
 S7::method(abort_sql, GDALDataset) <- function(x) {
@@ -331,7 +299,7 @@ S7::method(as_mdarray, GDALDataset) <- function(x, options = NULL) {
 #' @export
 S7::method(print, GDALDataset) <- function(x, ...) {
   cat("<GDALDataset>\n")
-  desc <- get_description(x)
+  desc <- x@description
   if (nzchar(desc)) {
     cat("  Description:", desc, "\n")
   }

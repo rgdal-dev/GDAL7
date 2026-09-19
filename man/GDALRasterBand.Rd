@@ -4,11 +4,38 @@
 \alias{GDALRasterBand}
 \title{GDALRasterBand class}
 \usage{
-GDALRasterBand(.ptr = NULL)
+GDALRasterBand(.ptr)
 }
 \arguments{
 \item{.ptr}{Internal. External pointer to the underlying GDAL object.}
 }
 \description{
-Represents a raster band within a GDAL dataset.
+Represents a raster band within a GDAL dataset. Its properties are read
+from GDAL each time, and the ones a dataset open for writing can change are
+settable:
+}
+\details{
+\itemize{
+\item \code{xsize}, \code{ysize}, \code{band_number}, \code{block_size}, read only.
+\item \code{data_type}, its GDAL code, and \code{data_type_name}, read only.
+\item \code{nodata_value}, \code{scale}, \code{offset}, \code{unit_type}, settable.
+\item \code{color_interpretation}, settable, and \code{color_interpretation_name}.
+\item \code{overview_count} and \code{overview_sizes}, read only.
+}
+
+A \code{nodata_value} of NULL means the band has none, and assigning NULL takes
+the value off the band, which is a different thing from setting it to NaN.
+Scale and offset are how a band of integers carries real values: the value
+meant is \code{raw * scale + offset}, which GDAL records but does not apply, so
+\code{\link[=read_raster]{read_raster()}} returns the raw numbers.
+}
+\examples{
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+band <- get_raster_band(ds, 1)
+
+c(band@xsize, band@ysize)
+band@data_type_name
+band@block_size
+
+gdal_close(ds)
 }

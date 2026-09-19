@@ -117,6 +117,126 @@ get_cpp11_func <- function(class_name, method_name) {
 }
 
 # ============================================================================
+# Properties
+#
+# A method that takes nothing but the object and gives back a value is not a
+# verb; it is something the object knows about itself, so it is emitted as an
+# S7 property rather than as a generic. Where GDAL has a matching Set method
+# taking exactly that one value, the property is settable, and assigning to it
+# calls that method. Reading always calls GDAL, so a property is never a stale
+# copy taken when the object was made.
+#
+# Three kinds of getter are deliberately left as generics: one that gives back
+# a GDAL object, because handing one over allocates and that should look like
+# work rather than like reading a field; one whose C symbol is newer than the
+# package floor, because reading a property must never raise and printing an
+# object reads them all; and anything named in `not_properties`.
+# ============================================================================
+
+returns_gdal_object <- function(type) {
+  grepl("Shadow ?\\*$|HS ?\\*$", type)
+}
+
+# to_snake_case runs acronyms together, which is what a binding name wants and
+# not what someone typing a property name wants. Only these two come up.
+PROPERTY_NAME_FIXES <- c(gcpcount = "gcp_count", gcpprojection = "gcp_projection")
+
+property_name_for <- function(method_name) {
+  name <- sub("^get_", "", to_snake_case(method_name))
+  fixed <- PROPERTY_NAME_FIXES[name]
+  if (is.na(fixed)) name else unname(fixed)
+}
+
+# The properties a class gets from its methods, each with the Set method that
+# makes it settable where there is one.
+class_properties <- function(methods, not_properties = character()) {
+  names_of <- vapply(methods, function(m) m$name, character(1))
+
+  specs <- list()
+  for (method in methods) {
+    if (!grepl("^Get[A-Z]", method$name)) next
+    if (length(method$params) != 0) next
+    if (grepl("_[0-9]+$", method$name)) next
+    if (method$return_type == "void") next
+    if (returns_gdal_object(method$return_type)) next
+    if (method$name %in% not_properties) next
+
+    setter <- NULL
+    match <- which(names_of == sub("^Get", "Set", method$name))
+    if (length(match) == 1 && length(methods[[match]]$params) == 1) {
+      setter <- methods[[match]]
+    }
+
+    specs[[length(specs) + 1]] <- list(
+      name = property_name_for(method$name),
+      getter = method,
+      setter = setter
+    )
+  }
+  specs
+}
+
+# The method names a property has taken over, which the generics and methods
+# below must then not emit a second time.
+property_method_names <- function(specs) {
+  unlist(lapply(specs, function(spec) {
+    c(spec$getter$name, if (is.null(spec$setter)) NULL else spec$setter$name)
+  }))
+}
+
+render_property <- function(class_name, spec) {
+  lines <- c(
+    sprintf('    %s = S7::new_property(', spec$name),
+    sprintf('      %s,', s7_class_for(spec$getter$return_type)),
+    sprintf('      getter = function(self) %s(self@.ptr)%s',
+            get_cpp11_func(class_name, spec$getter$name),
+            if (is.null(spec$setter)) '' else ',')
+  )
+
+  if (!is.null(spec$setter)) {
+    param <- spec$setter$params[[1]]
+    value <- switch(r_arg_kind(param),
+      integer = "as.integer(value)",
+      double = "as.double(value)",
+      logical = "as.logical(value)",
+      strings = "as.character(value)",
+      list = "as.list(value)",
+      "value")
+    lines <- c(lines,
+      '      setter = function(self, value) {',
+      sprintf('        %s(self@.ptr, %s)',
+              get_cpp11_func(class_name, spec$setter$name), value),
+      '        self',
+      '      }')
+  }
+
+  paste(c(lines, '    )'), collapse = "\n")
+}
+
+# A property the generator cannot derive, written down in orchestrate.R as a
+# name, an S7 class and the helper functions that read and write it. The
+# helpers live beside the rest of their subject in the hand-written R files, so
+# the generated file carries no logic of its own.
+render_hand_written_property <- function(spec) {
+  lines <- c(
+    sprintf('    %s = S7::new_property(', spec$name),
+    sprintf('      %s,', spec$class),
+    sprintf('      getter = function(self) %s(self)%s',
+            spec$getter, if (is.null(spec$setter)) '' else ',')
+  )
+
+  if (!is.null(spec$setter)) {
+    lines <- c(lines,
+      '      setter = function(self, value) {',
+      sprintf('        %s(self, value)', spec$setter),
+      '        self',
+      '      }')
+  }
+
+  paste(c(lines, '    )'), collapse = "\n")
+}
+
+# ============================================================================
 # Code generation
 # ============================================================================
 
@@ -132,7 +252,8 @@ NULL
 }
 
 # Generate S7 class definition
-generate_s7_class <- function(parsed_class, members = list()) {
+generate_s7_class <- function(parsed_class, members = list(),
+                              properties = list(), hand_written = list()) {
   class_name <- parsed_class$public_name
   class_lower <- tolower(class_name)
 
@@ -162,6 +283,18 @@ generate_s7_class <- function(parsed_class, members = list()) {
     lines <- c(lines, sprintf('  parent = %s,', parent))
   }
 
+  # Every one of these objects is built from a GDAL handle and nothing else.
+  # S7's default constructor takes one argument per settable property and
+  # assigns every one of them at construction, which would call the setters
+  # with an empty value, so the constructor is written out rather than left to
+  # be inferred.
+  lines <- c(lines, '')
+  lines <- c(lines, '  constructor = function(.ptr) {')
+  lines <- c(lines, sprintf('    S7::new_object(%s, .ptr = .ptr)',
+                            if (parent == "S7::class_any") "S7::S7_object()"
+                            else sprintf("%s(.ptr = .ptr)", parent)))
+  lines <- c(lines, '  },')
+
   lines <- c(lines, '')
   lines <- c(lines, '  properties = list(')
   lines <- c(lines, '    # Internal pointer - not for direct user access')
@@ -176,7 +309,21 @@ generate_s7_class <- function(parsed_class, members = list()) {
             get_cpp11_func(class_name, member$name))
   }, character(1))
 
-  lines <- c(lines, paste(c('    .ptr = S7::class_any', property_lines), collapse = ",\n"))
+  # Properties taken from the class's own zero-argument getters, and any
+  # written by hand in orchestrate.R for the parts the generator cannot see.
+  named <- c(vapply(members, function(m) to_snake_case(m$name), character(1)),
+             ".ptr")
+  from_methods <- vapply(properties, function(spec) spec$name, character(1))
+  keep <- !(from_methods %in% named)
+  method_lines <- vapply(properties[keep], function(spec) {
+    render_property(class_name, spec)
+  }, character(1))
+
+  written_lines <- vapply(hand_written, render_hand_written_property, character(1))
+
+  lines <- c(lines, paste(
+    c('    .ptr = S7::class_any', property_lines, method_lines, written_lines),
+    collapse = ",\n"))
   lines <- c(lines, '  ),')
   lines <- c(lines, '')
   lines <- c(lines, '  validator = function(self) {')
@@ -191,8 +338,9 @@ generate_s7_class <- function(parsed_class, members = list()) {
 }
 
 # Generate S7 generics
-generate_s7_generics <- function(parsed_class, methods) {
+generate_s7_generics <- function(parsed_class, methods, skip = character()) {
   class_name <- parsed_class$public_name
+  methods <- Filter(function(m) !(m$name %in% skip), methods)
 
   lines <- c()
   lines <- c(lines, '# -----------------------------------------------------------------------------')
@@ -210,9 +358,6 @@ generate_s7_generics <- function(parsed_class, methods) {
     base_generic <- sub("_[0-9]+$", "", generic_name)
     if (base_generic %in% generated) next
     generated <- c(generated, base_generic)
-
-    # Skip simple getters/setters that should be properties
-    # For now, generate all as generics
 
     r_return <- map_r_type(method$return_type)
 
@@ -242,9 +387,10 @@ generate_s7_generics <- function(parsed_class, methods) {
 }
 
 # Generate S7 methods
-generate_s7_methods <- function(parsed_class, methods) {
+generate_s7_methods <- function(parsed_class, methods, skip = character()) {
   class_name <- parsed_class$public_name
   class_lower <- tolower(class_name)
+  methods <- Filter(function(m) !(m$name %in% skip), methods)
 
   lines <- c()
   lines <- c(lines, '# -----------------------------------------------------------------------------')
@@ -342,7 +488,7 @@ generate_s7_print <- function(parsed_class) {
 #\' @export
 S7::method(print, GDAL%s) <- function(x, ...) {
   cat("<GDAL%s>\\n")
-  desc <- get_description(x)
+  desc <- x@description
   if (nzchar(desc)) {
     cat("  Description:", desc, "\\n")
   }
@@ -353,12 +499,17 @@ S7::method(print, GDAL%s) <- function(x, ...) {
 
 # Generate complete S7 file for a class
 generate_s7_file <- function(parsed_class, output_path = NULL,
-                             methods = parsed_class$methods, members = list()) {
+                             methods = parsed_class$methods, members = list(),
+                             not_properties = character(),
+                             hand_written_properties = list()) {
+  properties <- class_properties(methods, not_properties)
+  consumed <- property_method_names(properties)
+
   code <- paste(
     generate_s7_header(parsed_class$public_name),
-    generate_s7_class(parsed_class, members),
-    generate_s7_generics(parsed_class, methods),
-    generate_s7_methods(parsed_class, methods),
+    generate_s7_class(parsed_class, members, properties, hand_written_properties),
+    generate_s7_generics(parsed_class, methods, skip = consumed),
+    generate_s7_methods(parsed_class, methods, skip = consumed),
     generate_s7_print(parsed_class),
     sep = "\n"
   )

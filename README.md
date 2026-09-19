@@ -43,6 +43,11 @@ does that as part of regenerating the bindings.
 The examples below run against a small GeoTIFF that ships with the package, so
 they need no network.
 
+What an object knows about itself is a property, read from GDAL at the moment
+it is asked for rather than copied when the object was made, and settable by
+assignment where GDAL lets it be set. What an object *does*, and anything that
+needs an argument, is a function.
+
 
 ```r
 library(GDAL7)
@@ -50,47 +55,46 @@ library(GDAL7)
 dsn <- system.file("extdata/test.tif", package = "GDAL7")
 ds <- gdal_open(dsn)
 
-#### MajorObject methods, shared by datasets, bands and drivers
+#### What every dataset, band and driver carries
 
-basename(get_description(ds))                # object description
+basename(ds@description)                # what the object calls itself
 #> [1] "test.tif"
-get_metadata_domain_list(ds)                 # metadata domains
+ds@metadata_domain_list                 # the metadata domains it has
 #> [1] "IMAGE_STRUCTURE"     "DERIVED_SUBDATASETS" ""
-get_metadata_list(ds, "")                    # metadata as KEY=VALUE strings
+
+get_metadata_list(ds, "")               # metadata as KEY=VALUE strings
 #> [1] "AREA_OR_POINT=Area"
-get_metadata_dict(ds, "")                    # the same, as a named vector
+get_metadata_dict(ds, "")               # the same, as a named vector
 #> AREA_OR_POINT 
 #>        "Area"
-get_metadata_item(ds, "AREA_OR_POINT")       # one item, NA when not set
+get_metadata_item(ds, "AREA_OR_POINT")  # one item, NA when not set
 #> [1] "Area"
-get_metadata_item(ds, "NO_SUCH_ITEM")
-#> [1] NA
 
-#### Dataset methods
+#### What a dataset knows
 
-get_projection(ds)      # projection as WKT
-#> [1] "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]"
-basename(get_file_list(ds))  # the files this dataset is made of
+substr(ds@crs, 1, 40)                   # the CRS as WKT2
+#> [1] "GEOGCRS[\"WGS 84\",ENSEMBLE[\"World Geodeti"
+substr(ds@projection, 1, 40)            # GDAL's own WKT1 spelling
+#> [1] "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROI"
+ds@geotransform                         # pixel and line to x and y
+#>        origin_x     pixel_width    row_rotation        origin_y column_rotation 
+#>            -180              18               0              90               0 
+#>    pixel_height 
+#>             -18
+basename(ds@file_list)                  # the files it is made of
 #> [1] "test.tif"
-get_gcpcount(ds)        # number of GCPs
+ds@gcp_count
 #> [1] 0
-get_layer_count(ds)     # number of vector layers
+ds@layer_count                          # vector layers, none here
 #> [1] 0
 
-c(get_raster_xsize(ds), get_raster_ysize(ds))
-#> [1] 20 10
-get_raster_count(ds)
-#> [1] 2
-
-get_driver(ds)
-#> <GDALDriver>
-#>   Short name: GTiff
-#>   Long name:  GeoTIFF
-#>   Help:       drivers/raster/gtiff.html
-#>   Capabilities: raster, create, copy, vsi
+c(ds@raster_xsize, ds@raster_ysize, ds@raster_count)
+#> [1] 20 10  2
 
 #### Bands
 
+# A band is taken by number, so that is a function; what it then knows about
+# itself is a property.
 band <- get_raster_band(ds, 1L)
 band
 #> <GDALRasterBand>
@@ -101,12 +105,12 @@ band
 #>   NoData:     -32768
 #>   Color:      Gray
 
-get_data_type_name(band)
+band@data_type_name
 #> [1] "Int16"
-get_block_size(band)
+band@block_size
 #>  x  y 
 #> 20 10
-get_nodata_value(band)
+band@nodata_value
 #> [1] -32768
 ```
 
@@ -116,7 +120,7 @@ Reaching for one afterwards is an error rather than a crash:
 
 ```r
 gdal_close(ds)
-get_xsize(band)
+band@xsize
 #> Error: This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed
 ```
 
@@ -132,7 +136,7 @@ with two overview levels.
 ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"))
 band <- get_raster_band(ds, 1)
 
-get_overview_sizes(band)
+band@overview_sizes
 #>   xsize ysize
 #> 1   256   128
 #> 2   128    64
@@ -175,8 +179,8 @@ service drivers: no download step, and only the bytes actually needed are read.
 gebco <- "/vsicurl/https://data.source.coop/alexgleith/gebco-2024/GEBCO_2024.tif"
 
 ds <- gdal_open(gebco)
-c(get_raster_xsize(ds), get_raster_ysize(ds))
-get_block_size(get_raster_band(ds, 1L))
+c(ds@raster_xsize, ds@raster_ysize)
+get_raster_band(ds, 1L)@block_size
 gdal_close(ds)
 
 wmts <- paste0(
@@ -185,7 +189,7 @@ wmts <- paste0(
 )
 
 ds <- gdal_open(wmts)
-get_metadata_domain_list(ds)
+ds@metadata_domain_list
 gdal_close(ds)
 ```
 
@@ -213,7 +217,7 @@ arr
 #>   Unit: degC
 #>   NoData: -999
 
-get_dimensions(arr)
+arr@dimensions
 #>   name size         type direction indexed
 #> 1 time    3     TEMPORAL              TRUE
 #> 2  lat    4 HORIZONTAL_Y     NORTH    TRUE
@@ -245,7 +249,7 @@ Where the values sit, and what the format says about them:
 
 
 ```r
-get_dimension_values(arr)
+arr@dimension_values
 #> $time
 #> [1] 0 1 2
 #> 
@@ -255,7 +259,7 @@ get_dimension_values(arr)
 #> $lon
 #> [1] 140 141 142 143 144
 
-get_attributes(arr)
+arr@attributes
 #> $coordinates
 #> [1] "lat lon"
 #> 
@@ -272,13 +276,13 @@ handed to the raster side of the package as an ordinary dataset.
 
 ```r
 first <- get_view(arr, "[0,:,:]")
-get_dimensions(first)
+first@dimensions
 #>   name size         type direction indexed
 #> 1  lat    4 HORIZONTAL_Y     NORTH    TRUE
 #> 2  lon    5 HORIZONTAL_X      EAST    TRUE
 
 raster <- as_classic_dataset(first)
-c(get_raster_xsize(raster), get_raster_ysize(raster))
+c(raster@raster_xsize, raster@raster_ysize)
 #> [1] 5 4
 
 gdal_close(ds)
@@ -295,7 +299,7 @@ Geometry comes back as WKB, in a list column of raw vectors:
 gpkg <- system.file("extdata/test.gpkg", package = "GDAL7")
 
 ds <- gdal_open(gpkg)
-gdal_layers(ds)
+ds@layers
 #>     name geometry_type feature_count fast_arrow
 #> 1 places         Point             5       TRUE
 
@@ -355,8 +359,8 @@ closed. Closing is what finishes the file.
 path <- tempfile(fileext = ".tif")
 
 ds <- gdal_create(path, 64, 48, bands = 1, type = "Float32")
-set_crs(ds, "EPSG:4326")
-set_geotransform(ds, c(-180, 360 / 64, 0, 90, 0, -180 / 48))
+ds@crs <- "EPSG:4326"
+ds@geotransform <- c(-180, 360 / 64, 0, 90, 0, -180 / 48)
 
 write_raster(ds, list(as.double(seq_len(64 * 48))))
 gdal_close(ds)
@@ -420,7 +424,7 @@ reopened <- gdal_open(cog_path)
 get_metadata_dict(reopened, "IMAGE_STRUCTURE")
 #>      LAYOUT COMPRESSION  INTERLEAVE 
 #>       "COG"   "DEFLATE"      "BAND"
-get_block_size(get_raster_band(reopened, 1))
+get_raster_band(reopened, 1)@block_size
 #>   x   y 
 #> 128 128
 gdal_close(reopened)
@@ -540,9 +544,9 @@ reprojected <- gdal_run("raster reproject", list(
   "bbox-crs" = "EPSG:4326"
 ), progress = FALSE)
 
-c(get_raster_xsize(reprojected), get_raster_ysize(reprojected))
+c(reprojected@raster_xsize, reprojected@raster_ysize)
 #> [1] 19 19
-substr(get_projection(reprojected), 1, 40)
+substr(reprojected@projection, 1, 40)
 #> [1] "PROJCS[\"WGS 84 / Pseudo-Mercator\",GEOGCS"
 
 gdal_close(reprojected)
@@ -563,7 +567,7 @@ piped <- gdal_run("raster pipeline", list(
 #> Warning: GDAL: Clamping output bounds to (-20037508.342789,-20037508.342789) ->
 #> (20037508.342789, 20037508.342789)
 
-c(get_raster_xsize(piped), get_raster_ysize(piped))
+c(piped@raster_xsize, piped@raster_ysize)
 #> [1] 497 497
 gdal_close(piped)
 ```

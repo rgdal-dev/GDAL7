@@ -402,9 +402,15 @@ cpp11::strings GDAL7_mdarray_crs(SEXP xp) {
         return gdal7::chr(nullptr);
     }
 
+    // WKT2, the same as a dataset's crs property, because GDAL's plain export
+    // writes WKT1 and WKT1 cannot carry what a modern CRS says.
+    CPLStringList options;
+    options.AddNameValue("FORMAT", "WKT2");
+    options.AddNameValue("MULTILINE", "NO");
+
     char* wkt = nullptr;
     gdal7::ErrorScope err;
-    const OGRErr status = OSRExportToWkt(srs, &wkt);
+    const OGRErr status = OSRExportToWktEx(srs, &wkt, options.List());
     OSRDestroySpatialReference(srs);
     if (status != OGRERR_NONE || wkt == nullptr) {
         CPLFree(wkt);

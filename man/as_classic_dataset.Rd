@@ -18,7 +18,7 @@ A GDALDataset object.
 }
 \description{
 This is the bridge back to the rest of the package: the result is a
-GDALDataset, so \code{\link[=read_raster]{read_raster()}}, \code{\link[=get_geotransform]{get_geotransform()}} and the band accessors
+GDALDataset, so \code{\link[=read_raster]{read_raster()}}, its \code{geotransform} property and the band properties
 all work on it. The array must have exactly two dimensions; take a
 \code{\link[=get_view]{get_view()}} of it first if it has more.
 }

@@ -10,6 +10,10 @@ GDALGroup(.ptr = NULL)
 \item{.ptr}{Internal. External pointer to the underlying GDAL object.}
 }
 \description{
-Represents a group in a multidimensional dataset (NetCDF, Zarr, HDF5, etc.)
-Groups can contain arrays (GDALMDArray) and subgroups.
+Represents a group in a multidimensional dataset (NetCDF, Zarr, HDF5, and
+the rest). Groups hold arrays (\link{GDALMDArray}) and subgroups. What a group
+holds is a property of it: \code{name} and \code{full_name}, the path from the root;
+\code{mdarray_names} and \code{group_names}, what is in it; and \code{attributes}, the
+format's own annotations. Opening one of them by name is \code{\link[=open_mdarray]{open_mdarray()}}
+or \code{\link[=open_group]{open_group()}}.
 }

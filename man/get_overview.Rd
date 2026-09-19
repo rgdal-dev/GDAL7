@@ -9,7 +9,10 @@ get_overview(x, index)
 \arguments{
 \item{x}{A GDALRasterBand object}
 
-\item{index}{Zero-based overview index, as GDAL numbers them.}
+\item{index}{Zero-based overview index, as GDAL numbers them. How many
+there are is \code{x@overview_count}, and their sizes are \code{x@overview_sizes};
+which level a read will actually touch follows from those sizes and the
+output size asked for.}
 }
 \value{
 A GDALRasterBand object for the overview, which belongs to the same

@@ -15,5 +15,12 @@ get_raster_band(x, nBand)
 A GDALRasterBand object
 }
 \description{
-Get a raster band from a dataset
+A band is taken by number, so this is a function rather than a property.
+What the band then knows about itself is a property of the band; see
+\link{GDALRasterBand}.
+}
+\examples{
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+get_raster_band(ds, 1)
+gdal_close(ds)
 }

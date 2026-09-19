@@ -25,13 +25,13 @@ Open a GDAL dataset
 \dontrun{
 # Classic raster mode
 ds <- gdal_open("/path/to/raster.tif")
-get_projection(ds)
+ds@projection
 gdal_close(ds)
 
 # Multidimensional mode
 ds <- gdal_open("/path/to/data.zarr", multidim = TRUE)
 grp <- get_root_group(ds)
-get_mdarray_names(grp)
+grp@mdarray_names
 gdal_close(ds)
 }
 }

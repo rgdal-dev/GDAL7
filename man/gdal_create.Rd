@@ -36,8 +36,8 @@ A GDALDataset, open for writing.
 }
 \description{
 An empty raster of a given size and type, open for writing. Fill it with
-\code{\link[=write_raster]{write_raster()}}, give it a position with \code{\link[=set_geotransform]{set_geotransform()}} and a
-coordinate reference system with \code{\link[=set_crs]{set_crs()}}, and close it with
+\code{\link[=write_raster]{write_raster()}}, give it a position and a coordinate reference system
+through its \code{geotransform} and \code{crs} properties, and close it with
 \code{\link[=gdal_close]{gdal_close()}}, which is what finishes the file.
 }
 \details{
@@ -53,8 +53,8 @@ path <- tempfile(fileext = ".tif")
 ds <- gdal_create(path, 10, 10, bands = 1, type = "Float32",
                   options = c(COMPRESS = "DEFLATE"))
 
-set_geotransform(ds, c(0, 1, 0, 10, 0, -1))
-set_crs(ds, "EPSG:4326")
+ds@geotransform <- c(0, 1, 0, 10, 0, -1)
+ds@crs <- "EPSG:4326"
 write_raster(ds, list(as.double(seq_len(100))))
 
 gdal_close(ds)

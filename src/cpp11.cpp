@@ -894,6 +894,13 @@ extern "C" SEXP _GDAL7_GDAL7_dataset_set_crs(SEXP xp, SEXP crs) {
   END_CPP11
 }
 // GDAL7_rasterio.cpp
+cpp11::strings GDAL7_dataset_get_crs(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_dataset_get_crs(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_get_crs(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
 cpp11::strings GDAL7_crs_to_wkt(std::string crs, std::string format, bool multiline);
 extern "C" SEXP _GDAL7_GDAL7_crs_to_wkt(SEXP crs, SEXP format, SEXP multiline) {
   BEGIN_CPP11
@@ -1212,6 +1219,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_dataset_flush_cache",                  (DL_FUNC) &_GDAL7_GDAL7_dataset_flush_cache,                  1},
     {"_GDAL7_GDAL7_dataset_get_band",                     (DL_FUNC) &_GDAL7_GDAL7_dataset_get_band,                     2},
     {"_GDAL7_GDAL7_dataset_get_close_reports_progress",   (DL_FUNC) &_GDAL7_GDAL7_dataset_get_close_reports_progress,   1},
+    {"_GDAL7_GDAL7_dataset_get_crs",                      (DL_FUNC) &_GDAL7_GDAL7_dataset_get_crs,                      1},
     {"_GDAL7_GDAL7_dataset_get_driver_ptr",               (DL_FUNC) &_GDAL7_GDAL7_dataset_get_driver_ptr,               1},
     {"_GDAL7_GDAL7_dataset_get_field_domain_names",       (DL_FUNC) &_GDAL7_GDAL7_dataset_get_field_domain_names,       2},
     {"_GDAL7_GDAL7_dataset_get_file_list",                (DL_FUNC) &_GDAL7_GDAL7_dataset_get_file_list,                1},

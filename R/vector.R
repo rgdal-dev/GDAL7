@@ -42,21 +42,11 @@ GDALLayer <- S7::new_class(
 # Finding layers
 # ----------------------------------------------------------------------------
 
-#' List the layers of a dataset
-#'
-#' @param x A GDALDataset object.
-#' @param ... Arguments passed on to methods.
-#' @return A data frame with one row per layer: its `name`, `geometry_type`,
-#'   `feature_count`, and whether the driver has a native Arrow fast path
-#'   (`fast_arrow`). A feature count the driver would have to scan for is `NA`.
-#' @examples
-#' ds <- gdal_open(system.file("extdata/test.gpkg", package = "GDAL7"))
-#' gdal_layers(ds)
-#' gdal_close(ds)
-#' @export
-gdal_layers <- S7::new_generic("gdal_layers", "x")
-
-S7::method(gdal_layers, GDALDataset) <- function(x) {
+# The body behind the dataset's layers property, which is declared in the
+# generated class file. One row per layer: its name, geometry_type,
+# feature_count, and whether the driver has a native Arrow fast path
+# (fast_arrow). A feature count the driver would have to scan for is NA.
+dataset_layers <- function(x) {
   names <- GDAL7_dataset_layer_names(x@.ptr)
 
   layers <- lapply(seq_along(names), function(i) get_layer(x, i))

@@ -16,7 +16,7 @@ A named integer vector.
 The \verb{GDT_*} and \verb{GCI_*} codes as named integer vectors, read out of the GDAL
 in use rather than hard coded, so a build with types this package has never
 heard of still reports them. These are what give meaning to the integers
-from \code{\link[=get_data_type]{get_data_type()}} and \code{\link[=get_color_interpretation]{get_color_interpretation()}}.
+from a band's \code{data_type} and \code{color_interpretation}.
 }
 \examples{
 gdal_data_types()

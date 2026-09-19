@@ -8,15 +8,42 @@
 
 #' GDALDriver class
 #'
-#' Represents a GDAL format driver (e.g., GTiff, GPKG, etc.)
+#' Represents a GDAL format driver, such as GTiff or GPKG. What a driver is
+#' called is a property of it: `short_name` is the name GDAL is asked for it
+#' by, such as `"GTiff"`, `long_name` is what it calls itself, and
+#' `help_topic` is the URL of its page in GDAL's own documentation.
 #'
 #' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
+#' @examples
+#' drv <- gdal_get_driver_by_name("GTiff")
+#' drv@short_name
+#' drv@long_name
 GDALDriver <- S7::new_class(
     "GDALDriver",
     parent = GDALMajorObject,
+
+    # Built from a GDAL handle and nothing else; see GDALRasterBand for why
+    # these classes write their constructor out.
+    constructor = function(.ptr) {
+        S7::new_object(GDALMajorObject(.ptr = .ptr), .ptr = .ptr)
+    },
+
     properties = list(
-        .ptr = S7::class_any
+        .ptr = S7::class_any,
+
+        short_name = S7::new_property(
+            S7::class_character,
+            getter = function(self) GDAL7_driver_get_short_name(self@.ptr)
+        ),
+        long_name = S7::new_property(
+            S7::class_character,
+            getter = function(self) GDAL7_driver_get_long_name(self@.ptr)
+        ),
+        help_topic = S7::new_property(
+            S7::class_character,
+            getter = function(self) GDAL7_driver_get_help_topic(self@.ptr)
+        )
     )
 )
 
@@ -38,46 +65,6 @@ S7::method(get_driver, GDALDataset) <- function(x) {
         return(NULL)
     }
     GDALDriver(.ptr = ptr)
-}
-
-# ============================================================================
-# Driver info methods
-# ============================================================================
-
-#' Get driver short name
-#'
-#' @param x A GDALDriver object
-#' @param ... Arguments passed on to methods.
-#' @return Character driver short name (e.g., "GTiff", "GPKG")
-#' @export
-get_short_name <- S7::new_generic("get_short_name", "x")
-
-S7::method(get_short_name, GDALDriver) <- function(x) {
-    GDAL7_driver_get_short_name(x@.ptr)
-}
-
-#' Get driver long name
-#'
-#' @param x A GDALDriver object
-#' @param ... Arguments passed on to methods.
-#' @return Character driver long name (e.g., "GeoTIFF", "GeoPackage")
-#' @export
-get_long_name <- S7::new_generic("get_long_name", "x")
-
-S7::method(get_long_name, GDALDriver) <- function(x) {
-    GDAL7_driver_get_long_name(x@.ptr)
-}
-
-#' Get driver help topic URL
-#'
-#' @param x A GDALDriver object
-#' @param ... Arguments passed on to methods.
-#' @return Character help topic URL
-#' @export
-get_help_topic <- S7::new_generic("get_help_topic", "x")
-
-S7::method(get_help_topic, GDALDriver) <- function(x) {
-    GDAL7_driver_get_help_topic(x@.ptr)
 }
 
 # ============================================================================
@@ -203,10 +190,10 @@ gdal_drivers <- function(capabilities = NULL) {
 #' @export
 S7::method(print, GDALDriver) <- function(x, ...) {
     cat("<GDALDriver>\n")
-    cat("  Short name: ", get_short_name(x), "\n", sep = "")
-    cat("  Long name:  ", get_long_name(x), "\n", sep = "")
+    cat("  Short name: ", x@short_name, "\n", sep = "")
+    cat("  Long name:  ", x@long_name, "\n", sep = "")
     
-    help <- get_help_topic(x)
+    help <- x@help_topic
     if (nchar(help) > 0) {
         cat("  Help:       ", help, "\n", sep = "")
     }

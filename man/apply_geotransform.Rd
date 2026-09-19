@@ -10,7 +10,7 @@ apply_geotransform(geotransform, pixel, line)
 inv_geotransform(geotransform)
 }
 \arguments{
-\item{geotransform}{A numeric vector of length 6, as \code{\link[=get_geotransform]{get_geotransform()}}
+\item{geotransform}{A numeric vector of length 6, as a dataset's \code{geotransform} property
 returns.}
 
 \item{pixel, line}{Numeric vectors of the same length. Fractional positions
@@ -34,7 +34,7 @@ one call.
 }
 \examples{
 ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
-gt <- get_geotransform(ds)
+gt <- ds@geotransform
 
 # The centre of the first pixel, and back again.
 apply_geotransform(gt, 0.5, 0.5)

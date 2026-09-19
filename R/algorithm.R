@@ -131,7 +131,7 @@ gdal_algorithm_info <- function(path) {
 #'     "bbox-crs" = "EPSG:4326"
 #'   ), progress = FALSE)
 #'
-#'   get_projection(out)
+#'   out@projection
 #'   gdal_close(out)
 #'   gdal_close(ds)
 #' }

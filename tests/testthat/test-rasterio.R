@@ -1,6 +1,6 @@
 test_that("the geotransform comes back in GDAL's order", {
   ds <- gdal_open(test_tif())
-  gt <- get_geotransform(ds)
+  gt <- ds@geotransform
 
   expect_length(gt, 6L)
   expect_named(gt, c("origin_x", "pixel_width", "row_rotation",
@@ -10,7 +10,7 @@ test_that("the geotransform comes back in GDAL's order", {
 
 test_that("pixel and georeferenced coordinates convert both ways", {
   ds <- gdal_open(test_tif())
-  gt <- get_geotransform(ds)
+  gt <- ds@geotransform
 
   corners <- apply_geotransform(gt, c(0, 20), c(0, 10))
   expect_equal(corners$x, c(-180, 180))
@@ -45,15 +45,15 @@ test_that("overviews are reported and can be opened", {
   ds <- gdal_open(test_cog())
   band <- get_raster_band(ds, 1)
 
-  expect_equal(get_overview_count(band), 2L)
+  expect_equal(band@overview_count, 2L)
 
-  sizes <- get_overview_sizes(band)
+  sizes <- band@overview_sizes
   expect_equal(sizes$xsize, c(256L, 128L))
   expect_equal(sizes$ysize, c(128L, 64L))
 
   ov <- get_overview(band, 0)
-  expect_equal(get_xsize(ov), 256L)
-  expect_equal(get_ysize(ov), 128L)
+  expect_equal(ov@xsize, 256L)
+  expect_equal(ov@ysize, 128L)
 
   expect_error(get_overview(band, 5), "out of range")
 })
@@ -63,18 +63,18 @@ test_that("an overview outlives the band but not the dataset", {
   ov <- get_overview(get_raster_band(ds, 1), 0)
 
   gc()
-  expect_equal(get_xsize(ov), 256L)
+  expect_equal(ov@xsize, 256L)
 
   gdal_close(ds)
-  expect_error(get_xsize(ov), "the GDALDataset it belongs to has been closed")
+  expect_error(ov@xsize, "the GDALDataset it belongs to has been closed")
 })
 
 test_that("a band with no overviews reports none", {
   ds <- gdal_open(test_tif())
   band <- get_raster_band(ds, 1)
 
-  expect_equal(get_overview_count(band), 0L)
-  expect_equal(nrow(get_overview_sizes(band)), 0L)
+  expect_equal(band@overview_count, 0L)
+  expect_equal(nrow(band@overview_sizes), 0L)
 })
 
 test_that("reading a window gives the values GDAL holds", {
@@ -179,7 +179,7 @@ test_that("gdal_info takes an open dataset and leaves it open", {
   expect_equal(nrow(info$band_info), 2L)
 
   # Still usable: gdal_info only closes a dataset it opened itself.
-  expect_equal(get_raster_xsize(ds), 20L)
+  expect_equal(ds@raster_xsize, 20L)
 })
 
 test_that("the enum tables name the codes the rest of the package returns", {
@@ -189,13 +189,13 @@ test_that("the enum tables name the codes the rest of the package returns", {
 
   ds <- gdal_open(test_tif())
   band <- get_raster_band(ds, 1)
-  expect_equal(names(types)[types == get_data_type(band)], get_data_type_name(band))
+  expect_equal(names(types)[types == band@data_type], band@data_type_name)
 
   colors <- gdal_color_interpretations()
   expect_equal(colors[["Gray"]], 1L)
   expect_equal(
-    names(colors)[colors == get_color_interpretation(band)],
-    get_color_interpretation_name(band)
+    names(colors)[colors == band@color_interpretation],
+    band@color_interpretation_name
   )
 })
 
@@ -210,8 +210,8 @@ test_that("a dataset with no geotransform says so", {
   ), path)
 
   ds <- gdal_open(path)
-  expect_equal(get_raster_xsize(ds), 4L)
-  expect_null(get_geotransform(ds))
+  expect_equal(ds@raster_xsize, 4L)
+  expect_null(ds@geotransform)
 })
 
 test_that("a multidimensional array reports its numeric type", {
@@ -223,5 +223,5 @@ test_that("a multidimensional array reports its numeric type", {
 
   # GDALExtendedDataTypeGetName() is empty for a plain numeric array, so the
   # ordinary GDAL type underneath is what gets reported.
-  expect_equal(get_data_type_name(arr), "Float64")
+  expect_equal(arr@data_type_name, "Float64")
 })

@@ -63,6 +63,33 @@ hand_written <- list(
   )
 )
 
+# Getters that take nothing but the object become S7 properties rather than
+# generics. These are the exceptions: reading a property must never raise, and
+# printing an object reads every one of them, so a getter whose C symbol is
+# newer than the package floor stays a generic that says which release it
+# needs.
+not_properties <- list(
+  Dataset = c("GetCloseReportsProgress")
+)
+
+# Properties the generator cannot derive, because their subject is hand
+# written. Each names the helpers that read and write it; those live beside
+# the rest of their subject in the R files named here.
+hand_written_properties <- list(
+  Dataset = list(
+    # R/raster-io.R. A geotransform is a double[6] in both directions, which
+    # the generator has no way to express.
+    list(name = "geotransform", class = "S7::class_any",
+         getter = "dataset_geotransform", setter = "dataset_set_geotransform"),
+    # R/raster-io.R. GDAL's own SetProjection takes WKT only; this takes
+    # anything GDAL reads and gives back WKT2.
+    list(name = "crs", class = "S7::class_character",
+         getter = "dataset_crs", setter = "dataset_set_crs"),
+    # R/vector.R.
+    list(name = "layers", class = "S7::class_any", getter = "dataset_layers")
+  )
+)
+
 # =============================================================================
 # Clean stale generated files BEFORE generating
 # =============================================================================
@@ -104,7 +131,9 @@ for (cls in model$classes) {
 
   result <- generate_cpp11_file(cls, paths$cpp, symbol_versions,
                                 hand_written = hand_written[[name]] %||% character())
-  generate_s7_file(cls, paths$r, methods = result$methods, members = result$members)
+  generate_s7_file(cls, paths$r, methods = result$methods, members = result$members,
+                   not_properties = not_properties[[name]] %||% character(),
+                   hand_written_properties = hand_written_properties[[name]] %||% list())
 
   capabilities <- c(capabilities, result$capabilities)
 

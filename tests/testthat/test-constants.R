@@ -11,7 +11,7 @@ test_that("GDAL's enumerators reach R with their GDAL names", {
   ds <- gdal_open(test_tif())
   on.exit(gdal_close(ds))
   band <- get_raster_band(ds, 1)
-  expect_identical(get_data_type(band), unname(types[["GDT_Int16"]]))
+  expect_identical(band@data_type, unname(types[["GDT_Int16"]]))
 })
 
 test_that("constants cover the other enumerations too", {

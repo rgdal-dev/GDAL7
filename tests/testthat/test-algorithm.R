@@ -106,9 +106,9 @@ test_that("reproject runs into memory, touching no disk", {
   out <- reproject_to_memory(test_tif())
 
   expect_s3_class(out, "GDAL7::GDALDataset")
-  expect_match(get_projection(out), "Pseudo-Mercator")
-  expect_gt(get_raster_xsize(out), 0L)
-  expect_identical(get_raster_count(out), 2L)
+  expect_match(out@projection, "Pseudo-Mercator")
+  expect_gt(out@raster_xsize, 0L)
+  expect_identical(out@raster_count, 2L)
   expect_identical(length(list.files(tempdir(), recursive = TRUE)), before)
 
   gdal_close(out)
@@ -121,12 +121,12 @@ test_that("an already open dataset is used as it stands", {
   on.exit(gdal_close(ds))
 
   out <- reproject_to_memory(ds)
-  expect_match(get_projection(out), "Pseudo-Mercator")
+  expect_match(out@projection, "Pseudo-Mercator")
   gdal_close(out)
 
   # The algorithm took its own reference, so the dataset it was given is still
   # open and usable afterwards.
-  expect_identical(get_raster_xsize(ds), 20L)
+  expect_identical(ds@raster_xsize, 20L)
 })
 
 test_that("an output file is written, closed and readable straight away", {
@@ -142,7 +142,7 @@ test_that("an output file is written, closed and readable straight away", {
 
   ds <- gdal_open(path)
   on.exit(gdal_close(ds))
-  expect_match(get_projection(ds), "Pseudo-Mercator")
+  expect_match(ds@projection, "Pseudo-Mercator")
 })
 
 test_that("a pipeline runs, step by step, into memory", {
@@ -157,7 +157,7 @@ test_that("a pipeline runs, step by step, into memory", {
   ), progress = FALSE))
 
   expect_s3_class(out, "GDAL7::GDALDataset")
-  expect_match(get_projection(out), "Pseudo-Mercator")
+  expect_match(out@projection, "Pseudo-Mercator")
   gdal_close(out)
 })
 

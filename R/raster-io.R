@@ -6,43 +6,21 @@
 # Geotransform
 # ============================================================================
 
-#' Get the geotransform of a dataset
-#'
-#' The six coefficients that map pixel and line to georeferenced coordinates,
-#' in GDAL's order: origin x, pixel width, row rotation, origin y, column
-#' rotation, pixel height. Note that GDAL's order interleaves the x and y
-#' terms, which is not the order the names might suggest.
-#'
-#' @param x A GDALDataset object
-#' @param ... Arguments passed on to methods.
-#' @return A named numeric vector of length 6, or NULL when the dataset carries
-#'   no geotransform. GDAL reports the identity in that case, which is
-#'   indistinguishable from a real identity geotransform, so NULL is used here
-#'   instead.
-#' @export
-#' @examples
-#' ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
-#' get_geotransform(ds)
-#' gdal_close(ds)
-get_geotransform <- S7::new_generic("get_geotransform", "x")
-
-S7::method(get_geotransform, GDALDataset) <- function(x, ...) {
+# The two halves of the dataset's geotransform property, which is declared in
+# the generated class file. A geotransform is the six coefficients that map
+# pixel and line to georeferenced coordinates, in GDAL's order: origin x,
+# pixel width, row rotation, origin y, column rotation, pixel height. GDAL's
+# order interleaves the x and y terms, which is not the order the names might
+# suggest.
+#
+# A dataset carrying no geotransform reads as NULL. GDAL reports the identity
+# in that case, which is indistinguishable from a real identity geotransform.
+dataset_geotransform <- function(x) {
   GDAL7_dataset_get_geotransform(x@.ptr)
 }
 
-#' Set the geotransform of a dataset
-#'
-#' @param x A GDALDataset object, opened for update.
-#' @param geotransform A numeric vector of length 6, in GDAL's order.
-#' @return `x`, invisibly.
-#' @export
-set_geotransform <- S7::new_generic(
-  "set_geotransform", "x",
-  function(x, geotransform) S7::S7_dispatch()
-)
-
-S7::method(set_geotransform, GDALDataset) <- function(x, geotransform) {
-  GDAL7_dataset_set_geotransform(x@.ptr, as.double(geotransform))
+dataset_set_geotransform <- function(x, value) {
+  GDAL7_dataset_set_geotransform(x@.ptr, as.double(value))
   invisible(x)
 }
 
@@ -56,7 +34,7 @@ S7::method(set_geotransform, GDALDataset) <- function(x, geotransform) {
 #' Both are vectorised over `pixel` and `line`, so a whole set of positions is
 #' one call.
 #'
-#' @param geotransform A numeric vector of length 6, as [get_geotransform()]
+#' @param geotransform A numeric vector of length 6, as a dataset's `geotransform` property
 #'   returns.
 #' @param pixel,line Numeric vectors of the same length. Fractional positions
 #'   are meaningful: whole numbers fall on pixel corners, so the centre of the
@@ -67,7 +45,7 @@ S7::method(set_geotransform, GDALDataset) <- function(x, geotransform) {
 #' @export
 #' @examples
 #' ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
-#' gt <- get_geotransform(ds)
+#' gt <- ds@geotransform
 #'
 #' # The centre of the first pixel, and back again.
 #' apply_geotransform(gt, 0.5, 0.5)
@@ -90,22 +68,20 @@ inv_geotransform <- function(geotransform) {
 # Overviews
 # ============================================================================
 
-#' Number of overviews on a band
-#'
-#' @param x A GDALRasterBand object
-#' @param ... Arguments passed on to methods.
-#' @return Integer count.
-#' @export
-get_overview_count <- S7::new_generic("get_overview_count", "x")
-
-S7::method(get_overview_count, GDALRasterBand) <- function(x, ...) {
-  GDAL7_band_get_overview_count(x@.ptr)
+# The body behind the band's overview_sizes property. It lives here, beside
+# the rest of the overview code, rather than inside the class definition.
+band_overview_sizes <- function(x) {
+  sizes <- GDAL7_band_get_overview_sizes(x@.ptr)
+  data.frame(xsize = sizes$xsize, ysize = sizes$ysize)
 }
 
 #' Get one overview of a band
 #'
 #' @param x A GDALRasterBand object
-#' @param index Zero-based overview index, as GDAL numbers them.
+#' @param index Zero-based overview index, as GDAL numbers them. How many
+#'   there are is `x@overview_count`, and their sizes are `x@overview_sizes`;
+#'   which level a read will actually touch follows from those sizes and the
+#'   output size asked for.
 #' @return A GDALRasterBand object for the overview, which belongs to the same
 #'   dataset as `x`.
 #' @export
@@ -116,24 +92,6 @@ get_overview <- S7::new_generic(
 
 S7::method(get_overview, GDALRasterBand) <- function(x, index) {
   GDALRasterBand(.ptr = GDAL7_band_get_overview(x@.ptr, as.integer(index)))
-}
-
-#' Sizes of a band's overviews
-#'
-#' Which overview level a read will actually touch follows from these sizes and
-#' the output size asked for, so this is the cheap way to see what a read at a
-#' given size will cost.
-#'
-#' @param x A GDALRasterBand object
-#' @param ... Arguments passed on to methods.
-#' @return A data frame of `xsize` and `ysize`, one row per overview, or a
-#'   zero-row data frame when the band has none.
-#' @export
-get_overview_sizes <- S7::new_generic("get_overview_sizes", "x")
-
-S7::method(get_overview_sizes, GDALRasterBand) <- function(x, ...) {
-  sizes <- GDAL7_band_get_overview_sizes(x@.ptr)
-  data.frame(xsize = sizes$xsize, ysize = sizes$ysize)
 }
 
 # ============================================================================
@@ -200,7 +158,7 @@ S7::method(read_raster, GDALRasterBand) <- function(x, window = NULL,
   if (!is.null(bands)) {
     stop("`bands` applies to a dataset, not to a single band", call. = FALSE)
   }
-  window <- resolve_window(window, get_xsize(x), get_ysize(x))
+  window <- resolve_window(window, x@xsize, x@ysize)
   GDAL7_band_read(x@.ptr, window, resolve_out_size(out_size, window), resample)
 }
 
@@ -209,9 +167,9 @@ S7::method(read_raster, GDALDataset) <- function(x, window = NULL,
                                                  resample = "nearest",
                                                  bands = NULL) {
   if (is.null(bands)) {
-    bands <- seq_len(get_raster_count(x))
+    bands <- seq_len(x@raster_count)
   }
-  window <- resolve_window(window, get_raster_xsize(x), get_raster_ysize(x))
+  window <- resolve_window(window, x@raster_xsize, x@raster_ysize)
   GDAL7_dataset_read(
     x@.ptr, as.integer(bands), window,
     resolve_out_size(out_size, window), resample
@@ -302,7 +260,7 @@ S7::method(write_raster, GDALRasterBand) <- function(x, values, window = NULL,
   if (!is.null(bands)) {
     stop("`bands` applies to a dataset, not to a single band", call. = FALSE)
   }
-  window <- resolve_window(window, get_xsize(x), get_ysize(x))
+  window <- resolve_window(window, x@xsize, x@ysize)
   GDAL7_band_write(x@.ptr, as.double(values), window,
                    resolve_out_size(out_size, window), resample)
   invisible(x)
@@ -313,13 +271,13 @@ S7::method(write_raster, GDALDataset) <- function(x, values, window = NULL,
                                                   resample = "nearest",
                                                   bands = NULL) {
   if (is.null(bands)) {
-    bands <- seq_len(get_raster_count(x))
+    bands <- seq_len(x@raster_count)
   }
   if (!is.list(values)) {
     stop("For a dataset, `values` is a list of one vector per band",
          call. = FALSE)
   }
-  window <- resolve_window(window, get_raster_xsize(x), get_raster_ysize(x))
+  window <- resolve_window(window, x@raster_xsize, x@raster_ysize)
   GDAL7_dataset_write(
     x@.ptr, lapply(values, as.double), as.integer(bands), window,
     resolve_out_size(out_size, window), resample
@@ -348,40 +306,29 @@ S7::method(gdal_flush, GDALDataset) <- function(x, ...) {
 # Coordinate reference systems
 # ============================================================================
 
-#' Set a dataset's coordinate reference system
-#'
-#' Anything GDAL understands as a CRS is accepted: `"EPSG:4326"`, a PROJ
-#' string, a PROJJSON document, the contents of a `.prj` file, or WKT.
-#' [set_projection()] is the same thing for WKT only, which is what GDAL's own
-#' `SetProjection` takes.
-#'
-#' @param x A GDALDataset, open for writing.
-#' @param crs A coordinate reference system, in any form GDAL reads.
-#' @return `x`, invisibly.
-#' @export
-#' @examples
-#' path <- tempfile(fileext = ".tif")
-#' ds <- gdal_create(path, 4, 4)
-#' set_crs(ds, "EPSG:3857")
-#' substr(get_projection(ds), 1, 30)
-#' gdal_close(ds)
-#' unlink(path)
-set_crs <- S7::new_generic("set_crs", "x", function(x, crs) S7::S7_dispatch())
+# The two halves of the dataset's crs property, which is declared in the
+# generated class file. Reading gives WKT2, or NA when the dataset has no CRS.
+# Writing accepts anything GDAL understands: "EPSG:4326", a PROJ string, a
+# PROJJSON document, the contents of a .prj file, or WKT. The projection
+# property next to it is GDAL's own SetProjection, which is WKT only.
+dataset_crs <- function(x) {
+  GDAL7_dataset_get_crs(x@.ptr)
+}
 
-S7::method(set_crs, GDALDataset) <- function(x, crs) {
-  GDAL7_dataset_set_crs(x@.ptr, crs)
+dataset_set_crs <- function(x, value) {
+  GDAL7_dataset_set_crs(x@.ptr, as.character(value))
   invisible(x)
 }
 
 #' A coordinate reference system as WKT
 #'
-#' The conversion [set_crs()] does, on its own, for checking a CRS string or
+#' The conversion a dataset's `crs` property does, on its own, for checking a CRS string or
 #' for seeing what one says.
 #'
 #' WKT2 is the default because WKT1 cannot carry everything a modern CRS
 #' holds: a projection WKT2 names exactly comes back out of WKT1 as
 #' `PROJCS["unknown"]`. WKT1 is still what GDAL writes into a file and what
-#' [get_projection()] returns, so it is here for comparing against those.
+#' the `projection` property returns, so it is here for comparing against those.
 #'
 #' @param crs A coordinate reference system, in any form GDAL reads.
 #' @param format `"WKT2"`, or `"WKT2_2015"` or `"WKT2_2019"` for a particular
@@ -444,7 +391,7 @@ gdal_info <- function(x) {
 #' The `GDT_*` and `GCI_*` codes as named integer vectors, read out of the GDAL
 #' in use rather than hard coded, so a build with types this package has never
 #' heard of still reports them. These are what give meaning to the integers
-#' from [get_data_type()] and [get_color_interpretation()].
+#' from a band's `data_type` and `color_interpretation`.
 #'
 #' @return A named integer vector.
 #' @export

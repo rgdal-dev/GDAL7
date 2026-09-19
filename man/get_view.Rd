@@ -28,7 +28,7 @@ arr <- open_mdarray(get_root_group(ds), "temperature")
 
 # Drop the time dimension by taking its first slice.
 first <- get_view(arr, "[0,:,:]")
-get_dimensions(first)
+first@dimensions
 
 gdal_close(ds)
 }

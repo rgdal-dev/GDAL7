@@ -240,6 +240,7 @@ GDALGetRasterScale,3.8.0
 GDALGetRasterUnitType,3.8.0
 GDALGetRasterXSize,3.8.0
 GDALGetRasterYSize,3.8.0
+GDALGetSpatialRef,3.8.0
 GDALGetThreadSafeDataset,3.10.0
 GDALGroupGetAttributes,3.8.0
 GDALGroupGetFullName,3.8.0

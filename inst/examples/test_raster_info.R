@@ -29,13 +29,13 @@ cat("Test file:", test_file, "\n\n")
 ds <- gdal_open(test_file)
 
 cat("=== Dataset Dimensions ===\n")
-cat("Width:  ", get_raster_xsize(ds), " pixels\n", sep = "")
-cat("Height: ", get_raster_ysize(ds), " pixels\n", sep = "")
-cat("Bands:  ", get_raster_count(ds), "\n", sep = "")
+cat("Width:  ", ds@raster_xsize, " pixels\n", sep = "")
+cat("Height: ", ds@raster_ysize, " pixels\n", sep = "")
+cat("Bands:  ", ds@raster_count, "\n", sep = "")
 cat("\n")
 
 # Get each band
-nbands <- get_raster_count(ds)
+nbands <- ds@raster_count
 for (i in seq_len(nbands)) {
     cat("=== Band ", i, " ===\n", sep = "")
 
@@ -51,13 +51,13 @@ rgb_file <- normalizePath("~/gdal/autotest/gcore/data/rgbsmall.tif", mustWork = 
 if (file.exists(rgb_file)) {
     ds <- gdal_open(rgb_file)
     cat("File:", rgb_file, "\n")
-    cat("Size:", get_raster_xsize(ds), "x", get_raster_ysize(ds), "\n")
-    cat("Bands:", get_raster_count(ds), "\n\n")
+    cat("Size:", ds@raster_xsize, "x", ds@raster_ysize, "\n")
+    cat("Bands:", ds@raster_count, "\n\n")
 
-    for (i in seq_len(get_raster_count(ds))) {
+    for (i in seq_len(ds@raster_count)) {
         band <- get_raster_band(ds, i)
-        cat("Band", i, ":", get_data_type_name(band),
-            "-", get_color_interpretation_name(band), "\n")
+        cat("Band", i, ":", band@data_type_name,
+            "-", band@color_interpretation_name, "\n")
     }
 
     gdal_close(ds)

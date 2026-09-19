@@ -1,5 +1,40 @@
 # GDAL7 (development version)
 
+## Stage 8: namespace hygiene
+
+* What an object knows about itself is now a property rather than a verb:
+  `band@nodata_value`, `ds@crs`, `ds@geotransform`, `arr@dimensions`,
+  `drv@short_name`, `grp@mdarray_names`. Each is read from GDAL at the moment
+  it is asked for, so none is a stale copy taken when the object was made.
+
+* The ones GDAL lets you change are set by assignment:
+  `band@nodata_value <- -999`, `ds@crs <- "EPSG:3857"`,
+  `ds@geotransform <- c(...)`. This replaces `set_nodata_value()`,
+  `set_scale()`, `set_offset()`, `set_unit_type()`,
+  `set_color_interpretation()`, `set_crs()`, `set_geotransform()`,
+  `set_projection()` and `set_description()`.
+
+* The accessors they replace are gone: `get_raster_xsize()`, `get_xsize()`,
+  `get_data_type_name()`, `get_block_size()`, `get_nodata_value()`,
+  `get_scale()`, `get_offset()`, `get_unit_type()`,
+  `get_color_interpretation()`, `get_overview_count()`,
+  `get_overview_sizes()`, `get_geotransform()`, `get_description()`,
+  `get_projection()`, `get_file_list()`, `get_layer_count()`,
+  `get_short_name()`, `get_long_name()`, `get_help_topic()`, `get_name()`,
+  `get_full_name()`, `get_dimensions()`, `get_attributes()`, `gdal_layers()`
+  and the rest of that family. The namespace went from 141 exports to 93.
+
+* `ds@crs` reads as WKT2 and takes anything GDAL understands when written.
+  `ds@projection` beside it is GDAL's own `SetProjection`, which is WKT1.
+  An array's `crs` is WKT2 now too.
+
+* Accessors that take an argument are still functions, because they are not
+  properties of anything: `get_raster_band()`, `get_overview()`,
+  `get_metadata_item()`, `get_layer()`, `open_mdarray()`, `open_group()`.
+
+* The generator derives the properties from GDAL's own methods, so a GDAL that
+  adds a `GetX`/`SetX` pair gets a property without a change here.
+
 ## Stage 7: write side and creation
 
 * `gdal_create()` makes a dataset from nothing and `gdal_create_copy()` copies

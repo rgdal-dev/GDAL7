@@ -119,8 +119,8 @@ as_driver <- function(x) {
 #' Create a new raster dataset
 #'
 #' An empty raster of a given size and type, open for writing. Fill it with
-#' [write_raster()], give it a position with [set_geotransform()] and a
-#' coordinate reference system with [set_crs()], and close it with
+#' [write_raster()], give it a position and a coordinate reference system
+#' through its `geotransform` and `crs` properties, and close it with
 #' [gdal_close()], which is what finishes the file.
 #'
 #' Creation options are checked against the driver's own option list before
@@ -147,8 +147,8 @@ as_driver <- function(x) {
 #' ds <- gdal_create(path, 10, 10, bands = 1, type = "Float32",
 #'                   options = c(COMPRESS = "DEFLATE"))
 #'
-#' set_geotransform(ds, c(0, 1, 0, 10, 0, -1))
-#' set_crs(ds, "EPSG:4326")
+#' ds@geotransform <- c(0, 1, 0, 10, 0, -1)
+#' ds@crs <- "EPSG:4326"
 #' write_raster(ds, list(as.double(seq_len(100))))
 #'
 #' gdal_close(ds)

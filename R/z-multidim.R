@@ -8,15 +8,40 @@
 
 #' GDALGroup class
 #'
-#' Represents a group in a multidimensional dataset (NetCDF, Zarr, HDF5, etc.)
-#' Groups can contain arrays (GDALMDArray) and subgroups.
+#' Represents a group in a multidimensional dataset (NetCDF, Zarr, HDF5, and
+#' the rest). Groups hold arrays ([GDALMDArray]) and subgroups. What a group
+#' holds is a property of it: `name` and `full_name`, the path from the root;
+#' `mdarray_names` and `group_names`, what is in it; and `attributes`, the
+#' format's own annotations. Opening one of them by name is [open_mdarray()]
+#' or [open_group()].
 #'
 #' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALGroup <- S7::new_class(
   "GDALGroup",
   properties = list(
-    .ptr = S7::class_any
+    .ptr = S7::class_any,
+
+    name = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_group_get_name(self@.ptr)
+    ),
+    full_name = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_group_get_full_name(self@.ptr)
+    ),
+    mdarray_names = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_group_get_mdarray_names(self@.ptr)
+    ),
+    group_names = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_group_get_group_names(self@.ptr)
+    ),
+    attributes = S7::new_property(
+      S7::class_any,
+      getter = function(self) GDAL7_group_get_attributes(self@.ptr)
+    )
   )
 )
 
@@ -26,14 +51,92 @@ GDALGroup <- S7::new_class(
 
 #' GDALMDArray class
 #'
-#' Represents a multidimensional array in a GDAL dataset.
+#' Represents a multidimensional array in a GDAL dataset. What the array says
+#' about itself is a property of it:
+#'
+#' * `name` and `full_name`, the path from the root of the dataset.
+#' * `data_type_name`, `unit_type`, `nodata_value`, `scale`, `offset`.
+#' * `crs`, as WKT2.
+#' * `dimension_count`, and `dimensions`, a data frame with one row per
+#'   dimension: its `name` and `size`, the `type` and `direction` the format
+#'   gave it (both may be empty), and `indexed`, whether it has a coordinate
+#'   variable. Dimensions are in GDAL's order, slowest varying first, which is
+#'   the order a format declares them in. [read_mdarray()] returns its `dim`
+#'   the other way round; see there for why.
+#' * `attributes`, the format's own annotations: units, long names,
+#'   conventions, valid ranges. They come back all at once because reading
+#'   them one at a time is what makes inspecting a large NetCDF slow.
+#' * `coordinate_variables`, the arrays a format names as this one's
+#'   coordinates. That is not quite the same question as which dimensions are
+#'   indexed: a swath carries latitude and longitude arrays that are
+#'   two-dimensional and index no dimension at all.
+#' * `dimension_values`, each dimension's coordinate variable read in full, in
+#'   the array's own dimension order. For a gridded array this is the time,
+#'   latitude and longitude the values are placed at, and it is the shorter
+#'   road than `coordinate_variables`. A dimension with no coordinate variable
+#'   is NULL.
 #'
 #' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALMDArray <- S7::new_class(
   "GDALMDArray",
   properties = list(
-    .ptr = S7::class_any
+    .ptr = S7::class_any,
+
+    name = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_mdarray_get_name(self@.ptr)
+    ),
+    full_name = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_mdarray_get_full_name(self@.ptr)
+    ),
+
+    data_type_name = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_mdarray_get_data_type_name(self@.ptr)
+    ),
+    unit_type = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_mdarray_get_unit(self@.ptr)
+    ),
+    nodata_value = S7::new_property(
+      S7::class_any,
+      getter = function(self) GDAL7_mdarray_get_nodata_value(self@.ptr)
+    ),
+    scale = S7::new_property(
+      S7::class_any,
+      getter = function(self) GDAL7_mdarray_get_scale(self@.ptr)
+    ),
+    offset = S7::new_property(
+      S7::class_any,
+      getter = function(self) GDAL7_mdarray_get_offset(self@.ptr)
+    ),
+    crs = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_mdarray_crs(self@.ptr)
+    ),
+
+    dimension_count = S7::new_property(
+      S7::class_integer,
+      getter = function(self) GDAL7_mdarray_get_dimension_count(self@.ptr)
+    ),
+    dimensions = S7::new_property(
+      S7::class_any,
+      getter = function(self) mdarray_dimensions(self)
+    ),
+    attributes = S7::new_property(
+      S7::class_any,
+      getter = function(self) GDAL7_mdarray_get_attributes(self@.ptr)
+    ),
+    coordinate_variables = S7::new_property(
+      S7::class_any,
+      getter = function(self) mdarray_coordinate_variables(self)
+    ),
+    dimension_values = S7::new_property(
+      S7::class_any,
+      getter = function(self) mdarray_dimension_values(self)
+    )
   )
 )
 
@@ -61,45 +164,9 @@ S7::method(get_root_group, GDALDataset) <- function(x) {
 # Group info methods
 # ============================================================================
 
-#' Get group name
-#'
-#' @param x A GDALGroup object
-#' @param ... Arguments passed on to methods.
-#' @return Character group name
-#' @export
-get_name <- S7::new_generic("get_name", "x")
-
-S7::method(get_name, GDALGroup) <- function(x) {
-  GDAL7_group_get_name(x@.ptr)
-}
-
-#' Get group full name (path)
-#'
-#' @param x A GDALGroup object
-#' @param ... Arguments passed on to methods.
-#' @return Character full path name
-#' @export
-get_full_name <- S7::new_generic("get_full_name", "x")
-
-S7::method(get_full_name, GDALGroup) <- function(x) {
-  GDAL7_group_get_full_name(x@.ptr)
-}
-
 # ============================================================================
 # Group navigation - arrays
 # ============================================================================
-
-#' Get names of arrays in a group
-#'
-#' @param x A GDALGroup object
-#' @param ... Arguments passed on to methods.
-#' @return Character vector of array names
-#' @export
-get_mdarray_names <- S7::new_generic("get_mdarray_names", "x")
-
-S7::method(get_mdarray_names, GDALGroup) <- function(x) {
-  GDAL7_group_get_mdarray_names(x@.ptr)
-}
 
 #' Open an array from a group
 #'
@@ -129,18 +196,6 @@ S7::method(open_mdarray, GDALGroup) <- function(x, name) {
 # Group navigation - subgroups
 # ============================================================================
 
-#' Get names of subgroups in a group
-#'
-#' @param x A GDALGroup object
-#' @param ... Arguments passed on to methods.
-#' @return Character vector of subgroup names
-#' @export
-get_group_names <- S7::new_generic("get_group_names", "x")
-
-S7::method(get_group_names, GDALGroup) <- function(x) {
-  GDAL7_group_get_group_names(x@.ptr)
-}
-
 #' Open a subgroup from a group
 #'
 #' @param x A GDALGroup object
@@ -161,41 +216,8 @@ S7::method(open_group, GDALGroup) <- function(x, name) {
 # MDArray info methods
 # ============================================================================
 
-S7::method(get_name, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_name(x@.ptr)
-}
-
-S7::method(get_full_name, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_full_name(x@.ptr)
-}
-
-#' Get number of dimensions in an array
-#'
-#' @param x A GDALMDArray object
-#' @param ... Arguments passed on to methods.
-#' @return Integer dimension count
-#' @export
-get_dimension_count <- S7::new_generic("get_dimension_count", "x")
-
-S7::method(get_dimension_count, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_dimension_count(x@.ptr)
-}
-
-#' Get dimensions of an array
-#'
-#' Dimensions are reported in GDAL's order, slowest varying first, which is the
-#' order a format declares them in. `read_mdarray()` returns its `dim` the other
-#' way round; see there for why.
-#'
-#' @param x A GDALMDArray object
-#' @param ... Arguments passed on to methods.
-#' @return A data frame with one row per dimension: its `name` and `size`, the
-#'   `type` and `direction` the format gave it (both may be empty), and
-#'   `indexed`, whether it has a coordinate variable.
-#' @export
-get_dimensions <- S7::new_generic("get_dimensions", "x")
-
-S7::method(get_dimensions, GDALMDArray) <- function(x) {
+# The body behind the array's dimensions property.
+mdarray_dimensions <- function(x) {
   result <- GDAL7_mdarray_get_dimensions(x@.ptr)
   data.frame(
     name = result$name,
@@ -207,92 +229,24 @@ S7::method(get_dimensions, GDALMDArray) <- function(x) {
   )
 }
 
-S7::method(get_data_type_name, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_data_type_name(x@.ptr)
-}
-
-S7::method(get_unit_type, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_unit(x@.ptr)
-}
-
-S7::method(get_nodata_value, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_nodata_value(x@.ptr)
-}
-
 # ============================================================================
 # Attributes, scaling and georeferencing
 # ============================================================================
-
-#' Get the attributes of a group or an array
-#'
-#' Attributes are a format's own annotations: units, long names, conventions,
-#' valid ranges. They are returned all at once because reading them one at a
-#' time is what makes inspecting a large NetCDF slow.
-#'
-#' @param x A GDALGroup or GDALMDArray object
-#' @param ... Arguments passed on to methods.
-#' @return A named list. Each element is a character or numeric vector, of
-#'   whatever length the attribute has.
-#' @export
-get_attributes <- S7::new_generic("get_attributes", "x")
-
-S7::method(get_attributes, GDALGroup) <- function(x) {
-  GDAL7_group_get_attributes(x@.ptr)
-}
-
-S7::method(get_attributes, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_attributes(x@.ptr)
-}
-
-S7::method(get_scale, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_scale(x@.ptr)
-}
-
-S7::method(get_offset, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_get_offset(x@.ptr)
-}
-
-S7::method(get_projection, GDALMDArray) <- function(x) {
-  GDAL7_mdarray_crs(x@.ptr)
-}
 
 # ============================================================================
 # Coordinates
 # ============================================================================
 
-#' Get the coordinate variables of an array
-#'
-#' The arrays a format names as this one's coordinates. This is not quite the
-#' same question as which dimensions are indexed: a swath carries latitude and
-#' longitude arrays that are two-dimensional and index no dimension at all. For
-#' the ordinary gridded case, [get_dimension_values()] is the shorter road.
-#'
-#' @param x A GDALMDArray object
-#' @param ... Arguments passed on to methods.
-#' @return A list of GDALMDArray objects, empty when the format names none.
-#' @export
-get_coordinate_variables <- S7::new_generic("get_coordinate_variables", "x")
-
-S7::method(get_coordinate_variables, GDALMDArray) <- function(x) {
+# The body behind the array's coordinate_variables property.
+mdarray_coordinate_variables <- function(x) {
   lapply(GDAL7_mdarray_get_coordinate_variables(x@.ptr), function(ptr) {
     GDALMDArray(.ptr = ptr)
   })
 }
 
-#' Get the coordinate values along each dimension
-#'
-#' Reads each dimension's coordinate variable in full. For a gridded array this
-#' is the time, latitude and longitude the values are placed at.
-#'
-#' @param x A GDALMDArray object
-#' @param ... Arguments passed on to methods.
-#' @return A named list with one element per dimension, in the array's own
-#'   dimension order. A dimension with no coordinate variable is NULL.
-#' @export
-get_dimension_values <- S7::new_generic("get_dimension_values", "x")
-
-S7::method(get_dimension_values, GDALMDArray) <- function(x) {
-  dims <- get_dimensions(x)
+# The body behind the array's dimension_values property.
+mdarray_dimension_values <- function(x) {
+  dims <- x@dimensions
   values <- lapply(GDAL7_mdarray_get_dimension_variables(x@.ptr), function(ptr) {
     if (is.null(ptr)) {
       return(NULL)
@@ -352,7 +306,7 @@ read_mdarray <- S7::new_generic(
 
 S7::method(read_mdarray, GDALMDArray) <- function(x, start = NULL, count = NULL,
                                                   step = NULL, nodata_as_na = TRUE) {
-  dims <- get_dimensions(x)
+  dims <- x@dimensions
   rank <- nrow(dims)
   sizes <- dims$size
 
@@ -387,7 +341,7 @@ S7::method(read_mdarray, GDALMDArray) <- function(x, start = NULL, count = NULL,
   values <- GDAL7_mdarray_read(x@.ptr, start - 1, count, step)
 
   if (isTRUE(nodata_as_na)) {
-    nodata <- get_nodata_value(x)
+    nodata <- x@nodata_value
     if (!is.null(nodata) && !is.na(nodata)) {
       values[!is.na(values) & values == nodata] <- NA_real_
     }
@@ -445,7 +399,7 @@ slab_argument <- function(value, rank, default, what) {
 #'
 #' # Drop the time dimension by taking its first slice.
 #' first <- get_view(arr, "[0,:,:]")
-#' get_dimensions(first)
+#' first@dimensions
 #'
 #' gdal_close(ds)
 get_view <- S7::new_generic("get_view", "x", function(x, expr) S7::S7_dispatch())
@@ -457,7 +411,7 @@ S7::method(get_view, GDALMDArray) <- function(x, expr) {
 #' See a two-dimensional slice of an array as an ordinary raster
 #'
 #' This is the bridge back to the rest of the package: the result is a
-#' GDALDataset, so [read_raster()], [get_geotransform()] and the band accessors
+#' GDALDataset, so [read_raster()], its `geotransform` property and the band properties
 #' all work on it. The array must have exactly two dimensions; take a
 #' [get_view()] of it first if it has more.
 #'
@@ -473,7 +427,7 @@ as_classic_dataset <- S7::new_generic(
 )
 
 S7::method(as_classic_dataset, GDALMDArray) <- function(x, x_dim = NULL, y_dim = NULL) {
-  dims <- get_dimensions(x)
+  dims <- x@dimensions
   rank <- nrow(dims)
   if (rank < 2L) {
     stop("A raster needs two dimensions; this array has ", rank, call. = FALSE)
@@ -517,16 +471,16 @@ mdarray_info <- S7::new_generic("mdarray_info", "x")
 
 S7::method(mdarray_info, GDALMDArray) <- function(x) {
   list(
-    name = get_name(x),
-    full_name = get_full_name(x),
-    data_type = get_data_type_name(x),
-    unit = get_unit_type(x),
-    nodata = get_nodata_value(x),
-    scale = get_scale(x),
-    offset = get_offset(x),
-    crs = get_projection(x),
-    dimensions = get_dimensions(x),
-    attributes = get_attributes(x)
+    name = x@name,
+    full_name = x@full_name,
+    data_type = x@data_type_name,
+    unit = x@unit_type,
+    nodata = x@nodata_value,
+    scale = x@scale,
+    offset = x@offset,
+    crs = x@crs,
+    dimensions = x@dimensions,
+    attributes = x@attributes
   )
 }
 
@@ -537,21 +491,21 @@ S7::method(mdarray_info, GDALMDArray) <- function(x) {
 #' @export
 S7::method(print, GDALGroup) <- function(x, ...) {
   cat("<GDALGroup>\n")
-  cat("  Name: ", get_name(x), "\n", sep = "")
+  cat("  Name: ", x@name, "\n", sep = "")
 
-  full <- get_full_name(x)
-  if (nchar(full) > 0 && full != get_name(x)) {
+  full <- x@full_name
+  if (nchar(full) > 0 && full != x@name) {
     cat("  Path: ", full, "\n", sep = "")
   }
 
-  groups <- get_group_names(x)
+  groups <- x@group_names
   if (length(groups) > 0) {
     cat("  Subgroups (", length(groups), "): ",
         paste(head(groups, 5), collapse = ", "),
         if (length(groups) > 5) ", ..." else "", "\n", sep = "")
   }
 
-  arrays <- get_mdarray_names(x)
+  arrays <- x@mdarray_names
   if (length(arrays) > 0) {
     cat("  Arrays (", length(arrays), "): ",
         paste(head(arrays, 5), collapse = ", "),
@@ -564,21 +518,21 @@ S7::method(print, GDALGroup) <- function(x, ...) {
 #' @export
 S7::method(print, GDALMDArray) <- function(x, ...) {
   cat("<GDALMDArray>\n")
-  cat("  Name: ", get_name(x), "\n", sep = "")
-  cat("  Type: ", get_data_type_name(x), "\n", sep = "")
+  cat("  Name: ", x@name, "\n", sep = "")
+  cat("  Type: ", x@data_type_name, "\n", sep = "")
 
-  dims <- get_dimensions(x)
+  dims <- x@dimensions
   if (nrow(dims) > 0) {
     dim_str <- paste(dims$name, dims$size, sep = "=", collapse = ", ")
     cat("  Dimensions: ", dim_str, "\n", sep = "")
   }
 
-  unit <- get_unit_type(x)
+  unit <- x@unit_type
   if (nchar(unit) > 0) {
     cat("  Unit: ", unit, "\n", sep = "")
   }
 
-  nodata <- get_nodata_value(x)
+  nodata <- x@nodata_value
   if (!is.null(nodata)) {
     cat("  NoData: ", nodata, "\n", sep = "")
   }

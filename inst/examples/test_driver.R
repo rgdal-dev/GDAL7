@@ -38,7 +38,7 @@ for (name in drivers_to_check) {
         if (test_capability(drv, "DCAP_RASTER")) caps <- c(caps, "R")
         if (test_capability(drv, "DCAP_VECTOR")) caps <- c(caps, "V")
         if (test_capability(drv, "DCAP_CREATE")) caps <- c(caps, "C")
-        cat(sprintf("  %-10s %-30s [%s]\n", name, get_long_name(drv), paste(caps, collapse="")))
+        cat(sprintf("  %-10s %-30s [%s]\n", name, drv@long_name, paste(caps, collapse="")))
     }
 }
 cat("\n")

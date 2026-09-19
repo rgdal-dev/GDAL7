@@ -74,10 +74,10 @@ test_that("a dataset is created with the size and type asked for", {
   ds <- gdal_create(path, 10, 20, bands = 3, type = "Int16")
   on.exit(gdal_close(ds), add = TRUE)
 
-  expect_identical(get_raster_xsize(ds), 10L)
-  expect_identical(get_raster_ysize(ds), 20L)
-  expect_identical(get_raster_count(ds), 3L)
-  expect_identical(get_data_type_name(get_raster_band(ds, 1)), "Int16")
+  expect_identical(ds@raster_xsize, 10L)
+  expect_identical(ds@raster_ysize, 20L)
+  expect_identical(ds@raster_count, 3L)
+  expect_identical(get_raster_band(ds, 1)@data_type_name, "Int16")
 })
 
 test_that("a bad creation option is refused, quoting GDAL's own reason", {
@@ -209,17 +209,17 @@ test_that("a coordinate reference system goes in however it is written", {
   ds <- gdal_create(path, 4, 4)
   on.exit(gdal_close(ds), add = TRUE)
 
-  set_crs(ds, "EPSG:3857")
-  expect_match(get_projection(ds), "Pseudo-Mercator")
+  ds@crs <- "EPSG:3857"
+  expect_match(ds@projection, "Pseudo-Mercator")
 
   # A PROJ string and WKT are the same offer.
-  # get_projection() is GDAL's WKT1, which spells a projection with
+  # The projection property is GDAL's WKT1, which spells a projection with
   # underscores and loses the name of one it has no code for.
-  set_crs(ds, "+proj=laea +lat_0=-90 +lon_0=0 +datum=WGS84")
-  expect_match(get_projection(ds), "Lambert_Azimuthal_Equal_Area")
+  ds@crs <- "+proj=laea +lat_0=-90 +lon_0=0 +datum=WGS84"
+  expect_match(ds@projection, "Lambert_Azimuthal_Equal_Area")
 
-  set_crs(ds, crs_to_wkt("EPSG:4326"))
-  expect_match(get_projection(ds), "WGS 84")
+  ds@crs <- crs_to_wkt("EPSG:4326")
+  expect_match(ds@projection, "WGS 84")
 })
 
 test_that("a CRS is written as WKT2 unless WKT1 is asked for", {
@@ -243,19 +243,19 @@ test_that("what a band's values mean is set and read back", {
   ds <- gdal_create(path, 4, 4, bands = 1, type = "Int16")
   band <- get_raster_band(ds, 1)
 
-  set_nodata_value(band, -999)
-  set_scale(band, 0.1)
-  set_offset(band, 20)
-  set_unit_type(band, "degC")
+  band@nodata_value <- -999
+  band@scale <- 0.1
+  band@offset <- 20
+  band@unit_type <- "degC"
 
-  expect_identical(get_nodata_value(band), -999)
-  expect_identical(get_scale(band), 0.1)
-  expect_identical(get_offset(band), 20)
-  expect_identical(get_unit_type(band), "degC")
+  expect_identical(band@nodata_value, -999)
+  expect_identical(band@scale, 0.1)
+  expect_identical(band@offset, 20)
+  expect_identical(band@unit_type, "degC")
 
   # NULL takes the nodata value off rather than setting it to anything.
-  set_nodata_value(band, NULL)
-  expect_null(get_nodata_value(band))
+  band@nodata_value <- NULL
+  expect_null(band@nodata_value)
 
   gdal_close(ds)
 })
@@ -265,10 +265,12 @@ test_that("a colour interpretation is set by name", {
   ds <- gdal_create(path, 4, 4, bands = 3, type = "Byte")
   on.exit(gdal_close(ds), add = TRUE)
 
-  set_color_interpretation(get_raster_band(ds, 1), "Red")
-  expect_identical(get_color_interpretation_name(get_raster_band(ds, 1)), "Red")
+  band <- get_raster_band(ds, 1)
+  band@color_interpretation <- "Red"
+  expect_identical(get_raster_band(ds, 1)@color_interpretation_name, "Red")
 
-  expect_error(set_color_interpretation(get_raster_band(ds, 2), "Puce"),
+  other <- get_raster_band(ds, 2)
+  expect_error(other@color_interpretation <- "Puce",
                "not a colour interpretation")
 })
 
@@ -283,8 +285,8 @@ test_that("a COG built from R is a COG by the driver's own account", {
   # makes the layout what it is.
   source_path <- tempfile(fileext = ".tif")
   ds <- gdal_create(source_path, 512, 512, bands = 1, type = "Float32")
-  set_geotransform(ds, c(0, 1, 0, 512, 0, -1))
-  set_crs(ds, "EPSG:3857")
+  ds@geotransform <- c(0, 1, 0, 512, 0, -1)
+  ds@crs <- "EPSG:3857"
   write_raster(ds, list(as.double(seq_len(512 * 512))))
   gdal_close(ds)
 
@@ -303,12 +305,12 @@ test_that("a COG built from R is a COG by the driver's own account", {
   expect_identical(get_metadata_item(cog, "LAYOUT", "IMAGE_STRUCTURE"), "COG")
   expect_identical(get_metadata_item(cog, "COMPRESSION", "IMAGE_STRUCTURE"),
                    "DEFLATE")
-  expect_identical(unname(get_block_size(band)), c(128L, 128L))
-  expect_true(get_overview_count(band) >= 1L)
+  expect_identical(unname(band@block_size), c(128L, 128L))
+  expect_true(band@overview_count >= 1L)
 
   # And it holds what went in.
   expect_identical(read_raster(band, window = c(0, 0, 8, 1)), as.double(1:8))
-  expect_match(get_projection(cog), "Pseudo-Mercator")
+  expect_match(cog@projection, "Pseudo-Mercator")
 })
 
 test_that("a copy takes a dataset as well as a path", {
@@ -317,7 +319,7 @@ test_that("a copy takes a dataset as well as a path", {
   on.exit(gdal_close(ds), add = TRUE)
 
   out <- gdal_create_copy(ds, path, progress = FALSE)
-  expect_identical(get_raster_count(out), get_raster_count(ds))
+  expect_identical(out@raster_count, ds@raster_count)
   gdal_close(out)
 })
 
@@ -398,7 +400,7 @@ test_that("a thread-safe view does not outlive its dataset", {
   gc()
   again <- gdal_open(test_tif())
   on.exit(gdal_close(again), add = TRUE)
-  expect_identical(get_raster_xsize(again), 20L)
+  expect_identical(again@raster_xsize, 20L)
 })
 
 test_that("a thread-safe view survives the garbage collector", {
@@ -409,11 +411,11 @@ test_that("a thread-safe view survives the garbage collector", {
 
   for (i in 1:50) {
     safe <- get_thread_safe_dataset(ds)
-    expect_identical(get_raster_xsize(safe), get_raster_xsize(ds))
+    expect_identical(safe@raster_xsize, ds@raster_xsize)
     rm(safe)
     gc()
   }
-  expect_identical(get_raster_xsize(ds), 20L)
+  expect_identical(ds@raster_xsize, 20L)
 })
 
 # ============================================================================

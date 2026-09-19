@@ -5,11 +5,11 @@ test_that("a dataset opens and reports its shape", {
   expect_s3_class(ds, "GDAL7::GDALDataset")
   expect_s3_class(ds, "GDAL7::GDALMajorObject")
 
-  expect_identical(get_raster_xsize(ds), 20L)
-  expect_identical(get_raster_ysize(ds), 10L)
-  expect_identical(get_raster_count(ds), 2L)
-  expect_identical(get_layer_count(ds), 0L)
-  expect_identical(get_gcpcount(ds), 0L)
+  expect_identical(ds@raster_xsize, 20L)
+  expect_identical(ds@raster_ysize, 10L)
+  expect_identical(ds@raster_count, 2L)
+  expect_identical(ds@layer_count, 0L)
+  expect_identical(ds@gcp_count, 0L)
 })
 
 test_that("opening a dataset that does not exist errors", {
@@ -20,29 +20,29 @@ test_that("projection comes back as WKT", {
   ds <- gdal_open(test_tif())
   on.exit(gdal_close(ds))
 
-  wkt <- get_projection(ds)
+  wkt <- ds@projection
   expect_type(wkt, "character")
   expect_match(wkt, "WGS 84")
-  expect_identical(get_projection_ref(ds), wkt)
+  expect_identical(ds@projection_ref, wkt)
 })
 
 test_that("the dataset knows its own driver and files", {
   ds <- gdal_open(test_tif())
   on.exit(gdal_close(ds))
 
-  expect_identical(get_short_name(get_driver(ds)), "GTiff")
-  expect_true(basename(test_tif()) %in% basename(get_file_list(ds)))
+  expect_identical(get_driver(ds)@short_name, "GTiff")
+  expect_true(basename(test_tif()) %in% basename(ds@file_list))
 })
 
 test_that("description round-trips and metadata is readable", {
   ds <- gdal_open(test_tif())
   on.exit(gdal_close(ds))
 
-  expect_identical(get_description(ds), test_tif())
-  set_description(ds, "a new description")
-  expect_identical(get_description(ds), "a new description")
+  expect_identical(ds@description, test_tif())
+  ds@description <- "a new description"
+  expect_identical(ds@description, "a new description")
 
-  expect_type(get_metadata_domain_list(ds), "character")
+  expect_type(ds@metadata_domain_list, "character")
   expect_type(get_metadata_list(ds, ""), "character")
   expect_type(get_metadata_item(ds, "AREA_OR_POINT", ""), "character")
 })
@@ -50,7 +50,7 @@ test_that("description round-trips and metadata is readable", {
 test_that("using a dataset after close is an error, not a crash", {
   ds <- gdal_open(test_tif())
   gdal_close(ds)
-  expect_error(get_raster_xsize(ds), "has been closed")
+  expect_error(ds@raster_xsize, "has been closed")
 })
 
 test_that("the dataset print method dispatches", {

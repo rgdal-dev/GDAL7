@@ -23,14 +23,14 @@ read one rather than how to store it.}
 A WKT string.
 }
 \description{
-The conversion \code{\link[=set_crs]{set_crs()}} does, on its own, for checking a CRS string or
+The conversion a dataset's \code{crs} property does, on its own, for checking a CRS string or
 for seeing what one says.
 }
 \details{
 WKT2 is the default because WKT1 cannot carry everything a modern CRS
 holds: a projection WKT2 names exactly comes back out of WKT1 as
 \code{PROJCS["unknown"]}. WKT1 is still what GDAL writes into a file and what
-\code{\link[=get_projection]{get_projection()}} returns, so it is here for comparing against those.
+the \code{projection} property returns, so it is here for comparing against those.
 }
 \examples{
 substr(crs_to_wkt("EPSG:4326"), 1, 30)

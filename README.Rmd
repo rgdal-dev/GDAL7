@@ -50,41 +50,47 @@ does that as part of regenerating the bindings.
 The examples below run against a small GeoTIFF that ships with the package, so
 they need no network.
 
+What an object knows about itself is a property, read from GDAL at the moment
+it is asked for rather than copied when the object was made, and settable by
+assignment where GDAL lets it be set. What an object *does*, and anything that
+needs an argument, is a function.
+
 ```{r example}
 library(GDAL7)
 
 dsn <- system.file("extdata/test.tif", package = "GDAL7")
 ds <- gdal_open(dsn)
 
-#### MajorObject methods, shared by datasets, bands and drivers
+#### What every dataset, band and driver carries
 
-basename(get_description(ds))                # object description
-get_metadata_domain_list(ds)                 # metadata domains
-get_metadata_list(ds, "")                    # metadata as KEY=VALUE strings
-get_metadata_dict(ds, "")                    # the same, as a named vector
-get_metadata_item(ds, "AREA_OR_POINT")       # one item, NA when not set
-get_metadata_item(ds, "NO_SUCH_ITEM")
+basename(ds@description)                # what the object calls itself
+ds@metadata_domain_list                 # the metadata domains it has
 
-#### Dataset methods
+get_metadata_list(ds, "")               # metadata as KEY=VALUE strings
+get_metadata_dict(ds, "")               # the same, as a named vector
+get_metadata_item(ds, "AREA_OR_POINT")  # one item, NA when not set
 
-get_projection(ds)      # projection as WKT
-basename(get_file_list(ds))  # the files this dataset is made of
-get_gcpcount(ds)        # number of GCPs
-get_layer_count(ds)     # number of vector layers
+#### What a dataset knows
 
-c(get_raster_xsize(ds), get_raster_ysize(ds))
-get_raster_count(ds)
+substr(ds@crs, 1, 40)                   # the CRS as WKT2
+substr(ds@projection, 1, 40)            # GDAL's own WKT1 spelling
+ds@geotransform                         # pixel and line to x and y
+basename(ds@file_list)                  # the files it is made of
+ds@gcp_count
+ds@layer_count                          # vector layers, none here
 
-get_driver(ds)
+c(ds@raster_xsize, ds@raster_ysize, ds@raster_count)
 
 #### Bands
 
+# A band is taken by number, so that is a function; what it then knows about
+# itself is a property.
 band <- get_raster_band(ds, 1L)
 band
 
-get_data_type_name(band)
-get_block_size(band)
-get_nodata_value(band)
+band@data_type_name
+band@block_size
+band@nodata_value
 ```
 
 A band belongs to its dataset, so closing the dataset retires the band with it.
@@ -92,7 +98,7 @@ Reaching for one afterwards is an error rather than a crash:
 
 ```{r lifetime, error = TRUE}
 gdal_close(ds)
-get_xsize(band)
+band@xsize
 ```
 
 ### Reading pixels
@@ -106,7 +112,7 @@ with two overview levels.
 ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"))
 band <- get_raster_band(ds, 1)
 
-get_overview_sizes(band)
+band@overview_sizes
 
 # 512x256 down to 4x2, averaged.
 read_raster(band, out_size = c(4, 2), resample = "average")
@@ -137,8 +143,8 @@ service drivers: no download step, and only the bytes actually needed are read.
 gebco <- "/vsicurl/https://data.source.coop/alexgleith/gebco-2024/GEBCO_2024.tif"
 
 ds <- gdal_open(gebco)
-c(get_raster_xsize(ds), get_raster_ysize(ds))
-get_block_size(get_raster_band(ds, 1L))
+c(ds@raster_xsize, ds@raster_ysize)
+get_raster_band(ds, 1L)@block_size
 gdal_close(ds)
 
 wmts <- paste0(
@@ -147,7 +153,7 @@ wmts <- paste0(
 )
 
 ds <- gdal_open(wmts)
-get_metadata_domain_list(ds)
+ds@metadata_domain_list
 gdal_close(ds)
 ```
 
@@ -165,7 +171,7 @@ grp
 arr <- open_mdarray(grp, "temperature")
 arr
 
-get_dimensions(arr)
+arr@dimensions
 ```
 
 A read takes an origin, a count along each dimension and a step. The `dim` of
@@ -183,9 +189,9 @@ read_mdarray(arr, start = c(1, 1, 1), count = c(1, 4, 3), step = c(1, 1, 2))
 Where the values sit, and what the format says about them:
 
 ```{r mdcoords}
-get_dimension_values(arr)
+arr@dimension_values
 
-get_attributes(arr)
+arr@attributes
 ```
 
 A view slices lazily, in GDAL's own syntax, and a two-dimensional array can be
@@ -193,10 +199,10 @@ handed to the raster side of the package as an ordinary dataset.
 
 ```{r mdview}
 first <- get_view(arr, "[0,:,:]")
-get_dimensions(first)
+first@dimensions
 
 raster <- as_classic_dataset(first)
-c(get_raster_xsize(raster), get_raster_ysize(raster))
+c(raster@raster_xsize, raster@raster_ysize)
 
 gdal_close(ds)
 ```
@@ -211,7 +217,7 @@ Geometry comes back as WKB, in a list column of raw vectors:
 gpkg <- system.file("extdata/test.gpkg", package = "GDAL7")
 
 ds <- gdal_open(gpkg)
-gdal_layers(ds)
+ds@layers
 
 places <- read_vector(ds)
 places[c("name", "population")]
@@ -255,8 +261,8 @@ closed. Closing is what finishes the file.
 path <- tempfile(fileext = ".tif")
 
 ds <- gdal_create(path, 64, 48, bands = 1, type = "Float32")
-set_crs(ds, "EPSG:4326")
-set_geotransform(ds, c(-180, 360 / 64, 0, 90, 0, -180 / 48))
+ds@crs <- "EPSG:4326"
+ds@geotransform <- c(-180, 360 / 64, 0, 90, 0, -180 / 48)
 
 write_raster(ds, list(as.double(seq_len(64 * 48))))
 gdal_close(ds)
@@ -302,7 +308,7 @@ gdal_close(cog)
 
 reopened <- gdal_open(cog_path)
 get_metadata_dict(reopened, "IMAGE_STRUCTURE")
-get_block_size(get_raster_band(reopened, 1))
+get_raster_band(reopened, 1)@block_size
 gdal_close(reopened)
 ```
 
@@ -388,8 +394,8 @@ reprojected <- gdal_run("raster reproject", list(
   "bbox-crs" = "EPSG:4326"
 ), progress = FALSE)
 
-c(get_raster_xsize(reprojected), get_raster_ysize(reprojected))
-substr(get_projection(reprojected), 1, 40)
+c(reprojected@raster_xsize, reprojected@raster_ysize)
+substr(reprojected@projection, 1, 40)
 
 gdal_close(reprojected)
 gdal_close(ds)
@@ -406,7 +412,7 @@ piped <- gdal_run("raster pipeline", list(
   )
 ), progress = FALSE)
 
-c(get_raster_xsize(piped), get_raster_ysize(piped))
+c(piped@raster_xsize, piped@raster_ysize)
 gdal_close(piped)
 ```
 

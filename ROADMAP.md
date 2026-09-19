@@ -379,12 +379,17 @@ exported symbol count sharply. Which matters, because:
 
 ### 7.7 Namespace hygiene
 
-`NAMESPACE` currently exports bare generics named `get_name`, `get_description`,
-`get_offset`, `get_scale`, `get_dimensions`, `test_capability`, `flush_cache`,
-`open_group`. For a package intended as a foundation that coexists with sf, terra
-and stars, those names will collide. Properties absorb most of them; the remainder
-want a prefix or a smaller verb vocabulary. Easier to change now than after anyone
-depends on it.
+*Status: done in Stage 8, and the premise was measured rather than assumed.*
+The bare verbs turned out to collide with nothing: sf, terra, stars and vapour
+export none of `get_extent`, `get_dimensions`, `feature_count`, `flush_cache`
+or `execute_sql`, because they live in `st_*` and in short nouns like `ext`
+and `crs`. The collisions are in the prefixed names instead: `gdal_create` is
+sf's, and `gdal_version`, `apply_geotransform`, `inv_geotransform` and five of
+the `vsi_*` family are gdalraster's, with different signatures each time.
+
+What the section was right about is the shape of the fix. Properties absorb
+the accessors, and doing that took the namespace from 141 exports to 93. See
+Stage 8.
 
 ### 7.8 Progress callbacks and interruptibility
 
@@ -702,6 +707,38 @@ copied to a COG with `COMPRESS=DEFLATE` and `BLOCKSIZE=128`, and reopening it
 reports `LAYOUT: COG`, the compression, the block size, two overviews and the
 values written. A bad option value is refused by the driver's own validation
 before anything is created.
+
+### Stage 8 - Namespace hygiene
+
+*Status: done.* What an object knows about itself is a property rather than a
+verb, which is section 7.6's answer to section 7.7. `band@nodata_value`,
+`band@nodata_value <- -999`, `ds@crs`, `ds@geotransform`, `arr@dimensions`,
+`drv@short_name`. Every property is read from GDAL at the moment it is asked
+for, so none is a stale copy taken when the object was made, and the ones GDAL
+lets you change are set by assignment.
+
+The generator derives them rather than being told: a method that takes nothing
+but the object and gives back a value becomes a property, and where GDAL has a
+matching `Set` method taking exactly that one value, the property is settable.
+A GDAL that grows a new `Get`/`Set` pair grows a property without a change
+here. Three kinds of getter stay generics, for reasons written down in
+`data-raw/generate_s7.R`: one that gives back a GDAL object, because handing
+one over allocates and should look like work; one whose C symbol is newer than
+the package floor, because printing an object reads every property and
+printing must never raise; and anything named in `not_properties`. The
+properties the generator cannot see, because their subject is hand written,
+are declared in `data-raw/orchestrate.R` as a name and the helpers that read
+and write it.
+
+Two things fell out. `ds@crs` reads as WKT2 and takes anything GDAL reads,
+which needed a new accessor going through `GDALGetSpatialRef` rather than
+`GetProjectionRef`, and left `ds@projection` beside it as GDAL's own WKT1
+spelling. And S7's default constructor takes one argument per settable
+property and assigns every one at construction, which called the setters with
+an empty value, so every class that wraps a handle writes its constructor out.
+
+*Exit:* met. 141 exports down to 93, the whole suite green on GDAL 3.12, on a
+3.12 built with its algorithms off, and on 3.8.
 
 ---
 

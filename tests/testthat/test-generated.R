@@ -6,11 +6,11 @@ test_that("the generator's derived calls reach GDAL", {
   ds <- gdal_open(test_tif())
   on.exit(gdal_close(ds))
 
-  expect_match(get_file_list(ds), "test\\.tif$")
-  expect_identical(get_gcpcount(ds), 0L)
-  expect_match(get_projection(ds), "^(PROJCS|GEOGCS|PROJCRS|GEOGCRS)|^$")
-  expect_identical(get_projection(ds), get_projection_ref(ds))
-  expect_identical(get_layer_count(ds), 0L)
+  expect_match(ds@file_list, "test\\.tif$")
+  expect_identical(ds@gcp_count, 0L)
+  expect_match(ds@projection, "^(PROJCS|GEOGCS|PROJCRS|GEOGCRS)|^$")
+  expect_identical(ds@projection, ds@projection_ref)
+  expect_identical(ds@layer_count, 0L)
 })
 
 test_that("vector-side bindings answer on a raster dataset", {
@@ -59,12 +59,12 @@ test_that("the projection can be set on a writable copy", {
   )
 
   ds <- gdal_open(path, update = TRUE)
-  set_projection(ds, wkt)
+  ds@projection <- wkt
   gdal_close(ds)
 
   ds <- gdal_open(path)
   on.exit(gdal_close(ds), add = TRUE, after = FALSE)
-  expect_match(get_projection(ds), "WGS 84")
+  expect_match(ds@projection, "WGS 84")
 })
 
 test_that("a transaction on a driver that has none fails as GDAL says", {

@@ -4,7 +4,7 @@ test_that("a dataset lists its layers", {
   ds <- gdal_open(test_gpkg())
   on.exit(gdal_close(ds))
 
-  layers <- gdal_layers(ds)
+  layers <- ds@layers
 
   expect_s3_class(layers, "data.frame")
   expect_identical(layers$name, "places")

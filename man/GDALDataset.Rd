@@ -4,7 +4,7 @@
 \alias{GDALDataset}
 \title{GDAL Dataset class}
 \usage{
-GDALDataset(.ptr = NULL)
+GDALDataset(.ptr)
 }
 \arguments{
 \item{.ptr}{Internal. External pointer to the underlying GDAL object.}
