@@ -42,8 +42,8 @@ test_that("string constants are the metadata keys they name", {
   expect_true(test_capability(driver, keys[["DCAP_RASTER"]]))
 })
 
-test_that("gdal_version reports the library actually loaded", {
-  version <- gdal_version()
+test_that("gdal_release reports the library actually loaded", {
+  version <- gdal_release()
 
   expect_named(version, c("release", "date", "version"))
   expect_match(version[["release"]], "^[0-9]+\\.[0-9]+")
@@ -60,7 +60,7 @@ test_that("the capability table says what this build reaches", {
   expect_true(all(grepl("^[0-9]+\\.[0-9]+\\.[0-9]+$", capabilities$gdal)))
 
   # Availability is not a guess: it is whether this GDAL is new enough.
-  running <- package_version(gdal_version()[["release"]])
+  running <- package_version(gdal_release()[["release"]])
   expect_identical(capabilities$available,
                    package_version(capabilities$gdal) <= running)
 })

@@ -35,6 +35,24 @@
 * The generator derives the properties from GDAL's own methods, so a GDAL that
   adds a `GetX`/`SetX` pair gets a property without a change here.
 
+* Eight exports that gdalraster already owns are renamed, so that attaching
+  both packages no longer masks a function with one of a different shape. The
+  virtual file system family is `vfs_list()`, `vfs_stat()`, `vfs_exists()`,
+  `vfs_unlink()`, `vfs_mkdir()`, `vfs_rmdir()`, `vfs_rename()`, `vfs_copy()`,
+  `vfs_read_file()` and `vfs_write_file()`; the whole family moved, not only
+  the names that clashed, so that it stays one family.
+
+* `gdal_version()` is now `gdal_release()`, which is what it returns.
+
+* `apply_geotransform()` and `inv_geotransform()` are now `pixel_to_xy()` and
+  `xy_to_pixel()`. The inversion happens inside `xy_to_pixel()`, so there is
+  one call in each direction rather than a call and an inverse to compose, and
+  it returns `pixel` and `line` rather than `x` and `y`. A geotransform that
+  cannot be inverted is an error rather than a NULL to check for.
+
+* `gdal_create()` keeps its name and masks sf's, since `gdal_create_copy()`
+  beside it does not clash and the pair reads better together.
+
 ## Stage 7: write side and creation
 
 * `gdal_create()` makes a dataset from nothing and `gdal_create_copy()` copies

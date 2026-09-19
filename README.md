@@ -1,55 +1,46 @@
----
-output:
-  github_document:
-    # -smart keeps pandoc from turning ASCII quotes and dashes into their
-    # typographic forms, which would put non-ASCII bytes in a shipped file.
-    md_extensions: -smart
----
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-
-
 
 # GDAL7
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of GDAL7 is to model the GDAL api in R via SWIG. 
+The goal of GDAL7 is to model the GDAL api in R via SWIG.
 
 ## Installation
 
-You need GDAL with its development headers (`gdal-config` on its `PATH`, or
-pkg-config able to find `gdal`), then:
+You need GDAL with its development headers (`gdal-config` on its `PATH`,
+or pkg-config able to find `gdal`), then:
 
-```r
+``` r
 remotes::install_github("rgdal-dev/GDAL7")
 ```
 
 Or from a clone:
 
-```r
+``` r
 # git clone https://github.com/rgdal-dev/GDAL7 && cd GDAL7
 system("R CMD INSTALL --no-staged-install .")
 ```
 
-The cpp11 registration files (`src/cpp11.cpp`, `R/cpp11.R`) are committed, so no
-generation step is needed to install. You only need `cpp11::cpp_register()` after
-adding or changing a `[[cpp11::register]]` function; `data-raw/orchestrate.R`
-does that as part of regenerating the bindings.
+The cpp11 registration files (`src/cpp11.cpp`, `R/cpp11.R`) are
+committed, so no generation step is needed to install. You only need
+`cpp11::cpp_register()` after adding or changing a `[[cpp11::register]]`
+function; `data-raw/orchestrate.R` does that as part of regenerating the
+bindings.
 
 ## Example
 
-The examples below run against a small GeoTIFF that ships with the package, so
-they need no network.
+The examples below run against a small GeoTIFF that ships with the
+package, so they need no network.
 
-What an object knows about itself is a property, read from GDAL at the moment
-it is asked for rather than copied when the object was made, and settable by
-assignment where GDAL lets it be set. What an object *does*, and anything that
-needs an argument, is a function.
+What an object knows about itself is a property, read from GDAL at the
+moment it is asked for rather than copied when the object was made, and
+settable by assignment where GDAL lets it be set. What an object *does*,
+and anything that needs an argument, is a function.
 
-
-```r
+``` r
 library(GDAL7)
 
 dsn <- system.file("extdata/test.tif", package = "GDAL7")
@@ -114,11 +105,10 @@ band@nodata_value
 #> [1] -32768
 ```
 
-A band belongs to its dataset, so closing the dataset retires the band with it.
-Reaching for one afterwards is an error rather than a crash:
+A band belongs to its dataset, so closing the dataset retires the band
+with it. Reaching for one afterwards is an error rather than a crash:
 
-
-```r
+``` r
 gdal_close(ds)
 band@xsize
 #> Error: This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed
@@ -126,13 +116,12 @@ band@xsize
 
 ### Reading pixels
 
-A read names a window and, separately, the size to return it at. GDAL picks an
-overview level that can serve the output size, so a large window at a small
-output size costs only the bytes of that level. The fixture here is a small COG
-with two overview levels.
+A read names a window and, separately, the size to return it at. GDAL
+picks an overview level that can serve the output size, so a large
+window at a small output size costs only the bytes of that level. The
+fixture here is a small COG with two overview levels.
 
-
-```r
+``` r
 ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"))
 band <- get_raster_band(ds, 1)
 
@@ -153,11 +142,10 @@ read_raster(band, window = c(0, 0, 8, 8), out_size = c(2, 2),
 gdal_close(ds)
 ```
 
-`gdal_info()` gathers everything `gdalinfo` reports that does not need a pass
-over the pixels, in a single call rather than one per property:
+`gdal_info()` gathers everything `gdalinfo` reports that does not need a
+pass over the pixels, in a single call rather than one per property:
 
-
-```r
+``` r
 info <- gdal_info(system.file("extdata/overviews.tif", package = "GDAL7"))
 info$size
 #> xsize ysize 
@@ -171,11 +159,11 @@ info$band_info
 
 ### Remote data
 
-Any DSN GDAL understands works, which is the point of the `/vsicurl/` and
-service drivers: no download step, and only the bytes actually needed are read.
+Any DSN GDAL understands works, which is the point of the `/vsicurl/`
+and service drivers: no download step, and only the bytes actually
+needed are read.
 
-
-```r
+``` r
 gebco <- "/vsicurl/https://data.source.coop/alexgleith/gebco-2024/GEBCO_2024.tif"
 
 ds <- gdal_open(gebco)
@@ -195,11 +183,10 @@ gdal_close(ds)
 
 ### Multidimensional data
 
-NetCDF, Zarr and HDF5 hold arrays of any number of dimensions rather than bands
-of pixels. GDAL7 navigates them and reads them.
+NetCDF, Zarr and HDF5 hold arrays of any number of dimensions rather
+than bands of pixels. GDAL7 navigates them and reads them.
 
-
-```r
+``` r
 ds <- gdal_open(system.file("extdata/multidim.zarr", package = "GDAL7"),
                 multidim = TRUE)
 grp <- get_root_group(ds)
@@ -224,12 +211,12 @@ arr@dimensions
 #> 3  lon    5 HORIZONTAL_X      EAST    TRUE
 ```
 
-A read takes an origin, a count along each dimension and a step. The `dim` of
-what comes back is the reverse of the array's own dimension order, and carries
-the dimension names, so there is never a question of which axis is which.
+A read takes an origin, a count along each dimension and a step. The
+`dim` of what comes back is the reverse of the array's own dimension
+order, and carries the dimension names, so there is never a question of
+which axis is which.
 
-
-```r
+``` r
 values <- read_mdarray(arr)
 dim(values)
 #>  lon  lat time 
@@ -247,8 +234,7 @@ read_mdarray(arr, start = c(1, 1, 1), count = c(1, 4, 3), step = c(1, 1, 2))
 
 Where the values sit, and what the format says about them:
 
-
-```r
+``` r
 arr@dimension_values
 #> $time
 #> [1] 0 1 2
@@ -270,11 +256,10 @@ arr@attributes
 #> [1] -50  50
 ```
 
-A view slices lazily, in GDAL's own syntax, and a two-dimensional array can be
-handed to the raster side of the package as an ordinary dataset.
+A view slices lazily, in GDAL's own syntax, and a two-dimensional array
+can be handed to the raster side of the package as an ordinary dataset.
 
-
-```r
+``` r
 first <- get_view(arr, "[0,:,:]")
 first@dimensions
 #>   name size         type direction indexed
@@ -290,12 +275,12 @@ gdal_close(ds)
 
 ### Vector data
 
-A whole layer arrives as a data frame in one call, through the column-oriented
-Arrow path GDAL added in 3.6, so there is no per-feature work in R at all.
-Geometry comes back as WKB, in a list column of raw vectors:
+A whole layer arrives as a data frame in one call, through the
+column-oriented Arrow path GDAL added in 3.6, so there is no per-feature
+work in R at all. Geometry comes back as WKB, in a list column of raw
+vectors:
 
-
-```r
+``` r
 gpkg <- system.file("extdata/test.gpkg", package = "GDAL7")
 
 ds <- gdal_open(gpkg)
@@ -315,12 +300,11 @@ places[c("name", "population")]
 gdal_close(ds)
 ```
 
-Filters are set on the layer and apply to everything read afterwards. A spatial
-filter is what makes a large layer cheap, because a driver with a spatial index
-uses it rather than reading every feature:
+Filters are set on the layer and apply to everything read afterwards. A
+spatial filter is what makes a large layer cheap, because a driver with
+a spatial index uses it rather than reading every feature:
 
-
-```r
+``` r
 ds <- gdal_open(gpkg)
 layer <- get_layer(ds, "places")
 
@@ -335,11 +319,10 @@ read_vector(execute_sql(ds, "SELECT name FROM places ORDER BY name LIMIT 2"))
 gdal_close(ds)
 ```
 
-The same path runs the other way, so a data frame with a WKB column writes back
-out as a layer:
+The same path runs the other way, so a data frame with a WKB column
+writes back out as a layer:
 
-
-```r
+``` r
 path <- tempfile(fileext = ".gpkg")
 write_vector(places, path, layer = "places", crs = "EPSG:4326",
              geometry_type = "Point")
@@ -351,11 +334,10 @@ unlink(path)
 
 ### Creating and writing
 
-A dataset is made with a size, a band count and a type, written into, and
-closed. Closing is what finishes the file.
+A dataset is made with a size, a band count and a type, written into,
+and closed. Closing is what finishes the file.
 
-
-```r
+``` r
 path <- tempfile(fileext = ".tif")
 
 ds <- gdal_create(path, 64, 48, bands = 1, type = "Float32")
@@ -376,11 +358,10 @@ substr(info$projection, 1, 30)
 #> [1] "GEOGCS[\"WGS 84\",DATUM[\"WGS_198"
 ```
 
-Creation options are a table, read out of the driver's own metadata, rather
-than a string of XML to parse or a list of names to remember:
+Creation options are a table, read out of the driver's own metadata,
+rather than a string of XML to parse or a list of names to remember:
 
-
-```r
+``` r
 options <- driver_options("GTiff")
 options[options$name %in% c("COMPRESS", "TILED", "BLOCKXSIZE"),
         c("name", "type", "default")]
@@ -393,11 +374,11 @@ options$choices[[which(options$name == "COMPRESS")]][1:6]
 #> [1] "NONE"      "LZW"       "PACKBITS"  "JPEG"      "CCITTRLE"  "CCITTFAX3"
 ```
 
-They are asked about before anything is made, so a name the driver does not
-have, or a value it will not take, is an error rather than a file left behind:
+They are asked about before anything is made, so a name the driver does
+not have, or a value it will not take, is an error rather than a file
+left behind:
 
-
-```r
+``` r
 validate_creation_options("GTiff", c(COMPRESS = "DEFLATE"))
 #> [1] TRUE
 validate_creation_options("GTiff", c(COMPRES = "DEFLATE"))
@@ -408,11 +389,11 @@ gdal_create(tempfile(fileext = ".tif"), 4, 4,
 #> Error: The GTiff driver does not take these creation options: 'NOT_A_CODEC' is an unexpected value for COMPRESS creation option of type string-select.
 ```
 
-`gdal_create_copy()` puts an existing dataset through a driver, which is how a
-COG gets made: the driver builds the overviews and lays the file out itself.
+`gdal_create_copy()` puts an existing dataset through a driver, which is
+how a COG gets made: the driver builds the overviews and lays the file
+out itself.
 
-
-```r
+``` r
 cog_path <- tempfile(fileext = ".tif")
 
 cog <- gdal_create_copy(path, cog_path, driver = "COG",
@@ -430,11 +411,10 @@ get_raster_band(reopened, 1)@block_size
 gdal_close(reopened)
 ```
 
-`gdal_drivers()` says which drivers can do which of those things, in one pass
-over the driver manager:
+`gdal_drivers()` says which drivers can do which of those things, in one
+pass over the driver manager:
 
-
-```r
+``` r
 # Raster drivers that can make a dataset from nothing, rather than only copy
 # an existing one.
 drivers <- gdal_drivers(c("DCAP_RASTER", "DCAP_CREATE"))
@@ -451,31 +431,29 @@ head(drivers[c("short_name", "copy", "vsi", "extensions")], 5)
 
 ### Virtual file systems
 
-Every GDAL path works, not only files on disk, and they compose. A dataset
-built at a `/vsimem/` path never reaches the disk, and its bytes come back as
-raw:
+Every GDAL path works, not only files on disk, and they compose. A
+dataset built at a `/vsimem/` path never reaches the disk, and its bytes
+come back as raw:
 
-
-```r
+``` r
 ds <- gdal_create("/vsimem/small.tif", 4, 4, bands = 1, type = "Byte")
 write_raster(ds, list(as.double(seq_len(16))))
 gdal_close(ds)
 
-vsi_stat("/vsimem/small.tif")$size
+vfs_stat("/vsimem/small.tif")$size
 #> [1] 162
-bytes <- vsi_read_file("/vsimem/small.tif")
+bytes <- vfs_read_file("/vsimem/small.tif")
 rawToChar(bytes[1:2])
 #> [1] "II"
 
-vsi_unlink("/vsimem/small.tif")
+vfs_unlink("/vsimem/small.tif")
 ```
 
-GDAL reads its configuration options at the moment it needs them, so setting
-one changes how the next call behaves. `with_gdal_config()` sets them for one
-expression and puts back exactly what was there:
+GDAL reads its configuration options at the moment it needs them, so
+setting one changes how the next call behaves. `with_gdal_config()` sets
+them for one expression and puts back exactly what was there:
 
-
-```r
+``` r
 with_gdal_config(c(GDAL_CACHEMAX = "16"), gdal_config("GDAL_CACHEMAX"))
 #> [1] "16"
 gdal_config("GDAL_CACHEMAX")
@@ -484,18 +462,18 @@ gdal_config("GDAL_CACHEMAX")
 
 ### Algorithms
 
-GDAL 3.11 added a registry of the algorithms its own command line is built
-from. GDAL7 binds the registry rather than each utility, so what `gdal` can do
-arrives with GDAL rather than with a GDAL7 release.
+GDAL 3.11 added a registry of the algorithms its own command line is
+built from. GDAL7 binds the registry rather than each utility, so what
+`gdal` can do arrives with GDAL rather than with a GDAL7 release.
 
-`gdal_has_algorithms()` says whether this build has any. Having the API is not
-the same as having the algorithms: a GDAL can be built with them turned off,
-and before 3.12 they registered themselves as a side effect of being loaded,
-which a static link leaves out. The Windows build here links GDAL statically,
-and answers FALSE today; Linux and macOS have the algorithms.
+`gdal_has_algorithms()` says whether this build has any. Having the API
+is not the same as having the algorithms: a GDAL can be built with them
+turned off, and before 3.12 they registered themselves as a side effect
+of being loaded, which a static link leaves out. The Windows build here
+links GDAL statically, and answers FALSE today; Linux and macOS have the
+algorithms.
 
-
-```r
+``` r
 gdal_algorithms()
 #> [1] "convert"  "dataset"  "info"     "mdim"     "pipeline" "raster"   "vector"  
 #> [8] "vsi"
@@ -506,11 +484,10 @@ head(gdal_algorithms("raster"), 12)
 #> [11] "create"       "edit"
 ```
 
-Every algorithm describes itself, so there is no table of arguments in this
-package to fall out of date.
+Every algorithm describes itself, so there is no table of arguments in
+this package to fall out of date.
 
-
-```r
+``` r
 info <- gdal_algorithm_info("raster reproject")
 info$description
 #> [1] "Reproject a raster dataset."
@@ -527,12 +504,11 @@ head(info$arguments[c("name", "type", "required")], 8)
 #> 8        quiet      boolean    FALSE
 ```
 
-Arguments go in by name. An algorithm told to write to memory hands back a
-dataset and touches no disk; one given a file name writes it, closes it and
-hands back the path.
+Arguments go in by name. An algorithm told to write to memory hands back
+a dataset and touches no disk; one given a file name writes it, closes
+it and hands back the path.
 
-
-```r
+``` r
 ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
 
 reprojected <- gdal_run("raster reproject", list(
@@ -555,8 +531,7 @@ gdal_close(ds)
 
 Pipelines work the same way, with the steps written as GDAL writes them:
 
-
-```r
+``` r
 piped <- gdal_run("raster pipeline", list(
   pipeline = paste(
     "read", system.file("extdata/overviews.tif", package = "GDAL7"),
@@ -576,11 +551,10 @@ A long algorithm draws a progress bar and stops on Ctrl-C.
 
 ### Constants and capabilities
 
-The enumerators and metadata keys that GDAL declares come through as two named
-vectors, rather than two hundred exported names:
+The enumerators and metadata keys that GDAL declares come through as two
+named vectors, rather than two hundred exported names:
 
-
-```r
+``` r
 gdal_constants("GDT_")[1:6]
 #> GDT_Unknown    GDT_Byte    GDT_Int8  GDT_UInt16   GDT_Int16  GDT_UInt32 
 #>           0           1          14           2           3           4
@@ -591,25 +565,23 @@ gdal_string_constants("DCAP_")[1:3]
 #> "DCAP_CREATE_MULTIDIMENSIONAL"
 ```
 
-The dimensions of a dataset are S7 properties, read from GDAL each time rather
-than copied when the object was made:
+The dimensions of a dataset are S7 properties, read from GDAL each time
+rather than copied when the object was made:
 
-
-```r
+``` r
 ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
 c(ds@raster_xsize, ds@raster_ysize, ds@raster_count)
 #> [1] 20 10  2
 gdal_close(ds)
 ```
 
-A few bindings call GDAL functions newer than the minimum GDAL7 requires. They
-always exist and always dispatch; calling one that the GDAL in use is too old
-for raises an error naming the release it needs. `gdal7_capabilities()` is how
-to ask first:
+A few bindings call GDAL functions newer than the minimum GDAL7
+requires. They always exist and always dispatch; calling one that the
+GDAL in use is too old for raises an error naming the release it needs.
+`gdal7_capabilities()` is how to ask first:
 
-
-```r
-gdal_version()[["release"]]
+``` r
+gdal_release()[["release"]]
 #> [1] "3.12.4"
 gdal7_capabilities()
 #>                              binding   gdal available
@@ -622,4 +594,7 @@ gdal7_capabilities()
 
 ## Code of Conduct
 
-Please note that the GDAL7 project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.
+Please note that the GDAL7 project is released with a [Contributor Code
+of
+Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
+By contributing to this project, you agree to abide by its terms.

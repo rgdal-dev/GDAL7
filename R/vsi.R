@@ -10,38 +10,38 @@
 #' `/vsizip//vsicurl/https://example.org/a.zip/b.tif` is a file inside a zip
 #' that is never downloaded whole.
 #'
-#' `vsi_list()` returns NULL rather than an error for a path that is not a
+#' `vfs_list()` returns NULL rather than an error for a path that is not a
 #' directory or holds nothing, since a caller cannot otherwise tell the two
-#' apart. `vsi_stat()` returns NULL for a path that is not there.
+#' apart. `vfs_stat()` returns NULL for a path that is not there.
 #'
 #' @param path A VSI path.
 #' @param limit Roughly the most entries to list. -1, the default, is all of
 #'   them; a limit is what makes listing a large remote prefix bearable. GDAL
 #'   reads a directory in chunks and stops at the first chunk past the limit,
 #'   so a listing can come back a little longer than asked for.
-#' @return `vsi_list()` a character vector of names, or NULL. `vsi_stat()` a
-#'   list of `size`, `is_directory` and `modified`, or NULL. `vsi_exists()`
+#' @return `vfs_list()` a character vector of names, or NULL. `vfs_stat()` a
+#'   list of `size`, `is_directory` and `modified`, or NULL. `vfs_exists()`
 #'   TRUE or FALSE.
 #' @export
 #' @examples
-#' vsi_exists(system.file("extdata/test.tif", package = "GDAL7"))
-#' vsi_stat(system.file("extdata/test.tif", package = "GDAL7"))$size
+#' vfs_exists(system.file("extdata/test.tif", package = "GDAL7"))
+#' vfs_stat(system.file("extdata/test.tif", package = "GDAL7"))$size
 #'
 #' # What ships with the package.
-#' vsi_list(system.file("extdata", package = "GDAL7"))
-vsi_list <- function(path, limit = -1L) {
+#' vfs_list(system.file("extdata", package = "GDAL7"))
+vfs_list <- function(path, limit = -1L) {
   GDAL7_vsi_list(path, as.integer(limit))
 }
 
-#' @rdname vsi_list
+#' @rdname vfs_list
 #' @export
-vsi_stat <- function(path) {
+vfs_stat <- function(path) {
   GDAL7_vsi_stat(path)
 }
 
-#' @rdname vsi_list
+#' @rdname vfs_list
 #' @export
-vsi_exists <- function(path) {
+vfs_exists <- function(path) {
   GDAL7_vsi_exists(path)
 }
 
@@ -56,39 +56,39 @@ vsi_exists <- function(path) {
 #' @return Nothing, invisibly. A failure is an error carrying GDAL's reason.
 #' @export
 #' @examples
-#' vsi_write_file("/vsimem/hello.txt", charToRaw("hello"))
-#' vsi_exists("/vsimem/hello.txt")
-#' vsi_unlink("/vsimem/hello.txt")
-#' vsi_exists("/vsimem/hello.txt")
-vsi_unlink <- function(path) {
+#' vfs_write_file("/vsimem/hello.txt", charToRaw("hello"))
+#' vfs_exists("/vsimem/hello.txt")
+#' vfs_unlink("/vsimem/hello.txt")
+#' vfs_exists("/vsimem/hello.txt")
+vfs_unlink <- function(path) {
   GDAL7_vsi_unlink(path)
   invisible(NULL)
 }
 
-#' @rdname vsi_unlink
+#' @rdname vfs_unlink
 #' @export
-vsi_mkdir <- function(path, mode = 0755L) {
+vfs_mkdir <- function(path, mode = 0755L) {
   GDAL7_vsi_mkdir(path, as.integer(mode))
   invisible(NULL)
 }
 
-#' @rdname vsi_unlink
+#' @rdname vfs_unlink
 #' @export
-vsi_rmdir <- function(path) {
+vfs_rmdir <- function(path) {
   GDAL7_vsi_rmdir(path)
   invisible(NULL)
 }
 
-#' @rdname vsi_unlink
+#' @rdname vfs_unlink
 #' @export
-vsi_rename <- function(from, to) {
+vfs_rename <- function(from, to) {
   GDAL7_vsi_rename(from, to)
   invisible(NULL)
 }
 
-#' @rdname vsi_unlink
+#' @rdname vfs_unlink
 #' @export
-vsi_copy <- function(from, to) {
+vfs_copy <- function(from, to) {
   GDAL7_vsi_copy(from, to)
   invisible(NULL)
 }
@@ -101,7 +101,7 @@ vsi_copy <- function(from, to) {
 #'
 #' @param path A VSI path.
 #' @param bytes A raw vector.
-#' @return `vsi_read_file()` a raw vector. `vsi_write_file()` nothing,
+#' @return `vfs_read_file()` a raw vector. `vfs_write_file()` nothing,
 #'   invisibly.
 #' @export
 #' @examples
@@ -110,18 +110,18 @@ vsi_copy <- function(from, to) {
 #' write_raster(ds, list(as.double(seq_len(16))))
 #' gdal_close(ds)
 #'
-#' bytes <- vsi_read_file("/vsimem/small.tif")
+#' bytes <- vfs_read_file("/vsimem/small.tif")
 #' length(bytes)
 #' rawToChar(bytes[1:2])
 #'
-#' vsi_unlink("/vsimem/small.tif")
-vsi_read_file <- function(path) {
+#' vfs_unlink("/vsimem/small.tif")
+vfs_read_file <- function(path) {
   GDAL7_vsi_read_file(path)
 }
 
-#' @rdname vsi_read_file
+#' @rdname vfs_read_file
 #' @export
-vsi_write_file <- function(path, bytes) {
+vfs_write_file <- function(path, bytes) {
   GDAL7_vsi_write_file(path, bytes)
   invisible(NULL)
 }

@@ -26,42 +26,48 @@ dataset_set_geotransform <- function(x, value) {
 
 #' Convert between pixel and georeferenced coordinates
 #'
-#' `apply_geotransform()` takes pixel and line positions to georeferenced ones.
-#' `inv_geotransform()` returns the geotransform that goes the other way, which
-#' is what to feed back to `apply_geotransform()` to turn coordinates into
-#' pixel positions.
+#' `pixel_to_xy()` takes pixel and line positions to georeferenced ones, and
+#' `xy_to_pixel()` takes them back again.
 #'
-#' Both are vectorised over `pixel` and `line`, so a whole set of positions is
-#' one call.
+#' Both are vectorised, so a whole set of positions is one call.
 #'
-#' @param geotransform A numeric vector of length 6, as a dataset's `geotransform` property
-#'   returns.
+#' @param geotransform A numeric vector of length 6, as a dataset's
+#'   `geotransform` property returns.
 #' @param pixel,line Numeric vectors of the same length. Fractional positions
 #'   are meaningful: whole numbers fall on pixel corners, so the centre of the
 #'   first pixel is `pixel = 0.5, line = 0.5`.
-#' @return `apply_geotransform()` returns a list of `x` and `y`.
-#'   `inv_geotransform()` returns a numeric vector of length 6, or NULL when
-#'   the geotransform cannot be inverted.
+#' @param x,y Numeric vectors of the same length, in the dataset's coordinate
+#'   reference system.
+#' @return `pixel_to_xy()` a list of `x` and `y`. `xy_to_pixel()` a list of
+#'   `pixel` and `line`.
 #' @export
 #' @examples
 #' ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
 #' gt <- ds@geotransform
 #'
 #' # The centre of the first pixel, and back again.
-#' apply_geotransform(gt, 0.5, 0.5)
-#' apply_geotransform(inv_geotransform(gt), -180 + 9, 90 - 9)
+#' pixel_to_xy(gt, 0.5, 0.5)
+#' xy_to_pixel(gt, -180 + 9, 90 - 9)
 #'
 #' gdal_close(ds)
-apply_geotransform <- function(geotransform, pixel, line) {
+pixel_to_xy <- function(geotransform, pixel, line) {
   GDAL7_apply_geotransform(
     as.double(geotransform), as.double(pixel), as.double(line)
   )
 }
 
-#' @rdname apply_geotransform
+#' @rdname pixel_to_xy
 #' @export
-inv_geotransform <- function(geotransform) {
-  GDAL7_inv_geotransform(as.double(geotransform))
+xy_to_pixel <- function(geotransform, x, y) {
+  inverse <- GDAL7_inv_geotransform(as.double(geotransform))
+  if (is.null(inverse)) {
+    # A geotransform with a zero determinant maps every pixel onto the same
+    # place, so there is no position to give back.
+    stop("this geotransform cannot be inverted", call. = FALSE)
+  }
+  out <- GDAL7_apply_geotransform(inverse, as.double(x), as.double(y))
+  names(out) <- c("pixel", "line")
+  out
 }
 
 # ============================================================================

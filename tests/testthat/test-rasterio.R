@@ -12,20 +12,21 @@ test_that("pixel and georeferenced coordinates convert both ways", {
   ds <- gdal_open(test_tif())
   gt <- ds@geotransform
 
-  corners <- apply_geotransform(gt, c(0, 20), c(0, 10))
+  corners <- pixel_to_xy(gt, c(0, 20), c(0, 10))
   expect_equal(corners$x, c(-180, 180))
   expect_equal(corners$y, c(90, -90))
 
-  # Round trip through the inverse lands back where it started.
-  point <- apply_geotransform(gt, 3.5, 4.5)
-  back <- apply_geotransform(inv_geotransform(gt), point$x, point$y)
-  expect_equal(back$x, 3.5)
-  expect_equal(back$y, 4.5)
+  # Round trip lands back where it started.
+  point <- pixel_to_xy(gt, 3.5, 4.5)
+  back <- xy_to_pixel(gt, point$x, point$y)
+  expect_named(back, c("pixel", "line"))
+  expect_equal(back$pixel, 3.5)
+  expect_equal(back$line, 4.5)
 })
 
-test_that("apply_geotransform is vectorised and keeps NA as NA", {
+test_that("pixel_to_xy is vectorised and keeps NA as NA", {
   gt <- c(0, 1, 0, 0, 0, -1)
-  out <- apply_geotransform(gt, c(0, 1, NA), c(0, 1, 2))
+  out <- pixel_to_xy(gt, c(0, 1, NA), c(0, 1, 2))
 
   expect_length(out$x, 3L)
   expect_equal(out$x[1:2], c(0, 1))
@@ -33,12 +34,13 @@ test_that("apply_geotransform is vectorised and keeps NA as NA", {
   expect_true(is.na(out$y[3]))
 })
 
-test_that("a geotransform that cannot be inverted gives NULL", {
-  expect_null(inv_geotransform(c(0, 0, 0, 0, 0, 0)))
+test_that("a geotransform that cannot be inverted is an error", {
+  expect_error(xy_to_pixel(c(0, 0, 0, 0, 0, 0), 1, 1), "cannot be inverted")
 })
 
 test_that("a geotransform must be six numbers", {
-  expect_error(inv_geotransform(c(1, 2, 3)), "6 numbers")
+  expect_error(xy_to_pixel(c(1, 2, 3), 1, 1), "6 numbers")
+  expect_error(pixel_to_xy(c(1, 2, 3), 1, 1), "6 numbers")
 })
 
 test_that("overviews are reported and can be opened", {

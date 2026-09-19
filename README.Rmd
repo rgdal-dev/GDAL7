@@ -334,11 +334,11 @@ ds <- gdal_create("/vsimem/small.tif", 4, 4, bands = 1, type = "Byte")
 write_raster(ds, list(as.double(seq_len(16))))
 gdal_close(ds)
 
-vsi_stat("/vsimem/small.tif")$size
-bytes <- vsi_read_file("/vsimem/small.tif")
+vfs_stat("/vsimem/small.tif")$size
+bytes <- vfs_read_file("/vsimem/small.tif")
 rawToChar(bytes[1:2])
 
-vsi_unlink("/vsimem/small.tif")
+vfs_unlink("/vsimem/small.tif")
 ```
 
 GDAL reads its configuration options at the moment it needs them, so setting
@@ -443,7 +443,7 @@ for raises an error naming the release it needs. `gdal7_capabilities()` is how
 to ask first:
 
 ```{r capabilities}
-gdal_version()[["release"]]
+gdal_release()[["release"]]
 gdal7_capabilities()
 ```
 

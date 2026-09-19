@@ -3,34 +3,34 @@
 test_that("a file on disk is found and measured", {
   path <- test_tif()
 
-  expect_true(vsi_exists(path))
-  expect_false(vsi_exists(paste0(path, ".not-there")))
+  expect_true(vfs_exists(path))
+  expect_false(vfs_exists(paste0(path, ".not-there")))
 
-  info <- vsi_stat(path)
+  info <- vfs_stat(path)
   expect_named(info, c("size", "is_directory", "modified"))
   expect_identical(info$size, as.double(file.size(path)))
   expect_false(info$is_directory)
 
-  expect_null(vsi_stat(paste0(path, ".not-there")))
+  expect_null(vfs_stat(paste0(path, ".not-there")))
 })
 
 test_that("a directory is listed, and a file is not a directory", {
-  entries <- vsi_list(dirname(test_tif()))
+  entries <- vfs_list(dirname(test_tif()))
 
   expect_type(entries, "character")
   expect_true("test.tif" %in% entries)
 
-  expect_true(vsi_stat(dirname(test_tif()))$is_directory)
+  expect_true(vfs_stat(dirname(test_tif()))$is_directory)
   # A path with nothing under it answers NULL rather than raising, since a
   # caller cannot otherwise tell an empty directory from a file.
-  expect_null(vsi_list(test_tif()))
+  expect_null(vfs_list(test_tif()))
 })
 
 test_that("a listing can be cut short", {
-  all_entries <- vsi_list(dirname(test_tif()))
+  all_entries <- vfs_list(dirname(test_tif()))
   skip_if(length(all_entries) < 3, "too few files here to cut a listing short")
 
-  entries <- vsi_list(dirname(test_tif()), limit = 1)
+  entries <- vfs_list(dirname(test_tif()), limit = 1)
 
   # GDAL reads a directory in chunks and stops at the first chunk past the
   # limit, so the limit is a hint rather than a promise. What it does promise
@@ -45,28 +45,28 @@ test_that("a listing can be cut short", {
 # ============================================================================
 
 test_that("bytes go into memory and come back", {
-  on.exit(try(vsi_unlink("/vsimem/hello.txt"), silent = TRUE), add = TRUE)
+  on.exit(try(vfs_unlink("/vsimem/hello.txt"), silent = TRUE), add = TRUE)
 
   bytes <- charToRaw("hello, vsimem")
-  vsi_write_file("/vsimem/hello.txt", bytes)
+  vfs_write_file("/vsimem/hello.txt", bytes)
 
-  expect_true(vsi_exists("/vsimem/hello.txt"))
-  expect_identical(vsi_stat("/vsimem/hello.txt")$size, as.double(length(bytes)))
-  expect_identical(vsi_read_file("/vsimem/hello.txt"), bytes)
+  expect_true(vfs_exists("/vsimem/hello.txt"))
+  expect_identical(vfs_stat("/vsimem/hello.txt")$size, as.double(length(bytes)))
+  expect_identical(vfs_read_file("/vsimem/hello.txt"), bytes)
 
-  vsi_unlink("/vsimem/hello.txt")
-  expect_false(vsi_exists("/vsimem/hello.txt"))
+  vfs_unlink("/vsimem/hello.txt")
+  expect_false(vfs_exists("/vsimem/hello.txt"))
 })
 
 test_that("an empty file is a file", {
-  on.exit(try(vsi_unlink("/vsimem/empty"), silent = TRUE), add = TRUE)
+  on.exit(try(vfs_unlink("/vsimem/empty"), silent = TRUE), add = TRUE)
 
-  vsi_write_file("/vsimem/empty", raw(0))
-  expect_identical(vsi_read_file("/vsimem/empty"), raw(0))
+  vfs_write_file("/vsimem/empty", raw(0))
+  expect_identical(vfs_read_file("/vsimem/empty"), raw(0))
 })
 
 test_that("a dataset built in memory never reaches the disk", {
-  on.exit(try(vsi_unlink("/vsimem/small.tif"), silent = TRUE), add = TRUE)
+  on.exit(try(vfs_unlink("/vsimem/small.tif"), silent = TRUE), add = TRUE)
 
   before <- length(list.files(tempdir(), recursive = TRUE))
 
@@ -82,36 +82,36 @@ test_that("a dataset built in memory never reaches the disk", {
   on.exit(gdal_close(reopened), add = TRUE)
   expect_identical(read_raster(reopened)[[1]], as.double(seq_len(16)))
 
-  bytes <- vsi_read_file("/vsimem/small.tif")
+  bytes <- vfs_read_file("/vsimem/small.tif")
   expect_true(length(bytes) > 0)
   expect_true(rawToChar(bytes[1:2]) %in% c("II", "MM"))
 })
 
 test_that("directories, renames and copies work in memory", {
   on.exit({
-    try(vsi_unlink("/vsimem/dir/b.txt"), silent = TRUE)
-    try(vsi_unlink("/vsimem/dir/c.txt"), silent = TRUE)
-    try(vsi_rmdir("/vsimem/dir"), silent = TRUE)
+    try(vfs_unlink("/vsimem/dir/b.txt"), silent = TRUE)
+    try(vfs_unlink("/vsimem/dir/c.txt"), silent = TRUE)
+    try(vfs_rmdir("/vsimem/dir"), silent = TRUE)
   }, add = TRUE)
 
-  vsi_mkdir("/vsimem/dir")
-  expect_true(vsi_stat("/vsimem/dir")$is_directory)
+  vfs_mkdir("/vsimem/dir")
+  expect_true(vfs_stat("/vsimem/dir")$is_directory)
 
-  vsi_write_file("/vsimem/dir/a.txt", charToRaw("a"))
-  vsi_rename("/vsimem/dir/a.txt", "/vsimem/dir/b.txt")
-  expect_false(vsi_exists("/vsimem/dir/a.txt"))
-  expect_identical(vsi_read_file("/vsimem/dir/b.txt"), charToRaw("a"))
+  vfs_write_file("/vsimem/dir/a.txt", charToRaw("a"))
+  vfs_rename("/vsimem/dir/a.txt", "/vsimem/dir/b.txt")
+  expect_false(vfs_exists("/vsimem/dir/a.txt"))
+  expect_identical(vfs_read_file("/vsimem/dir/b.txt"), charToRaw("a"))
 
-  vsi_copy("/vsimem/dir/b.txt", "/vsimem/dir/c.txt")
-  expect_identical(vsi_read_file("/vsimem/dir/c.txt"), charToRaw("a"))
-  expect_true(all(c("b.txt", "c.txt") %in% vsi_list("/vsimem/dir")))
+  vfs_copy("/vsimem/dir/b.txt", "/vsimem/dir/c.txt")
+  expect_identical(vfs_read_file("/vsimem/dir/c.txt"), charToRaw("a"))
+  expect_true(all(c("b.txt", "c.txt") %in% vfs_list("/vsimem/dir")))
 })
 
 test_that("what cannot be done says so, with GDAL's reason where there is one", {
-  expect_error(vsi_unlink("/vsimem/not-there"), "Could not delete")
-  expect_error(vsi_read_file("/vsimem/not-there"), "Could not open")
-  expect_error(vsi_rmdir("/vsimem/not-there"), "Could not remove the directory")
-  expect_error(vsi_write_file("/vsimem/x", "not raw"), "must be a raw vector")
+  expect_error(vfs_unlink("/vsimem/not-there"), "Could not delete")
+  expect_error(vfs_read_file("/vsimem/not-there"), "Could not open")
+  expect_error(vfs_rmdir("/vsimem/not-there"), "Could not remove the directory")
+  expect_error(vfs_write_file("/vsimem/x", "not raw"), "must be a raw vector")
 })
 
 # ============================================================================

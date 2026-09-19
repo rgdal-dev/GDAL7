@@ -388,8 +388,11 @@ sf's, and `gdal_version`, `apply_geotransform`, `inv_geotransform` and five of
 the `vsi_*` family are gdalraster's, with different signatures each time.
 
 What the section was right about is the shape of the fix. Properties absorb
-the accessors, and doing that took the namespace from 141 exports to 93. See
-Stage 8.
+the accessors, and doing that took the namespace from 141 exports to 93. The
+eight prefixed names that really did collide are renamed: the file system
+family to `vfs_*`, `gdal_version()` to `gdal_release()`, and the geotransform
+pair to `pixel_to_xy()` and `xy_to_pixel()`. `gdal_create()` is deliberately
+left to mask sf's. See Stage 8.
 
 ### 7.8 Progress callbacks and interruptibility
 
@@ -737,8 +740,22 @@ spelling. And S7's default constructor takes one argument per settable
 property and assigns every one at construction, which called the setters with
 an empty value, so every class that wraps a handle writes its constructor out.
 
-*Exit:* met. 141 exports down to 93, the whole suite green on GDAL 3.12, on a
-3.12 built with its algorithms off, and on 3.8.
+The collisions the section was written about are dealt with by renaming, which
+was measured rather than assumed. The virtual file system family is now
+`vfs_*`, moved whole rather than only the five names that clashed, so it stays
+one family and gdalraster's larger `vsi_*` family keeps its space.
+`gdal_version()` is `gdal_release()`, which is what it returns.
+`apply_geotransform()` and `inv_geotransform()` are `pixel_to_xy()` and
+`xy_to_pixel()`, which are better names than the ones they replace: the
+inversion happens inside `xy_to_pixel()`, so there is one call in each
+direction rather than a call and an inverse to compose. `gdal_create()` keeps
+its name and masks sf's, because `gdal_create_copy()` beside it does not
+clash and splitting the pair to avoid one mask would cost more than the mask
+does.
+
+*Exit:* met. 141 exports down to 93, no export shares a name with gdalraster,
+and the whole suite is green on GDAL 3.12, on a 3.12 built with its algorithms
+off, and on 3.8.
 
 ---
 

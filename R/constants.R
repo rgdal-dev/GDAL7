@@ -78,9 +78,9 @@ gdal7_capabilities <- function() {
 #' @return A named character vector: the `release` name, its `date`, and the
 #'   full `version` string GDAL reports.
 #' @examples
-#' gdal_version()
+#' gdal_release()
 #' @export
-gdal_version <- function() {
+gdal_release <- function() {
   info <- GDAL7_gdal_version()
   stats::setNames(info, c("release", "date", "version"))
 }
