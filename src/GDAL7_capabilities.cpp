@@ -33,6 +33,14 @@ list GDAL7_capabilities() {
     available.push_back(FALSE);
 #endif
 
+    names.push_back("dataset_as_mdarray");
+    since.push_back("3.12.0");
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 12, 0)
+    available.push_back(TRUE);
+#else
+    available.push_back(FALSE);
+#endif
+
     names.push_back("dataset_is_thread_safe");
     since.push_back("3.10.0");
 #if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 10, 0)
@@ -44,14 +52,6 @@ list GDAL7_capabilities() {
     names.push_back("dataset_get_thread_safe_dataset");
     since.push_back("3.10.0");
 #if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 10, 0)
-    available.push_back(TRUE);
-#else
-    available.push_back(FALSE);
-#endif
-
-    names.push_back("dataset_as_mdarray");
-    since.push_back("3.12.0");
-#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 12, 0)
     available.push_back(TRUE);
 #else
     available.push_back(FALSE);

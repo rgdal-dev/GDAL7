@@ -1,5 +1,52 @@
 # GDAL7 (development version)
 
+## Stage 7: write side and creation
+
+* `gdal_create()` makes a dataset from nothing and `gdal_create_copy()` copies
+  one through a driver, with a progress bar and Ctrl-C when it is worth one.
+  `gdal_delete()` removes a dataset and its sidecars through the driver that
+  knows about them.
+
+* `write_raster()` writes into a band or into several bands of a dataset in one
+  call, taking the same window and resampling arguments `read_raster()` takes.
+  `gdal_flush()` pushes what is written down to the file.
+
+* What a written raster needs is now settable rather than only readable:
+  `set_crs()`, `set_nodata_value()`, `set_scale()`, `set_offset()`,
+  `set_unit_type()` and `set_color_interpretation()`.
+
+* Creation options are a table rather than a string of XML. `driver_options()`
+  reports every option a driver takes with its type, default, range and the
+  values a fixed-choice option allows, read out of GDAL's own metadata.
+  `validate_creation_options()` asks GDAL whether a list would be accepted, and
+  `gdal_create()` and `gdal_create_copy()` ask before anything is made, so a
+  typo is an error rather than a file. This replaces `get_creation_options()`,
+  which returned the raw XML.
+
+* Options are written the way R writes things, `c(COMPRESS = "DEFLATE",
+  BLOCKSIZE = "128")` or a list, and a logical arrives as GDAL's `YES` or `NO`.
+  GDAL's own `"KEY=VALUE"` spelling still works.
+
+* `gdal_drivers()` reports raster, vector, multidim, create, copy and virtual
+  I/O capabilities and the extensions each driver claims, in one pass over the
+  driver manager rather than a call per driver per capability.
+
+* GDAL's virtual file systems are bound directly: `vsi_list()`, `vsi_stat()`,
+  `vsi_exists()`, `vsi_unlink()`, `vsi_mkdir()`, `vsi_rmdir()`, `vsi_rename()`,
+  `vsi_copy()`, `vsi_read_file()` and `vsi_write_file()`. A dataset can be built
+  at a `/vsimem/` path and its bytes read back without ever reaching the disk.
+
+* `gdal_config()`, `gdal_config_options()` and `with_gdal_config()` read, set
+  and scope GDAL's configuration options, putting back exactly what was there,
+  including leaving unset what was unset.
+
+* `get_thread_safe_dataset()` hands back a view of a raster several threads may
+  read at once, and `is_thread_safe()` says whether a dataset already is one.
+  Both need GDAL 3.10; `gdal7_capabilities()` says whether this build has them.
+
+* `crs_to_wkt()` exports a CRS as WKT2 by default, with `format` and `multiline`
+  for the rest. GDAL's plain export is WKT1, which loses the projection's name.
+
 ## Stage 6: algorithms and pipelines
 
 * `gdal_run()` runs any of GDAL's own algorithms, the ones its `gdal` command

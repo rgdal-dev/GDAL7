@@ -172,52 +172,8 @@ Algorithm instantiate(cpp11::strings path) {
 // Progress and interruption
 // ---------------------------------------------------------------------------
 
-void check_interrupt(void*) { R_CheckUserInterrupt(); }
-
-// Whether the user has pressed Ctrl-C, asked without letting R jump out of
-// here. A plain R_CheckUserInterrupt() from inside a GDAL callback would
-// longjmp straight past every destructor between here and the top level,
-// leaking whatever GDAL has open. R_ToplevelExec catches that jump, so the
-// answer comes back as a value and the unwinding is ours to do.
-bool interrupt_pending() {
-    return R_ToplevelExec(check_interrupt, nullptr) == FALSE;
-}
-
-struct Progress {
-    bool show;
-    bool interrupted;
-    int printed;
-    bool finished;
-};
-
-int CPL_STDCALL report_progress(double complete, const char*, void* data) {
-    Progress* state = static_cast<Progress*>(data);
-
-    if (interrupt_pending()) {
-        state->interrupted = true;
-        // Returning false is how a GDAL progress function says stop. The
-        // algorithm then fails cleanly and the R error is raised afterwards.
-        return FALSE;
-    }
-
-    if (state->show) {
-        const int width = 40;
-        int target = static_cast<int>(complete * width);
-        if (target > width) {
-            target = width;
-        }
-        for (; state->printed < target; state->printed++) {
-            Rprintf("=");
-        }
-        // An algorithm made of several steps reports completion once per
-        // step, and one bar wants one newline.
-        if (complete >= 1.0 && !state->finished) {
-            state->finished = true;
-            Rprintf("\n");
-        }
-    }
-    return TRUE;
-}
+// The bar and the Ctrl-C answer are gdal7::Progress, in the package header,
+// because create and create_copy want the same behaviour.
 
 // ---------------------------------------------------------------------------
 // Setting arguments
@@ -540,20 +496,13 @@ SEXP GDAL7_algorithm_run(cpp11::strings path, cpp11::list args, bool progress) {
         }
     }
 
-    Progress state;
-    state.show = progress;
-    state.interrupted = false;
-    state.printed = 0;
-    state.finished = false;
+    gdal7::Progress state(progress);
 
-    const bool ran = GDALAlgorithmRun(h, report_progress, &state);
+    const bool ran = GDALAlgorithmRun(h, state.func(), state.data());
 
-    if (state.interrupted) {
-        // The condition R would have raised was swallowed to get out of GDAL
-        // in one piece, so it is raised here instead, now that everything GDAL
-        // had open has been given back.
-        cpp11::stop("The algorithm was interrupted");
-    }
+    // Raised now rather than from inside the callback, so everything GDAL had
+    // open has been given back first.
+    state.stop_if_interrupted("The algorithm");
     if (!ran) {
         err.stop("The algorithm would not run");
     }

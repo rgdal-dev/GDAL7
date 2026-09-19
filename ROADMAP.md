@@ -658,11 +658,50 @@ process rather than asserted.
 
 ### Stage 7 - Write side and creation
 
-`GDALCreate` / `CreateCopy` with creation options parsed from the driver XML
-(`src/GDAL7_driver.cpp:118` currently returns the raw XML string), `WriteRaster`,
-VSI, `CPLSetConfigOption`, thread-safe datasets from section 6.
+*Status: done.* `gdal_create()` and `gdal_create_copy()` make datasets,
+`write_raster()` writes into a band or a whole dataset, and the metadata a
+written raster needs (`set_crs()`, `set_nodata_value()`, `set_scale()`,
+`set_offset()`, `set_unit_type()`, `set_color_interpretation()`) is settable
+rather than only readable.
 
-*Exit:* create a COG from R, validate it with the driver's own checks.
+Creation options are data, not a string. `driver_options()` parses the driver's
+own XML into a table of name, type, description, default, range, and the values
+a fixed-choice option will take, which replaces the raw XML string
+`get_creation_options()` used to hand back. `validate_creation_options()` asks
+GDAL whether a list would be accepted, and both create functions ask before
+anything is made, so a typo costs nothing instead of leaving a file behind.
+Options are written as R would write them, `c(COMPRESS = "DEFLATE",
+BLOCKSIZE = "128")`, and a logical arrives as GDAL's own `YES` or `NO`.
+
+`gdal_drivers()` is now one pass over the driver manager rather than a call per
+driver per capability, and reports what each driver can do and the extensions it
+claims.
+
+The virtual file systems are bound directly: `vsi_list()`, `vsi_stat()`,
+`vsi_exists()`, `vsi_unlink()`, `vsi_mkdir()`, `vsi_rmdir()`, `vsi_rename()`,
+`vsi_copy()`, `vsi_read_file()` and `vsi_write_file()` work over any GDAL path,
+so a dataset can be built at a `/vsimem/` path and its bytes read back without
+ever reaching the disk. `gdal_config()`, `gdal_config_options()` and
+`with_gdal_config()` are the configuration options that steer them.
+
+Thread-safe datasets, held over from section 6, are `get_thread_safe_dataset()`
+and `is_thread_safe()`. They are hand-written rather than generated for two
+reasons the generator cannot see: the scope argument has exactly one supported
+value, and the view is held by reference, so it is given back with
+`GDALReleaseDataset()` rather than closed. Taking a view also takes a reference
+on the dataset it came from, so that dataset is given back too from then on,
+and whichever goes last is what deletes it.
+
+`crs_to_wkt()` exports a CRS as WKT2 by default. GDAL's plain WKT export is
+WKT1, which loses the projection's name, so asking for WKT1 is possible but not
+what happens by accident.
+
+*Exit:* met, and tested in `tests/testthat/test-create.R` and
+`tests/testthat/test-vsi.R`. A 512x512 Float32 raster is built from nothing,
+copied to a COG with `COMPRESS=DEFLATE` and `BLOCKSIZE=128`, and reopening it
+reports `LAYOUT: COG`, the compression, the block size, two overviews and the
+values written. A bad option value is refused by the driver's own validation
+before anything is created.
 
 ---
 

@@ -66,8 +66,9 @@ hand_written_symbols <- function() {
   symbols <- character()
   for (file in files) {
     text <- paste(readLines(file, warn = FALSE), collapse = "\n")
-    # A call: a GDAL, OGR, OSR or CPL name with an opening bracket after it.
-    matches <- regmatches(text, gregexpr("\\b(GDAL|OGR|OSR|CPL)[A-Za-z0-9_]*\\s*\\(", text))[[1]]
+    # A call: a GDAL, OGR, OSR, CPL or VSI name with an opening bracket after
+    # it.
+    matches <- regmatches(text, gregexpr("\\b(GDAL|OGR|OSR|CPL|VSI)[A-Za-z0-9_]*\\s*\\(", text))[[1]]
     symbols <- c(symbols, trimws(sub("\\($", "", trimws(matches))))
   }
 

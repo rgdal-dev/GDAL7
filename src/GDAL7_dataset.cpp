@@ -58,31 +58,6 @@ bool GDAL7_dataset_get_close_reports_progress(SEXP xp) {
 }
 
 [[cpp11::register]]
-bool GDAL7_dataset_is_thread_safe(SEXP xp, int nScopeFlags) {
-#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 10, 0)
-    GDALDatasetH h = get_dataset_handle(xp);
-    return GDALDatasetIsThreadSafe(h, nScopeFlags, nullptr);
-#else
-    (void)xp;
-    (void)nScopeFlags;
-    gdal7::unavailable("is_thread_safe", "3.10.0");
-#endif
-}
-
-[[cpp11::register]]
-SEXP GDAL7_dataset_get_thread_safe_dataset(SEXP xp, int nScopeFlags) {
-#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 10, 0)
-    GDALDatasetH h = get_dataset_handle(xp);
-    GDALDatasetH result = GDALGetThreadSafeDataset(h, nScopeFlags, nullptr);
-    return gdal7::wrap(result, gdal7::Kind::Dataset, xp);
-#else
-    (void)xp;
-    (void)nScopeFlags;
-    gdal7::unavailable("get_thread_safe_dataset", "3.10.0");
-#endif
-}
-
-[[cpp11::register]]
 cpp11::strings GDAL7_dataset_get_projection(SEXP xp) {
     GDALDatasetH h = get_dataset_handle(xp);
     return gdal7::chr(GDALGetProjectionRef(h));

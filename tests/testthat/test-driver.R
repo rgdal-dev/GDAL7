@@ -38,7 +38,8 @@ test_that("gdal_drivers() returns a usable table", {
   expect_gt(nrow(d), 0L)
   expect_named(
     d,
-    c("short_name", "long_name", "raster", "vector", "create", "copy", "vsi")
+    c("short_name", "long_name", "raster", "vector", "multidim", "create",
+      "copy", "vsi", "extensions")
   )
   expect_true("GTiff" %in% d$short_name)
 

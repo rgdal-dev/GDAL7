@@ -215,6 +215,22 @@ inline SEXP wrap(void* ptr, Kind kind, SEXP parent = R_NilValue,
     return xp;
 }
 
+// Say that something else now holds a reference to this object too, so that
+// GDAL7 gives its own reference back rather than deleting the object outright.
+// GDALClose() deletes a dataset whatever its reference count says, so closing
+// one that has handed out a thread-safe view would leave that view pointing at
+// freed memory; GDALReleaseDataset() drops one reference and deletes only when
+// the last one goes, which is the order GDAL's own example uses.
+inline void share(SEXP xp) {
+    if (xp == R_NilValue || TYPEOF(xp) != EXTPTRSXP) {
+        return;
+    }
+    Handle* h = static_cast<Handle*>(R_ExternalPtrAddr(xp));
+    if (h != nullptr && h->owner != nullptr) {
+        h->owner->by_reference = true;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Reading handles back
 // ---------------------------------------------------------------------------
@@ -400,6 +416,26 @@ class ErrorScope {
         return false;
     }
 
+    // Everything GDAL said, whatever its level, for a call whose complaint is
+    // the answer rather than a condition to re-raise.
+    std::string notes() const {
+        std::string out;
+        for (const Note& note : notes_) {
+            if (!out.empty()) {
+                out += "; ";
+            }
+            out += note.message;
+        }
+        return out;
+    }
+
+    // Give up what was collected without raising anything. For a call whose
+    // messages have already been turned into the answer.
+    void discard() {
+        pop();
+        notes_.clear();
+    }
+
  private:
     struct Note {
         CPLErr level;
@@ -443,6 +479,83 @@ class ErrorScope {
 
     std::vector<Note> notes_;
     bool popped_;
+};
+
+// ---------------------------------------------------------------------------
+// Progress and interruption
+// ---------------------------------------------------------------------------
+
+namespace detail {
+inline void check_interrupt(void*) { R_CheckUserInterrupt(); }
+}  // namespace detail
+
+// Whether the user has pressed Ctrl-C, asked without letting R jump out of
+// here. A plain R_CheckUserInterrupt() from inside a GDAL callback would
+// longjmp straight past every destructor between here and the top level,
+// leaking whatever GDAL has open. R_ToplevelExec catches that jump, so the
+// answer comes back as a value and the unwinding is ours to do.
+inline bool interrupt_pending() {
+    return R_ToplevelExec(detail::check_interrupt, nullptr) == FALSE;
+}
+
+// A GDAL progress callback that draws a bar and carries the answer to Ctrl-C
+// back out. Pass func() and data() to any GDAL function taking a progress
+// callback, then call stop_if_interrupted() once GDAL has returned and
+// everything it had open has been given back.
+class Progress {
+ public:
+    explicit Progress(bool show)
+        : show_(show), interrupted_(false), printed_(0), finished_(false) {}
+
+    Progress(const Progress&) = delete;
+    Progress& operator=(const Progress&) = delete;
+
+    GDALProgressFunc func() { return &Progress::report; }
+    void* data() { return this; }
+    bool interrupted() const { return interrupted_; }
+
+    // The condition R would have raised was swallowed to get out of GDAL in
+    // one piece, so it is raised here instead.
+    void stop_if_interrupted(const char* what) const {
+        if (interrupted_) {
+            cpp11::stop("%s was interrupted", what);
+        }
+    }
+
+ private:
+    static int CPL_STDCALL report(double complete, const char*, void* data) {
+        Progress* self = static_cast<Progress*>(data);
+
+        if (interrupt_pending()) {
+            self->interrupted_ = true;
+            // Returning false is how a GDAL progress function says stop. The
+            // call then fails cleanly and the R error is raised afterwards.
+            return FALSE;
+        }
+
+        if (self->show_) {
+            const int width = 40;
+            int target = static_cast<int>(complete * width);
+            if (target > width) {
+                target = width;
+            }
+            for (; self->printed_ < target; self->printed_++) {
+                Rprintf("=");
+            }
+            // Work made of several steps reports completion once per step,
+            // and one bar wants one newline.
+            if (complete >= 1.0 && !self->finished_) {
+                self->finished_ = true;
+                Rprintf("\n");
+            }
+        }
+        return TRUE;
+    }
+
+    bool show_;
+    bool interrupted_;
+    int printed_;
+    bool finished_;
 };
 
 // ---------------------------------------------------------------------------

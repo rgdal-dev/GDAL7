@@ -32,6 +32,34 @@ GDAL7_string_constants <- function() {
   .Call(`_GDAL7_GDAL7_string_constants`)
 }
 
+GDAL7_driver_option_list <- function(xp, which) {
+  .Call(`_GDAL7_GDAL7_driver_option_list`, xp, which)
+}
+
+GDAL7_driver_validate_creation_options <- function(xp, options) {
+  .Call(`_GDAL7_GDAL7_driver_validate_creation_options`, xp, options)
+}
+
+GDAL7_create <- function(driver_name, dsn, xsize, ysize, bands, type, options) {
+  .Call(`_GDAL7_GDAL7_create`, driver_name, dsn, xsize, ysize, bands, type, options)
+}
+
+GDAL7_create_copy <- function(driver_name, dsn, src_xp, strict, options, progress) {
+  .Call(`_GDAL7_GDAL7_create_copy`, driver_name, dsn, src_xp, strict, options, progress)
+}
+
+GDAL7_driver_delete <- function(driver_name, dsn) {
+  invisible(.Call(`_GDAL7_GDAL7_driver_delete`, driver_name, dsn))
+}
+
+GDAL7_dataset_get_thread_safe_dataset <- function(xp) {
+  .Call(`_GDAL7_GDAL7_dataset_get_thread_safe_dataset`, xp)
+}
+
+GDAL7_dataset_is_thread_safe <- function(xp) {
+  .Call(`_GDAL7_GDAL7_dataset_is_thread_safe`, xp)
+}
+
 GDAL7_dataset_raster_xsize <- function(xp) {
   .Call(`_GDAL7_GDAL7_dataset_raster_xsize`, xp)
 }
@@ -50,14 +78,6 @@ GDAL7_dataset_mark_suppress_on_close <- function(xp) {
 
 GDAL7_dataset_get_close_reports_progress <- function(xp) {
   .Call(`_GDAL7_GDAL7_dataset_get_close_reports_progress`, xp)
-}
-
-GDAL7_dataset_is_thread_safe <- function(xp, nScopeFlags) {
-  .Call(`_GDAL7_GDAL7_dataset_is_thread_safe`, xp, nScopeFlags)
-}
-
-GDAL7_dataset_get_thread_safe_dataset <- function(xp, nScopeFlags) {
-  .Call(`_GDAL7_GDAL7_dataset_get_thread_safe_dataset`, xp, nScopeFlags)
 }
 
 GDAL7_dataset_get_projection <- function(xp) {
@@ -180,12 +200,12 @@ GDAL7_driver_test_capability <- function(xp, capability) {
   .Call(`_GDAL7_GDAL7_driver_test_capability`, xp, capability)
 }
 
-GDAL7_driver_get_creation_options <- function(xp) {
-  .Call(`_GDAL7_GDAL7_driver_get_creation_options`, xp)
-}
-
 GDAL7_driver_get_metadata_item <- function(xp, name, domain) {
   .Call(`_GDAL7_GDAL7_driver_get_metadata_item`, xp, name, domain)
+}
+
+GDAL7_driver_table <- function() {
+  .Call(`_GDAL7_GDAL7_driver_table`)
 }
 
 GDAL7_dataset_get_band <- function(xp, nBand) {
@@ -440,6 +460,46 @@ GDAL7_dataset_read <- function(xp, bands, window, out_size, resample) {
   .Call(`_GDAL7_GDAL7_dataset_read`, xp, bands, window, out_size, resample)
 }
 
+GDAL7_band_write <- function(xp, values, window, out_size, resample) {
+  invisible(.Call(`_GDAL7_GDAL7_band_write`, xp, values, window, out_size, resample))
+}
+
+GDAL7_dataset_write <- function(xp, values, bands, window, out_size, resample) {
+  invisible(.Call(`_GDAL7_GDAL7_dataset_write`, xp, values, bands, window, out_size, resample))
+}
+
+GDAL7_dataset_flush <- function(xp) {
+  invisible(.Call(`_GDAL7_GDAL7_dataset_flush`, xp))
+}
+
+GDAL7_band_set_nodata_value <- function(xp, value) {
+  invisible(.Call(`_GDAL7_GDAL7_band_set_nodata_value`, xp, value))
+}
+
+GDAL7_band_set_scale <- function(xp, value) {
+  invisible(.Call(`_GDAL7_GDAL7_band_set_scale`, xp, value))
+}
+
+GDAL7_band_set_offset <- function(xp, value) {
+  invisible(.Call(`_GDAL7_GDAL7_band_set_offset`, xp, value))
+}
+
+GDAL7_band_set_unit_type <- function(xp, value) {
+  invisible(.Call(`_GDAL7_GDAL7_band_set_unit_type`, xp, value))
+}
+
+GDAL7_band_set_color_interpretation <- function(xp, name) {
+  invisible(.Call(`_GDAL7_GDAL7_band_set_color_interpretation`, xp, name))
+}
+
+GDAL7_dataset_set_crs <- function(xp, crs) {
+  invisible(.Call(`_GDAL7_GDAL7_dataset_set_crs`, xp, crs))
+}
+
+GDAL7_crs_to_wkt <- function(crs, format, multiline) {
+  .Call(`_GDAL7_GDAL7_crs_to_wkt`, crs, format, multiline)
+}
+
 GDAL7_data_types <- function() {
   .Call(`_GDAL7_GDAL7_data_types`)
 }
@@ -526,4 +586,56 @@ GDAL7_layer_write_arrow_batch <- function(xp, schema, array, options) {
 
 GDAL7_create_vector_dataset <- function(driver_name, path, options) {
   .Call(`_GDAL7_GDAL7_create_vector_dataset`, driver_name, path, options)
+}
+
+GDAL7_vsi_list <- function(path, limit) {
+  .Call(`_GDAL7_GDAL7_vsi_list`, path, limit)
+}
+
+GDAL7_vsi_stat <- function(path) {
+  .Call(`_GDAL7_GDAL7_vsi_stat`, path)
+}
+
+GDAL7_vsi_exists <- function(path) {
+  .Call(`_GDAL7_GDAL7_vsi_exists`, path)
+}
+
+GDAL7_vsi_unlink <- function(path) {
+  invisible(.Call(`_GDAL7_GDAL7_vsi_unlink`, path))
+}
+
+GDAL7_vsi_mkdir <- function(path, mode) {
+  invisible(.Call(`_GDAL7_GDAL7_vsi_mkdir`, path, mode))
+}
+
+GDAL7_vsi_rmdir <- function(path) {
+  invisible(.Call(`_GDAL7_GDAL7_vsi_rmdir`, path))
+}
+
+GDAL7_vsi_rename <- function(from, to) {
+  invisible(.Call(`_GDAL7_GDAL7_vsi_rename`, from, to))
+}
+
+GDAL7_vsi_copy <- function(from, to) {
+  invisible(.Call(`_GDAL7_GDAL7_vsi_copy`, from, to))
+}
+
+GDAL7_vsi_read_file <- function(path) {
+  .Call(`_GDAL7_GDAL7_vsi_read_file`, path)
+}
+
+GDAL7_vsi_write_file <- function(path, bytes) {
+  invisible(.Call(`_GDAL7_GDAL7_vsi_write_file`, path, bytes))
+}
+
+GDAL7_get_config_option <- function(name) {
+  .Call(`_GDAL7_GDAL7_get_config_option`, name)
+}
+
+GDAL7_set_config_option <- function(name, value) {
+  invisible(.Call(`_GDAL7_GDAL7_set_config_option`, name, value))
+}
+
+GDAL7_config_options <- function() {
+  .Call(`_GDAL7_GDAL7_config_options`)
 }

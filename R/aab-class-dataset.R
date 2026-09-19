@@ -59,22 +59,6 @@ mark_suppress_on_close <- S7::new_generic("mark_suppress_on_close", "x")
 #' @export
 get_close_reports_progress <- S7::new_generic("get_close_reports_progress", "x")
 
-#' IsThreadSafe
-#'
-#' @param x A GDALDataset object
-#' @param nScopeFlags integer
-#' @return logical
-#' @export
-is_thread_safe <- S7::new_generic("is_thread_safe", "x", function(x, nScopeFlags) S7::S7_dispatch())
-
-#' GetThreadSafeDataset
-#'
-#' @param x A GDALDataset object
-#' @param nScopeFlags integer
-#' @return GDALDataset
-#' @export
-get_thread_safe_dataset <- S7::new_generic("get_thread_safe_dataset", "x", function(x, nScopeFlags) S7::S7_dispatch())
-
 #' GetProjection
 #'
 #' @param x A GDALDataset object
@@ -255,16 +239,6 @@ S7::method(mark_suppress_on_close, GDALDataset) <- function(x) {
 
 S7::method(get_close_reports_progress, GDALDataset) <- function(x) {
   GDAL7_dataset_get_close_reports_progress(x@.ptr)
-}
-
-S7::method(is_thread_safe, GDALDataset) <- function(x, nScopeFlags) {
-  GDAL7_dataset_is_thread_safe(x@.ptr, as.integer(nScopeFlags))
-}
-
-S7::method(get_thread_safe_dataset, GDALDataset) <- function(x, nScopeFlags) {
-  ptr <- GDAL7_dataset_get_thread_safe_dataset(x@.ptr, as.integer(nScopeFlags))
-  if (is.null(ptr)) return(NULL)
-  GDALDataset(.ptr = ptr)
 }
 
 S7::method(get_projection, GDALDataset) <- function(x) {

@@ -46,6 +46,73 @@ GDALRIOResampleAlg resample_from_name(const std::string& name) {
                 name.c_str());
 }
 
+
+// The integer window GDAL is given has to cover the floating point one, which
+// is what the floating point fields then refine. Read and write set this up
+// the same way, so it is written once.
+struct Window {
+    int off_x, off_y, size_x, size_y;
+    int out_x, out_y;
+    GDALRasterIOExtraArg extra;
+};
+
+Window make_window(cpp11::doubles window, cpp11::integers out_size,
+                   const std::string& resample) {
+    if (window.size() != 4) {
+        cpp11::stop("`window` is 4 numbers: xoff, yoff, xsize, ysize");
+    }
+    if (out_size.size() != 2) {
+        cpp11::stop("`out_size` is 2 numbers: the output width and height");
+    }
+
+    const double off_x = window[0];
+    const double off_y = window[1];
+    const double size_x = window[2];
+    const double size_y = window[3];
+
+    if (!(size_x > 0) || !(size_y > 0)) {
+        cpp11::stop("The window must have a positive width and height");
+    }
+
+    Window out;
+    out.out_x = out_size[0];
+    out.out_y = out_size[1];
+    if (out.out_x <= 0 || out.out_y <= 0) {
+        cpp11::stop("`out_size` must be positive");
+    }
+
+    out.off_x = static_cast<int>(std::floor(off_x));
+    out.off_y = static_cast<int>(std::floor(off_y));
+    out.size_x = static_cast<int>(std::ceil(off_x + size_x)) - out.off_x;
+    out.size_y = static_cast<int>(std::ceil(off_y + size_y)) - out.off_y;
+
+    INIT_RASTERIO_EXTRA_ARG(out.extra);
+    out.extra.eResampleAlg = resample_from_name(resample);
+    out.extra.bFloatingPointWindowValidity = TRUE;
+    out.extra.dfXOff = off_x;
+    out.extra.dfYOff = off_y;
+    out.extra.dfXSize = size_x;
+    out.extra.dfYSize = size_y;
+    return out;
+}
+
+// The bands of a dataset, checked against what it has.
+std::vector<int> band_list(GDALDatasetH h, cpp11::integers bands) {
+    if (bands.size() < 1) {
+        cpp11::stop("At least one band is needed");
+    }
+    const int count = GDALGetRasterCount(h);
+    std::vector<int> out(static_cast<size_t>(bands.size()));
+    for (R_xlen_t i = 0; i < bands.size(); i++) {
+        const int b = bands[i];
+        if (b < 1 || b > count) {
+            cpp11::stop("Band %d is out of range; this dataset has %d", b, count);
+        }
+        out[static_cast<size_t>(i)] = b;
+    }
+    return out;
+}
+
 }  // namespace
 
 // ============================================================================
@@ -205,55 +272,17 @@ cpp11::list GDAL7_band_get_overview_sizes(SEXP xp) {
 cpp11::doubles GDAL7_band_read(SEXP xp, cpp11::doubles window,
                                cpp11::integers out_size, std::string resample) {
     GDALRasterBandH h = band(xp);
-
-    if (window.size() != 4) {
-        cpp11::stop("`window` is 4 numbers: xoff, yoff, xsize, ysize");
-    }
-    if (out_size.size() != 2) {
-        cpp11::stop("`out_size` is 2 numbers: the output width and height");
-    }
-
-    const double dfXOff = window[0];
-    const double dfYOff = window[1];
-    const double dfXSize = window[2];
-    const double dfYSize = window[3];
-
-    if (!(dfXSize > 0) || !(dfYSize > 0)) {
-        cpp11::stop("The window must have a positive width and height");
-    }
-
-    const int nXOut = out_size[0];
-    const int nYOut = out_size[1];
-    if (nXOut <= 0 || nYOut <= 0) {
-        cpp11::stop("`out_size` must be positive");
-    }
-
-    GDALRasterIOExtraArg extra;
-    INIT_RASTERIO_EXTRA_ARG(extra);
-    extra.eResampleAlg = resample_from_name(resample);
-
-    // The integer window GDAL is given has to cover the floating point one,
-    // which is what the floating point fields then refine.
-    const int nXOff = static_cast<int>(std::floor(dfXOff));
-    const int nYOff = static_cast<int>(std::floor(dfYOff));
-    const int nXSize = static_cast<int>(std::ceil(dfXOff + dfXSize)) - nXOff;
-    const int nYSize = static_cast<int>(std::ceil(dfYOff + dfYSize)) - nYOff;
-
-    extra.bFloatingPointWindowValidity = TRUE;
-    extra.dfXOff = dfXOff;
-    extra.dfYOff = dfYOff;
-    extra.dfXSize = dfXSize;
-    extra.dfYSize = dfYSize;
+    Window w = make_window(window, out_size, resample);
 
     // Values come back as double whatever the band holds, so one return type
     // covers every band type. Int64 beyond 2^53 is the one case that loses
     // precision.
-    cpp11::writable::doubles out(static_cast<R_xlen_t>(nXOut) * nYOut);
+    cpp11::writable::doubles out(static_cast<R_xlen_t>(w.out_x) * w.out_y);
 
     gdal7::ErrorScope err;
     const CPLErr status = GDALRasterIOEx(
-        h, GF_Read, nXOff, nYOff, nXSize, nYSize,
-        REAL(out), nXOut, nYOut, GDT_Float64, 0, 0, &extra);
+        h, GF_Read, w.off_x, w.off_y, w.size_x, w.size_y,
+        REAL(out), w.out_x, w.out_y, GDT_Float64, 0, 0, &w.extra);
 
     if (status != CE_None) {
         err.stop("Could not read the raster window");
@@ -270,83 +299,247 @@ cpp11::doubles GDAL7_band_read(SEXP xp, cpp11::doubles window,
 cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles window,
                                cpp11::integers out_size, std::string resample) {
     GDALDatasetH h = dataset(xp);
-
-    if (bands.size() < 1) {
-        cpp11::stop("At least one band is needed");
-    }
-    if (window.size() != 4) {
-        cpp11::stop("`window` is 4 numbers: xoff, yoff, xsize, ysize");
-    }
-    if (out_size.size() != 2) {
-        cpp11::stop("`out_size` is 2 numbers: the output width and height");
-    }
-
-    const double dfXOff = window[0];
-    const double dfYOff = window[1];
-    const double dfXSize = window[2];
-    const double dfYSize = window[3];
-
-    if (!(dfXSize > 0) || !(dfYSize > 0)) {
-        cpp11::stop("The window must have a positive width and height");
-    }
-
-    const int nXOut = out_size[0];
-    const int nYOut = out_size[1];
-    if (nXOut <= 0 || nYOut <= 0) {
-        cpp11::stop("`out_size` must be positive");
-    }
-
-    const int band_count = GDALGetRasterCount(h);
-    std::vector<int> band_list(static_cast<size_t>(bands.size()));
-    for (R_xlen_t i = 0; i < bands.size(); i++) {
-        const int b = bands[i];
-        if (b < 1 || b > band_count) {
-            cpp11::stop("Band %d is out of range; this dataset has %d", b, band_count);
-        }
-        band_list[static_cast<size_t>(i)] = b;
-    }
-
-    GDALRasterIOExtraArg extra;
-    INIT_RASTERIO_EXTRA_ARG(extra);
-    extra.eResampleAlg = resample_from_name(resample);
-
-    const int nXOff = static_cast<int>(std::floor(dfXOff));
-    const int nYOff = static_cast<int>(std::floor(dfYOff));
-    const int nXSize = static_cast<int>(std::ceil(dfXOff + dfXSize)) - nXOff;
-    const int nYSize = static_cast<int>(std::ceil(dfYOff + dfYSize)) - nYOff;
-
-    extra.bFloatingPointWindowValidity = TRUE;
-    extra.dfXOff = dfXOff;
-    extra.dfYOff = dfYOff;
-    extra.dfXSize = dfXSize;
-    extra.dfYSize = dfYSize;
+    Window w = make_window(window, out_size, resample);
+    const std::vector<int> bands_to_read = band_list(h, bands);
 
     // One buffer, band sequential, split into a vector per band afterwards.
-    const size_t per_band = static_cast<size_t>(nXOut) * static_cast<size_t>(nYOut);
-    std::vector<double> buffer(per_band * band_list.size());
+    const size_t per_band = static_cast<size_t>(w.out_x) * static_cast<size_t>(w.out_y);
+    std::vector<double> buffer(per_band * bands_to_read.size());
 
     gdal7::ErrorScope err;
     const CPLErr status = GDALDatasetRasterIOEx(
-        h, GF_Read, nXOff, nYOff, nXSize, nYSize,
-        buffer.data(), nXOut, nYOut, GDT_Float64,
-        static_cast<int>(band_list.size()), band_list.data(), 0, 0, 0, &extra);
+        h, GF_Read, w.off_x, w.off_y, w.size_x, w.size_y,
+        buffer.data(), w.out_x, w.out_y, GDT_Float64,
+        static_cast<int>(bands_to_read.size()),
+        const_cast<int*>(bands_to_read.data()), 0, 0, 0, &w.extra);
 
     if (status != CE_None) {
         err.stop("Could not read the raster window");
     }
     err.flush();
 
-    cpp11::writable::list out(static_cast<R_xlen_t>(band_list.size()));
-    cpp11::writable::strings names(static_cast<R_xlen_t>(band_list.size()));
-    for (size_t i = 0; i < band_list.size(); i++) {
+    cpp11::writable::list out(static_cast<R_xlen_t>(bands_to_read.size()));
+    cpp11::writable::strings names(static_cast<R_xlen_t>(bands_to_read.size()));
+    for (size_t i = 0; i < bands_to_read.size(); i++) {
         cpp11::writable::doubles values(static_cast<R_xlen_t>(per_band));
         std::copy(buffer.begin() + static_cast<std::ptrdiff_t>(i * per_band),
                   buffer.begin() + static_cast<std::ptrdiff_t>((i + 1) * per_band),
                   REAL(values));
         out[static_cast<R_xlen_t>(i)] = values;
         names[static_cast<R_xlen_t>(i)] =
-            cpp11::r_string(std::to_string(band_list[i]));
+            cpp11::r_string(std::to_string(bands_to_read[i]));
     }
     out.names() = names;
+    return out;
+}
+
+// ============================================================================
+// Writing
+// ============================================================================
+
+// The mirror of the read above, with the same window and the same output size,
+// so a window read at one size can be written back at another. Values go in as
+// doubles whatever the band holds; GDAL converts, and a value the band's type
+// cannot hold is clamped by GDAL rather than silently wrapped.
+[[cpp11::register]]
+void GDAL7_band_write(SEXP xp, cpp11::doubles values, cpp11::doubles window,
+                      cpp11::integers out_size, std::string resample) {
+    GDALRasterBandH h = band(xp);
+    Window w = make_window(window, out_size, resample);
+
+    const R_xlen_t wanted = static_cast<R_xlen_t>(w.out_x) * w.out_y;
+    if (values.size() != wanted) {
+        cpp11::stop("%d values for a %d by %d block, which needs %d",
+                    static_cast<int>(values.size()), w.out_x, w.out_y,
+                    static_cast<int>(wanted));
+    }
+
+    gdal7::ErrorScope err;
+    const CPLErr status = GDALRasterIOEx(
+        h, GF_Write, w.off_x, w.off_y, w.size_x, w.size_y,
+        const_cast<double*>(REAL(values)), w.out_x, w.out_y, GDT_Float64,
+        0, 0, &w.extra);
+
+    if (status != CE_None) {
+        err.stop("Could not write the raster window");
+    }
+    err.flush();
+}
+
+// Several bands in one pass, the same way reading them is one pass. `values`
+// is one vector per band, in the order of `bands`.
+[[cpp11::register]]
+void GDAL7_dataset_write(SEXP xp, cpp11::list values, cpp11::integers bands,
+                         cpp11::doubles window, cpp11::integers out_size,
+                         std::string resample) {
+    GDALDatasetH h = dataset(xp);
+    Window w = make_window(window, out_size, resample);
+    const std::vector<int> bands_to_write = band_list(h, bands);
+
+    if (values.size() != static_cast<R_xlen_t>(bands_to_write.size())) {
+        cpp11::stop("%d blocks of values for %d bands",
+                    static_cast<int>(values.size()),
+                    static_cast<int>(bands_to_write.size()));
+    }
+
+    const size_t per_band = static_cast<size_t>(w.out_x) * static_cast<size_t>(w.out_y);
+    std::vector<double> buffer(per_band * bands_to_write.size());
+
+    for (size_t i = 0; i < bands_to_write.size(); i++) {
+        cpp11::doubles block(values[static_cast<R_xlen_t>(i)]);
+        if (static_cast<size_t>(block.size()) != per_band) {
+            cpp11::stop("Band %d was given %d values for a %d by %d block",
+                        bands_to_write[i], static_cast<int>(block.size()),
+                        w.out_x, w.out_y);
+        }
+        std::copy(REAL(block), REAL(block) + per_band,
+                  buffer.begin() + static_cast<std::ptrdiff_t>(i * per_band));
+    }
+
+    gdal7::ErrorScope err;
+    const CPLErr status = GDALDatasetRasterIOEx(
+        h, GF_Write, w.off_x, w.off_y, w.size_x, w.size_y,
+        buffer.data(), w.out_x, w.out_y, GDT_Float64,
+        static_cast<int>(bands_to_write.size()),
+        const_cast<int*>(bands_to_write.data()), 0, 0, 0, &w.extra);
+
+    if (status != CE_None) {
+        err.stop("Could not write the raster window");
+    }
+    err.flush();
+}
+
+// Everything written so far, on disk, without closing the dataset. A dataset
+// left open holds its last blocks in memory, so this is what makes a file
+// readable by something else while it is still being built.
+[[cpp11::register]]
+void GDAL7_dataset_flush(SEXP xp) {
+    gdal7::ErrorScope err;
+    GDALFlushCache(dataset(xp));
+    err.flush();
+}
+
+// ============================================================================
+// Band properties a created dataset needs set
+// ============================================================================
+
+[[cpp11::register]]
+void GDAL7_band_set_nodata_value(SEXP xp, SEXP value) {
+    GDALRasterBandH h = band(xp);
+
+    gdal7::ErrorScope err;
+    // NULL takes the nodata value off the band rather than setting it to
+    // anything, which is a different thing from setting it to NaN.
+    const CPLErr status = value == R_NilValue
+                              ? GDALDeleteRasterNoDataValue(h)
+                              : GDALSetRasterNoDataValue(h, Rf_asReal(value));
+    if (status != CE_None) {
+        err.stop("Could not set the nodata value");
+    }
+    err.flush();
+}
+
+[[cpp11::register]]
+void GDAL7_band_set_scale(SEXP xp, double value) {
+    gdal7::ErrorScope err;
+    if (GDALSetRasterScale(band(xp), value) != CE_None) {
+        err.stop("Could not set the scale");
+    }
+    err.flush();
+}
+
+[[cpp11::register]]
+void GDAL7_band_set_offset(SEXP xp, double value) {
+    gdal7::ErrorScope err;
+    if (GDALSetRasterOffset(band(xp), value) != CE_None) {
+        err.stop("Could not set the offset");
+    }
+    err.flush();
+}
+
+[[cpp11::register]]
+void GDAL7_band_set_unit_type(SEXP xp, std::string value) {
+    gdal7::ErrorScope err;
+    if (GDALSetRasterUnitType(band(xp), value.c_str()) != CE_None) {
+        err.stop("Could not set the unit");
+    }
+    err.flush();
+}
+
+[[cpp11::register]]
+void GDAL7_band_set_color_interpretation(SEXP xp, std::string name) {
+    const GDALColorInterp interp = GDALGetColorInterpretationByName(name.c_str());
+    if (interp == GCI_Undefined && !EQUAL(name.c_str(), "Undefined")) {
+        cpp11::stop("'%s' is not a colour interpretation. "
+                    "gdal_color_interpretations() lists them",
+                    name.c_str());
+    }
+
+    gdal7::ErrorScope err;
+    if (GDALSetRasterColorInterpretation(band(xp), interp) != CE_None) {
+        err.stop("Could not set the colour interpretation");
+    }
+    err.flush();
+}
+
+// ============================================================================
+// Coordinate reference systems
+// ============================================================================
+
+// GDALSetProjection wants WKT, but nobody wants to type WKT. Anything
+// OSRSetFromUserInput understands is accepted instead: "EPSG:4326",
+// "+proj=laea +lat_0=-90", a PROJJSON document, the contents of a .prj file,
+// or WKT itself, which passes through unchanged.
+[[cpp11::register]]
+void GDAL7_dataset_set_crs(SEXP xp, std::string crs) {
+    GDALDatasetH h = dataset(xp);
+
+    gdal7::ErrorScope err;
+    OGRSpatialReferenceH srs = OSRNewSpatialReference(nullptr);
+    if (OSRSetFromUserInput(srs, crs.c_str()) != OGRERR_NONE) {
+        OSRDestroySpatialReference(srs);
+        err.stop("Could not read '" + crs + "' as a coordinate reference system");
+    }
+
+    const CPLErr status = GDALSetSpatialRef(h, srs);
+    OSRDestroySpatialReference(srs);
+
+    if (status != CE_None) {
+        err.stop("Could not set the coordinate reference system");
+    }
+    err.flush();
+}
+
+// The same conversion on its own, for checking a CRS string or turning one
+// into WKT. WKT2 is asked for by name rather than taken as the default,
+// because GDAL's plain export still writes WKT1 for compatibility, and WKT1
+// cannot carry what a modern CRS says: the projection above comes back out of
+// WKT1 as PROJCS["unknown"].
+[[cpp11::register]]
+cpp11::strings GDAL7_crs_to_wkt(std::string crs, std::string format,
+                                bool multiline) {
+    gdal7::ErrorScope err;
+    OGRSpatialReferenceH srs = OSRNewSpatialReference(nullptr);
+    if (OSRSetFromUserInput(srs, crs.c_str()) != OGRERR_NONE) {
+        OSRDestroySpatialReference(srs);
+        err.stop("Could not read '" + crs + "' as a coordinate reference system");
+    }
+
+    CPLStringList options;
+    options.AddNameValue("FORMAT", format.c_str());
+    options.AddNameValue("MULTILINE", multiline ? "YES" : "NO");
+
+    char* wkt = nullptr;
+    const OGRErr status = OSRExportToWktEx(srs, &wkt, options.List());
+    OSRDestroySpatialReference(srs);
+
+    if (status != OGRERR_NONE) {
+        CPLFree(wkt);
+        err.stop("Could not write this coordinate reference system as " + format);
+    }
+
+    cpp11::strings out = gdal7::chr(wkt);
+    CPLFree(wkt);
+    err.flush();
     return out;
 }

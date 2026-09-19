@@ -242,6 +242,166 @@ resolve_out_size <- function(out_size, window) {
 }
 
 # ============================================================================
+# Writing
+# ============================================================================
+
+#' Write a raster window
+#'
+#' The mirror of [read_raster()], with the same window and the same output
+#' size, so values read at one size can be written back at another and GDAL
+#' resamples between them.
+#'
+#' Values go in the order they come out: the first row first, x varying
+#' fastest, which is the transpose of what `matrix()` builds from a vector.
+#'
+#' Whatever the band holds, values are given as doubles and GDAL converts. A
+#' value the band's type cannot hold is clamped by GDAL rather than wrapped,
+#' and it says so.
+#'
+#' The dataset has to be open for writing: one from [gdal_create()], or one
+#' opened with `gdal_open(path, update = TRUE)`. Nothing is guaranteed to be on
+#' disk until the dataset is closed with [gdal_close()], or [gdal_flush()] is
+#' called.
+#'
+#' @param x A GDALRasterBand, or a GDALDataset.
+#' @param values For a band, a numeric vector. For a dataset, a list of one
+#'   numeric vector per band in `bands`.
+#' @param window Numeric of length 4: `c(xoff, yoff, xsize, ysize)` in pixels.
+#'   Defaults to the whole raster.
+#' @param out_size Integer of length 2: the width and height of the block of
+#'   values being given. Defaults to the size of the window, which is a write
+#'   with no resampling.
+#' @param resample How to resample when `out_size` differs from the window.
+#'   One of "nearest", "bilinear", "cubic", "cubicspline", "lanczos",
+#'   "average", "mode", "gauss", "rms".
+#' @param bands For a dataset, which bands to write, one-based. Defaults to
+#'   all of them. Writing several at once is one pass over the data.
+#' @return `x`, invisibly.
+#' @export
+#' @examples
+#' path <- tempfile(fileext = ".tif")
+#' ds <- gdal_create(path, 4, 4, bands = 1, type = "Byte")
+#'
+#' write_raster(ds, list(as.double(seq_len(16))))
+#' read_raster(ds)[[1]]
+#'
+#' gdal_close(ds)
+#' unlink(path)
+write_raster <- S7::new_generic(
+  "write_raster", "x",
+  function(x, values, window = NULL, out_size = NULL, resample = "nearest",
+           bands = NULL) {
+    S7::S7_dispatch()
+  }
+)
+
+S7::method(write_raster, GDALRasterBand) <- function(x, values, window = NULL,
+                                                     out_size = NULL,
+                                                     resample = "nearest",
+                                                     bands = NULL) {
+  if (!is.null(bands)) {
+    stop("`bands` applies to a dataset, not to a single band", call. = FALSE)
+  }
+  window <- resolve_window(window, get_xsize(x), get_ysize(x))
+  GDAL7_band_write(x@.ptr, as.double(values), window,
+                   resolve_out_size(out_size, window), resample)
+  invisible(x)
+}
+
+S7::method(write_raster, GDALDataset) <- function(x, values, window = NULL,
+                                                  out_size = NULL,
+                                                  resample = "nearest",
+                                                  bands = NULL) {
+  if (is.null(bands)) {
+    bands <- seq_len(get_raster_count(x))
+  }
+  if (!is.list(values)) {
+    stop("For a dataset, `values` is a list of one vector per band",
+         call. = FALSE)
+  }
+  window <- resolve_window(window, get_raster_xsize(x), get_raster_ysize(x))
+  GDAL7_dataset_write(
+    x@.ptr, lapply(values, as.double), as.integer(bands), window,
+    resolve_out_size(out_size, window), resample
+  )
+  invisible(x)
+}
+
+#' Write out everything held in memory
+#'
+#' A dataset open for writing holds its last blocks in memory until it is
+#' closed. This puts them on disk without closing it, which is what makes a
+#' file readable by something else while it is still being built.
+#'
+#' @param x A GDALDataset.
+#' @param ... Arguments passed on to methods.
+#' @return `x`, invisibly.
+#' @export
+gdal_flush <- S7::new_generic("gdal_flush", "x")
+
+S7::method(gdal_flush, GDALDataset) <- function(x, ...) {
+  GDAL7_dataset_flush(x@.ptr)
+  invisible(x)
+}
+
+# ============================================================================
+# Coordinate reference systems
+# ============================================================================
+
+#' Set a dataset's coordinate reference system
+#'
+#' Anything GDAL understands as a CRS is accepted: `"EPSG:4326"`, a PROJ
+#' string, a PROJJSON document, the contents of a `.prj` file, or WKT.
+#' [set_projection()] is the same thing for WKT only, which is what GDAL's own
+#' `SetProjection` takes.
+#'
+#' @param x A GDALDataset, open for writing.
+#' @param crs A coordinate reference system, in any form GDAL reads.
+#' @return `x`, invisibly.
+#' @export
+#' @examples
+#' path <- tempfile(fileext = ".tif")
+#' ds <- gdal_create(path, 4, 4)
+#' set_crs(ds, "EPSG:3857")
+#' substr(get_projection(ds), 1, 30)
+#' gdal_close(ds)
+#' unlink(path)
+set_crs <- S7::new_generic("set_crs", "x", function(x, crs) S7::S7_dispatch())
+
+S7::method(set_crs, GDALDataset) <- function(x, crs) {
+  GDAL7_dataset_set_crs(x@.ptr, crs)
+  invisible(x)
+}
+
+#' A coordinate reference system as WKT
+#'
+#' The conversion [set_crs()] does, on its own, for checking a CRS string or
+#' for seeing what one says.
+#'
+#' WKT2 is the default because WKT1 cannot carry everything a modern CRS
+#' holds: a projection WKT2 names exactly comes back out of WKT1 as
+#' `PROJCS["unknown"]`. WKT1 is still what GDAL writes into a file and what
+#' [get_projection()] returns, so it is here for comparing against those.
+#'
+#' @param crs A coordinate reference system, in any form GDAL reads.
+#' @param format `"WKT2"`, or `"WKT2_2015"` or `"WKT2_2019"` for a particular
+#'   edition, or `"WKT1"`.
+#' @param multiline Whether to lay it out over several lines, which is how to
+#'   read one rather than how to store it.
+#' @return A WKT string.
+#' @export
+#' @examples
+#' substr(crs_to_wkt("EPSG:4326"), 1, 30)
+#' substr(crs_to_wkt("EPSG:4326", "WKT1"), 1, 30)
+#'
+#' cat(crs_to_wkt("EPSG:3857", multiline = TRUE))
+crs_to_wkt <- function(crs, format = c("WKT2", "WKT2_2019", "WKT2_2015", "WKT1"),
+                       multiline = FALSE) {
+  format <- match.arg(format)
+  GDAL7_crs_to_wkt(crs, format, isTRUE(multiline))
+}
+
+# ============================================================================
 # Batched summary
 # ============================================================================
 

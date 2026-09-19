@@ -247,6 +247,91 @@ S7::method(get_color_interpretation_name, GDALRasterBand) <- function(x) {
 }
 
 # ============================================================================
+# Band properties a created dataset needs set
+# ============================================================================
+
+#' Set what a band's values mean
+#'
+#' The properties that give a band's numbers meaning, for a dataset being
+#' built. Each is the setter for the accessor of the same name:
+#' [get_nodata_value()], [get_scale()], [get_offset()], [get_unit_type()],
+#' [get_color_interpretation()].
+#'
+#' A nodata value of NULL takes the value off the band, which is a different
+#' thing from setting it to NaN. Scale and offset are how a band of integers
+#' carries real values: the value meant is `raw * scale + offset`, which GDAL
+#' records but does not apply, so [read_raster()] returns the raw numbers.
+#'
+#' @param x A GDALRasterBand of a dataset open for writing.
+#' @param value The value to set. For `set_color_interpretation()`, one of the
+#'   names in [gdal_color_interpretations()], such as `"Red"` or `"Alpha"`.
+#' @return `x`, invisibly.
+#' @export
+#' @examples
+#' path <- tempfile(fileext = ".tif")
+#' ds <- gdal_create(path, 4, 4, bands = 1, type = "Int16")
+#' band <- get_raster_band(ds, 1)
+#'
+#' set_nodata_value(band, -999)
+#' set_scale(band, 0.1)
+#' set_offset(band, 20)
+#' set_unit_type(band, "degC")
+#'
+#' c(nodata = get_nodata_value(band), scale = get_scale(band),
+#'   offset = get_offset(band))
+#'
+#' gdal_close(ds)
+#' unlink(path)
+set_nodata_value <- S7::new_generic(
+  "set_nodata_value", "x", function(x, value) S7::S7_dispatch()
+)
+
+S7::method(set_nodata_value, GDALRasterBand) <- function(x, value) {
+  GDAL7_band_set_nodata_value(x@.ptr, if (is.null(value)) NULL else as.double(value))
+  invisible(x)
+}
+
+#' @rdname set_nodata_value
+#' @export
+set_scale <- S7::new_generic("set_scale", "x", function(x, value) S7::S7_dispatch())
+
+S7::method(set_scale, GDALRasterBand) <- function(x, value) {
+  GDAL7_band_set_scale(x@.ptr, as.double(value))
+  invisible(x)
+}
+
+#' @rdname set_nodata_value
+#' @export
+set_offset <- S7::new_generic("set_offset", "x", function(x, value) S7::S7_dispatch())
+
+S7::method(set_offset, GDALRasterBand) <- function(x, value) {
+  GDAL7_band_set_offset(x@.ptr, as.double(value))
+  invisible(x)
+}
+
+#' @rdname set_nodata_value
+#' @export
+set_unit_type <- S7::new_generic(
+  "set_unit_type", "x", function(x, value) S7::S7_dispatch()
+)
+
+S7::method(set_unit_type, GDALRasterBand) <- function(x, value) {
+  GDAL7_band_set_unit_type(x@.ptr, as.character(value))
+  invisible(x)
+}
+
+#' @rdname set_nodata_value
+#' @export
+set_color_interpretation <- S7::new_generic(
+  "set_color_interpretation", "x", function(x, value) S7::S7_dispatch()
+)
+
+S7::method(set_color_interpretation, GDALRasterBand) <- function(x, value) {
+  GDAL7_band_set_color_interpretation(x@.ptr, as.character(value))
+  invisible(x)
+}
+
+# ============================================================================
 # Print method for GDALRasterBand
 # ============================================================================
 

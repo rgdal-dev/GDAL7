@@ -31,6 +31,16 @@ skip_if_no_driver <- function(name) {
   }
 }
 
+# A binding that is guarded on a GDAL newer than GDAL7's own minimum is listed
+# in gdal7_capabilities(), which is what says whether this build can call it.
+skip_if_no_capability <- function(binding) {
+  caps <- gdal7_capabilities()
+  row <- caps[caps$binding == binding, ]
+  if (nrow(row) == 1L && !row$available) {
+    testthat::skip(paste0(binding, " needs GDAL ", row$gdal))
+  }
+}
+
 # Open file descriptors held by this process. Used to show that datasets are
 # actually closed rather than merely dropped. Only Linux has /proc/self/fd.
 open_fd_count <- function() {

@@ -246,6 +246,104 @@ identical(read_vector(path), places)
 unlink(path)
 ```
 
+### Creating and writing
+
+A dataset is made with a size, a band count and a type, written into, and
+closed. Closing is what finishes the file.
+
+```{r create}
+path <- tempfile(fileext = ".tif")
+
+ds <- gdal_create(path, 64, 48, bands = 1, type = "Float32")
+set_crs(ds, "EPSG:4326")
+set_geotransform(ds, c(-180, 360 / 64, 0, 90, 0, -180 / 48))
+
+write_raster(ds, list(as.double(seq_len(64 * 48))))
+gdal_close(ds)
+
+info <- gdal_info(path)
+info$size
+info$band_info[c("band", "type", "block_x", "block_y")]
+substr(info$projection, 1, 30)
+```
+
+Creation options are a table, read out of the driver's own metadata, rather
+than a string of XML to parse or a list of names to remember:
+
+```{r options}
+options <- driver_options("GTiff")
+options[options$name %in% c("COMPRESS", "TILED", "BLOCKXSIZE"),
+        c("name", "type", "default")]
+
+options$choices[[which(options$name == "COMPRESS")]][1:6]
+```
+
+They are asked about before anything is made, so a name the driver does not
+have, or a value it will not take, is an error rather than a file left behind:
+
+```{r validate, error = TRUE}
+validate_creation_options("GTiff", c(COMPRESS = "DEFLATE"))
+validate_creation_options("GTiff", c(COMPRES = "DEFLATE"))
+
+gdal_create(tempfile(fileext = ".tif"), 4, 4,
+            options = c(COMPRESS = "NOT_A_CODEC"))
+```
+
+`gdal_create_copy()` puts an existing dataset through a driver, which is how a
+COG gets made: the driver builds the overviews and lays the file out itself.
+
+```{r cog}
+cog_path <- tempfile(fileext = ".tif")
+
+cog <- gdal_create_copy(path, cog_path, driver = "COG",
+                        options = c(COMPRESS = "DEFLATE", BLOCKSIZE = "128"),
+                        progress = FALSE)
+gdal_close(cog)
+
+reopened <- gdal_open(cog_path)
+get_metadata_dict(reopened, "IMAGE_STRUCTURE")
+get_block_size(get_raster_band(reopened, 1))
+gdal_close(reopened)
+```
+
+`gdal_drivers()` says which drivers can do which of those things, in one pass
+over the driver manager:
+
+```{r drivers}
+# Raster drivers that can make a dataset from nothing, rather than only copy
+# an existing one.
+drivers <- gdal_drivers(c("DCAP_RASTER", "DCAP_CREATE"))
+nrow(drivers)
+head(drivers[c("short_name", "copy", "vsi", "extensions")], 5)
+```
+
+### Virtual file systems
+
+Every GDAL path works, not only files on disk, and they compose. A dataset
+built at a `/vsimem/` path never reaches the disk, and its bytes come back as
+raw:
+
+```{r vsimem}
+ds <- gdal_create("/vsimem/small.tif", 4, 4, bands = 1, type = "Byte")
+write_raster(ds, list(as.double(seq_len(16))))
+gdal_close(ds)
+
+vsi_stat("/vsimem/small.tif")$size
+bytes <- vsi_read_file("/vsimem/small.tif")
+rawToChar(bytes[1:2])
+
+vsi_unlink("/vsimem/small.tif")
+```
+
+GDAL reads its configuration options at the moment it needs them, so setting
+one changes how the next call behaves. `with_gdal_config()` sets them for one
+expression and puts back exactly what was there:
+
+```{r config}
+with_gdal_config(c(GDAL_CACHEMAX = "16"), gdal_config("GDAL_CACHEMAX"))
+gdal_config("GDAL_CACHEMAX")
+```
+
 ### Algorithms
 
 GDAL 3.11 added a registry of the algorithms its own command line is built

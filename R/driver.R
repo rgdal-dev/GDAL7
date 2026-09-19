@@ -116,20 +116,6 @@ S7::method(test_capability, GDALDriver) <- function(x, capability) {
     GDAL7_driver_test_capability(x@.ptr, capability)
 }
 
-#' Get driver creation options XML
-#'
-#' Returns the XML describing creation options for this driver.
-#'
-#' @param x A GDALDriver object
-#' @param ... Arguments passed on to methods.
-#' @return Character XML string describing creation options
-#' @export
-get_creation_options <- S7::new_generic("get_creation_options", "x")
-
-S7::method(get_creation_options, GDALDriver) <- function(x) {
-    GDAL7_driver_get_creation_options(x@.ptr)
-}
-
 # ============================================================================
 # Top-level driver functions
 # ============================================================================
@@ -168,65 +154,46 @@ gdal_get_driver <- function(index) {
     GDALDriver(.ptr = ptr)
 }
 
-#' List all registered GDAL drivers
+#' Every driver this GDAL has
 #'
-#' @param capabilities Optional character vector of required capabilities
-#'   (e.g., c("DCAP_RASTER", "DCAP_CREATE"))
-#' @return Data frame with driver information
+#' The whole table in one call rather than one call per property per driver,
+#' which on a typical build is the difference between one round trip and about
+#' fourteen hundred.
+#'
+#' @param capabilities Optional character vector of capabilities every returned
+#'   driver must have, named as GDAL names them: `"DCAP_RASTER"`,
+#'   `"DCAP_VECTOR"`, `"DCAP_MULTIDIM_RASTER"`, `"DCAP_CREATE"`,
+#'   `"DCAP_CREATECOPY"`, `"DCAP_VIRTUALIO"`.
+#' @return A data frame with one row per driver: `short_name`, `long_name`,
+#'   `raster`, `vector`, `multidim`, `create`, `copy`, `vsi` and `extensions`.
 #' @export
+#' @examples
+#' drivers <- gdal_drivers()
+#' nrow(drivers)
+#'
+#' # The formats that can be written from nothing, rather than only copied.
+#' head(gdal_drivers("DCAP_CREATE")$short_name, 12)
 gdal_drivers <- function(capabilities = NULL) {
-    n <- gdal_get_driver_count()
-    
-    short_name <- character(n)
-    long_name <- character(n)
-    is_raster <- logical(n)
-    is_vector <- logical(n)
-    can_create <- logical(n)
-    can_copy <- logical(n)
-    can_vsi <- logical(n)
-    
-    for (i in seq_len(n)) {
-        drv <- gdal_get_driver(i - 1L)
-        if (!is.null(drv)) {
-            short_name[i] <- get_short_name(drv)
-            long_name[i] <- get_long_name(drv)
-            is_raster[i] <- test_capability(drv, "DCAP_RASTER")
-            is_vector[i] <- test_capability(drv, "DCAP_VECTOR")
-            can_create[i] <- test_capability(drv, "DCAP_CREATE")
-            can_copy[i] <- test_capability(drv, "DCAP_CREATECOPY")
-            can_vsi[i] <- test_capability(drv, "DCAP_VIRTUALIO")
-        }
-    }
-    
-    result <- data.frame(
-        short_name = short_name,
-        long_name = long_name,
-        raster = is_raster,
-        vector = is_vector,
-        create = can_create,
-        copy = can_copy,
-        vsi = can_vsi,
-        stringsAsFactors = FALSE
-    )
-    
-    # Filter by capabilities if requested
-    if (!is.null(capabilities)) {
-        for (cap in capabilities) {
-            if (cap == "DCAP_RASTER") {
-                result <- result[result$raster, ]
-            } else if (cap == "DCAP_VECTOR") {
-                result <- result[result$vector, ]
-            } else if (cap == "DCAP_CREATE") {
-                result <- result[result$create, ]
-            } else if (cap == "DCAP_CREATECOPY") {
-                result <- result[result$copy, ]
-            } else if (cap == "DCAP_VIRTUALIO") {
-                result <- result[result$vsi, ]
-            }
-        }
-    }
-    
-    result
+  result <- as.data.frame(GDAL7_driver_table(), stringsAsFactors = FALSE)
+
+  if (is.null(capabilities)) {
+    return(result)
+  }
+
+  columns <- c(DCAP_RASTER = "raster", DCAP_VECTOR = "vector",
+               DCAP_MULTIDIM_RASTER = "multidim", DCAP_CREATE = "create",
+               DCAP_CREATECOPY = "copy", DCAP_VIRTUALIO = "vsi")
+  unknown <- setdiff(capabilities, names(columns))
+  if (length(unknown) > 0) {
+    stop("Cannot filter on ", paste(unknown, collapse = ", "),
+         ". One of: ", paste(names(columns), collapse = ", "), call. = FALSE)
+  }
+
+  for (capability in capabilities) {
+    result <- result[result[[columns[[capability]]]], , drop = FALSE]
+  }
+  rownames(result) <- NULL
+  result
 }
 
 # ============================================================================

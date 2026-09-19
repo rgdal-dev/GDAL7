@@ -12,6 +12,13 @@ inline GDALDriverH driver(SEXP xp) {
     return gdal7::get<GDALDriverH>(xp, gdal7::Kind::Driver);
 }
 
+// A DCAP_ flag. GDAL records a capability as the string "YES" on the driver
+// rather than as a bit, and absence means no.
+inline Rboolean has(GDALDriverH drv, const char* capability) {
+    const char* value = GDALGetMetadataItem(drv, capability, nullptr);
+    return (value != nullptr && EQUAL(value, "YES")) ? TRUE : FALSE;
+}
+
 }  // namespace
 
 // ============================================================================
@@ -117,11 +124,6 @@ bool GDAL7_driver_test_capability(SEXP xp, std::string capability) {
     return value != nullptr && EQUAL(value, "YES");
 }
 
-[[cpp11::register]]
-cpp11::strings GDAL7_driver_get_creation_options(SEXP xp) {
-    return gdal7::chr(GDALGetDriverCreationOptionList(driver(xp)));
-}
-
 // ============================================================================
 // Get driver metadata item (inherits from MajorObject but need driver handle)
 // ============================================================================
@@ -131,4 +133,57 @@ cpp11::strings GDAL7_driver_get_metadata_item(SEXP xp, std::string name, std::st
     const char* value = GDALGetMetadataItem(driver(xp), name.c_str(),
                                             domain.empty() ? nullptr : domain.c_str());
     return gdal7::chr(value);
+}
+
+// ============================================================================
+// The whole driver table in one call
+// ============================================================================
+
+// Reached one accessor at a time this is seven .Call round trips per driver,
+// and a build has a couple of hundred of them. The table is small and the
+// questions are all answered from metadata GDAL already has in memory, so it
+// is one pass here instead.
+[[cpp11::register]]
+cpp11::list GDAL7_driver_table() {
+    const int count = GDALGetDriverCount();
+
+    cpp11::writable::strings short_name(count);
+    cpp11::writable::strings long_name(count);
+    cpp11::writable::logicals is_raster(count);
+    cpp11::writable::logicals is_vector(count);
+    cpp11::writable::logicals is_multidim(count);
+    cpp11::writable::logicals can_create(count);
+    cpp11::writable::logicals can_copy(count);
+    cpp11::writable::logicals can_vsi(count);
+    cpp11::writable::strings extensions(count);
+
+    for (int i = 0; i < count; i++) {
+        GDALDriverH drv = GDALGetDriver(i);
+        const R_xlen_t row = static_cast<R_xlen_t>(i);
+
+        short_name[row] = cpp11::r_string(GDALGetDriverShortName(drv));
+        long_name[row] = cpp11::r_string(GDALGetDriverLongName(drv));
+        is_raster[row] = has(drv, GDAL_DCAP_RASTER);
+        is_vector[row] = has(drv, GDAL_DCAP_VECTOR);
+        is_multidim[row] = has(drv, GDAL_DCAP_MULTIDIM_RASTER);
+        can_create[row] = has(drv, GDAL_DCAP_CREATE);
+        can_copy[row] = has(drv, GDAL_DCAP_CREATECOPY);
+        can_vsi[row] = has(drv, GDAL_DCAP_VIRTUALIO);
+
+        const char* ext = GDALGetMetadataItem(drv, GDAL_DMD_EXTENSIONS, nullptr);
+        extensions[row] =
+            ext == nullptr ? cpp11::r_string(NA_STRING) : cpp11::r_string(ext);
+    }
+
+    cpp11::writable::list out;
+    out.push_back(cpp11::named_arg("short_name") = short_name);
+    out.push_back(cpp11::named_arg("long_name") = long_name);
+    out.push_back(cpp11::named_arg("raster") = is_raster);
+    out.push_back(cpp11::named_arg("vector") = is_vector);
+    out.push_back(cpp11::named_arg("multidim") = is_multidim);
+    out.push_back(cpp11::named_arg("create") = can_create);
+    out.push_back(cpp11::named_arg("copy") = can_copy);
+    out.push_back(cpp11::named_arg("vsi") = can_vsi);
+    out.push_back(cpp11::named_arg("extensions") = extensions);
+    return out;
 }

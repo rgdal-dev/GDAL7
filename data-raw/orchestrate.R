@@ -54,7 +54,12 @@ hand_written <- list(
     # express in either direction.
     "GetGeoTransform", "SetGeoTransform",
     # src/GDAL7_multidim.cpp, which also opens groups and arrays.
-    "GetRootGroup"
+    "GetRootGroup",
+    # src/GDAL7_create.cpp. Both take a scope flag whose only supported value
+    # is GDAL_OF_RASTER, which is not worth an argument, and the dataset the
+    # second returns is held by reference rather than owned, which the
+    # generator has no way to know.
+    "IsThreadSafe", "GetThreadSafeDataset"
   )
 )
 
@@ -113,6 +118,14 @@ for (cls in model$classes) {
 # =============================================================================
 # Constants and capabilities
 # =============================================================================
+
+# The generator only knows about what it generated, and gdal7_capabilities() is
+# meant to answer for every binding that can be unavailable, so the guarded
+# hand-written ones are added here.
+capabilities <- c(capabilities, list(
+  list(name = "dataset_is_thread_safe", since = "3.10.0"),
+  list(name = "dataset_get_thread_safe_dataset", since = "3.10.0")
+))
 
 message("=== Generating constants ===")
 generate_constants_file(model, "src/GDAL7_constants.cpp", symbol_versions)
