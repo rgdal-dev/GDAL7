@@ -10,14 +10,14 @@ zarr_drv <- gdal_get_driver_by_name("Zarr")
 if (is.null(zarr_drv)) {
     cat("Zarr driver not available\n")
 } else {
-    cat("Zarr driver: ", get_long_name(zarr_drv), "\n", sep = "")
+    cat("Zarr driver: ", zarr_drv@long_name, "\n", sep = "")
 }
 
 netcdf_drv <- gdal_get_driver_by_name("netCDF")
 if (is.null(netcdf_drv)) {
     cat("netCDF driver not available\n")
 } else {
-    cat("netCDF driver: ", get_long_name(netcdf_drv), "\n", sep = "")
+    cat("netCDF driver: ", netcdf_drv@long_name, "\n", sep = "")
 }
 cat("\n")
 
@@ -62,13 +62,13 @@ if (!is.null(test_file)) {
             cat("\n")
 
             # List subgroups
-            subgroups <- get_group_names(grp)
+            subgroups <- grp@group_names
             if (length(subgroups) > 0) {
                 cat("Subgroups: ", paste(subgroups, collapse = ", "), "\n\n")
             }
 
             # List and examine arrays
-            arrays <- get_mdarray_names(grp)
+            arrays <- grp@mdarray_names
             if (length(arrays) > 0) {
                 cat("=== Arrays ===\n")
                 for (arr_name in head(arrays, 5)) {
@@ -105,19 +105,19 @@ tryCatch({
         print(grp)
 
       # Get root group
-      print(get_name(grp)); print(get_full_name(grp))
-      print(get_group_names(grp)); #print(open_group(grp, "subgroup"))
+      print(grp@name); print(grp@full_name)
+      print(grp@group_names); #print(open_group(grp, "subgroup"))
 
 
 
-        arrays <- get_mdarray_names(grp)
+        arrays <- grp@mdarray_names
         if (length(arrays) > 0) {
             cat("\nFirst array:\n")
             arr <- open_mdarray(grp, arrays[1])
             if (!is.null(arr)) {
                 print(arr)
-              print(get_dimension_count(arr))
-              print(get_dimensions(arr))
+              print(arr@dimension_count)
+              print(arr@dimensions)
             }
         }
     }

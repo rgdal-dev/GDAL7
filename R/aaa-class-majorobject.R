@@ -8,14 +8,31 @@ NULL
 #' GDAL MajorObject class
 #'
 #' @description S7 class wrapping GDALMajorObject
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALMajorObject <- S7::new_class(
   "GDALMajorObject",
   package = "GDAL7",
 
+  constructor = function(.ptr) {
+    S7::new_object(S7::S7_object(), .ptr = .ptr)
+  },
+
   properties = list(
     # Internal pointer - not for direct user access
-    .ptr = S7::class_any
+    .ptr = S7::class_any,
+    description = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_majorobject_get_description(self@.ptr),
+      setter = function(self, value) {
+        GDAL7_majorobject_set_description(self@.ptr, value)
+        self
+      }
+    ),
+    metadata_domain_list = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_majorobject_get_metadata_domain_list(self@.ptr)
+    )
   ),
 
   validator = function(self) {
@@ -29,113 +46,84 @@ GDALMajorObject <- S7::new_class(
 # Generics for GDALMajorObject
 # -----------------------------------------------------------------------------
 
-#' GetDescription
-#'
-#' @param x A GDALMajorObject object
-#' @return character
-#' @export
-get_description <- S7::new_generic("get_description", "x")
-
-#' SetDescription
-#'
-#' @param x A GDALMajorObject object
-#' @param pszNewDesc ANY
-#' @return NULL
-#' @export
-set_description <- S7::new_generic("set_description", "x")
-
-#' GetMetadataDomainList
-#'
-#' @param x A GDALMajorObject object
-#' @return character
-#' @export
-get_metadata_domain_list <- S7::new_generic("get_metadata_domain_list", "x")
-
 #' GetMetadata_Dict
 #'
 #' @param x A GDALMajorObject object
-#' @param pszDomain character (default: )
+#' @param pszDomain character (default: "")
 #' @return character
 #' @export
-get_metadata_dict <- S7::new_generic("get_metadata_dict", "x")
+get_metadata_dict <- S7::new_generic("get_metadata_dict", "x", function(x, pszDomain = "") S7::S7_dispatch())
 
 #' GetMetadata_List
 #'
 #' @param x A GDALMajorObject object
-#' @param pszDomain ANY (default: )
+#' @param pszDomain character (default: "")
 #' @return character
 #' @export
-get_metadata_list <- S7::new_generic("get_metadata_list", "x")
+get_metadata_list <- S7::new_generic("get_metadata_list", "x", function(x, pszDomain = "") S7::S7_dispatch())
 
 #' SetMetadata
 #'
 #' @param x A GDALMajorObject object
-#' @param papszMetadata character
-#' @param pszDomain character (default: )
+#' @param papszMetadata character (default: NULL)
+#' @param pszDomain character (default: "")
 #' @return integer
 #' @export
-set_metadata <- S7::new_generic("set_metadata", "x")
+set_metadata <- S7::new_generic("set_metadata", "x", function(x, papszMetadata = NULL, pszDomain = "") S7::S7_dispatch())
 
 #' GetMetadataItem
 #'
 #' @param x A GDALMajorObject object
-#' @param pszName ANY
-#' @param pszDomain ANY (default: )
+#' @param pszName character
+#' @param pszDomain character (default: "")
 #' @return character
 #' @export
-get_metadata_item <- S7::new_generic("get_metadata_item", "x")
+get_metadata_item <- S7::new_generic("get_metadata_item", "x", function(x, pszName, pszDomain = "") S7::S7_dispatch())
 
 #' SetMetadataItem
 #'
 #' @param x A GDALMajorObject object
 #' @param pszName character
 #' @param pszValue character
-#' @param pszDomain character (default: )
+#' @param pszDomain character (default: "")
 #' @return integer
 #' @export
-set_metadata_item <- S7::new_generic("set_metadata_item", "x")
+set_metadata_item <- S7::new_generic("set_metadata_item", "x", function(x, pszName, pszValue, pszDomain = "") S7::S7_dispatch())
 
 # -----------------------------------------------------------------------------
 # Methods for GDALMajorObject
 # -----------------------------------------------------------------------------
 
-S7::method(get_description, GDALMajorObject) <- function(x) {
-  GDAL7_majorobject_get_description(x@.ptr)
-}
-
-S7::method(set_description, GDALMajorObject) <- function(x, pszNewDesc) {
-  GDAL7_majorobject_set_description(x@.ptr, pszNewDesc)
-  invisible(x)
-}
-
-S7::method(get_metadata_domain_list, GDALMajorObject) <- function(x) {
-  GDAL7_majorobject_get_metadata_domain_list(x@.ptr)
-}
-
-S7::method(get_metadata_dict, GDALMajorObject) <- function(x, pszDomain) {
+S7::method(get_metadata_dict, GDALMajorObject) <- function(x, pszDomain = "") {
   GDAL7_majorobject_get_metadata_dict(x@.ptr, pszDomain)
 }
 
-S7::method(get_metadata_list, GDALMajorObject) <- function(x, pszDomain) {
+S7::method(get_metadata_list, GDALMajorObject) <- function(x, pszDomain = "") {
   GDAL7_majorobject_get_metadata_list(x@.ptr, pszDomain)
 }
 
-S7::method(set_metadata, GDALMajorObject) <- function(x, papszMetadata, pszDomain) {
-  GDAL7_majorobject_set_metadata(x@.ptr, papszMetadata, pszDomain)
+S7::method(set_metadata, GDALMajorObject) <- function(x, papszMetadata = NULL, pszDomain = "") {
+  GDAL7_majorobject_set_metadata(x@.ptr, as.list(papszMetadata), pszDomain)
 }
 
+#' SetMetadata (overload 2)
+#'
+#' @param x A GDALMajorObject object
+#' @param pszMetadataString character
+#' @param pszDomain character
+#' @return integer
 #' @export
-set_metadata_2 <- S7::new_generic("set_metadata_2", "x")
+set_metadata_2 <- S7::new_generic("set_metadata_2", "x", function(x, pszMetadataString, pszDomain = "") S7::S7_dispatch())
 
-S7::method(set_metadata_2, GDALMajorObject) <- function(x, pszMetadataString, pszDomain) {
-  GDAL7_majorobject_set_metadata(x@.ptr, pszMetadataString, pszDomain)
+S7::method(set_metadata_2, GDALMajorObject) <- function(x, pszMetadataString, pszDomain = "") {
+  GDAL7_majorobject_set_metadata_2(x@.ptr, pszMetadataString, pszDomain)
 }
 
-S7::method(get_metadata_item, GDALMajorObject) <- function(x, pszName, pszDomain) {
+S7::method(get_metadata_item, GDALMajorObject) <- function(x, pszName, pszDomain = "") {
   GDAL7_majorobject_get_metadata_item(x@.ptr, pszName, pszDomain)
 }
 
-S7::method(set_metadata_item, GDALMajorObject) <- function(x, pszName, pszValue, pszDomain) {
+S7::method(set_metadata_item, GDALMajorObject) <- function(x, pszName, pszValue, pszDomain = "") {
   GDAL7_majorobject_set_metadata_item(x@.ptr, pszName, pszValue, pszDomain)
 }
 
@@ -143,7 +131,7 @@ S7::method(set_metadata_item, GDALMajorObject) <- function(x, pszName, pszValue,
 #' @export
 S7::method(print, GDALMajorObject) <- function(x, ...) {
   cat("<GDALMajorObject>\n")
-  desc <- get_description(x)
+  desc <- x@description
   if (nzchar(desc)) {
     cat("  Description:", desc, "\n")
   }

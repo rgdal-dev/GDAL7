@@ -1,92 +1,174 @@
 # data-raw/orchestrate.R
-# Master script to regenerate all GDAL7 bindings from SWIG files
+# Regenerate every generated file in GDAL7 from the vendored API model.
 #
-# Usage: source("data-raw/orchestrate.R")
-# Then:  R CMD INSTALL --no-staged-install .
+# Usage:
+#   Rscript data-raw/orchestrate.R              # generate from inst/api/gdal-api.json
+#   Rscript data-raw/orchestrate.R --refresh    # re-extract the model from ~/gdal first
+#
+# The default needs no GDAL checkout, which is what lets CI regenerate and diff
+# on every commit. --refresh is the step a human takes when GDAL moves on; it
+# rewrites inst/api/gdal-api.json, and the change it makes to the generated
+# code is then a reviewable diff rather than a surprise.
+#
+# After generating: R CMD INSTALL --no-staged-install .
 
-# Path to GDAL swig includes (adjust to your setup)
+args <- commandArgs(trailingOnly = TRUE)
+refresh <- "--refresh" %in% args
 swig_dir <- "~/gdal/swig/include"
 
-# Check swig dir exists
-if (!dir.exists(normalizePath(swig_dir, mustWork = FALSE))) {
-  stop("SWIG directory not found: ", swig_dir,
-       "\nClone GDAL repo: git clone --depth 1 https://github.com/osgeo/gdal.git ~/gdal")
+# Suppress the generators' standalone test blocks when sourced.
+SOURCED <- TRUE
+SOURCED_GEN <- TRUE
+SOURCED_S7_GEN <- TRUE
+
+message("=== Loading generators ===")
+source("data-raw/parse_swig.R")
+source("data-raw/api_model.R")
+source("data-raw/generate_cpp11.R")
+source("data-raw/generate_s7.R")
+source("data-raw/generate_constants.R")
+
+# =============================================================================
+# The API model
+# =============================================================================
+
+if (refresh) {
+  message("=== Refreshing the API model from ", swig_dir, " ===")
+  write_api_model(build_api_model(swig_dir))
 }
 
-# Clean stale generated files BEFORE sourcing generators
+model <- read_api_model()
+symbol_versions <- read_symbol_versions()
+message(sprintf("=== API model: GDAL %s, extracted %s ===",
+                model$gdal_version, model$extracted))
+
+# Methods that are written by hand elsewhere in the package. Unlike everything
+# the generator declines to emit, these are not gaps: they are places where a
+# hand-written binding does more than the generator could, and generating them
+# too would define the same symbol twice.
+hand_written <- list(
+  Dataset = c(
+    # R/driver.R and R/raster-info.R, where the classes they return live.
+    "GetDriver", "GetRasterBand",
+    # R/raster-io.R. Each carries a double[6], which the generator cannot
+    # express in either direction.
+    "GetGeoTransform", "SetGeoTransform",
+    # src/GDAL7_multidim.cpp, which also opens groups and arrays.
+    "GetRootGroup",
+    # src/GDAL7_create.cpp. Both take a scope flag whose only supported value
+    # is GDAL_OF_RASTER, which is not worth an argument, and the dataset the
+    # second returns is held by reference rather than owned, which the
+    # generator has no way to know.
+    "IsThreadSafe", "GetThreadSafeDataset"
+  )
+)
+
+# Getters that take nothing but the object become S7 properties rather than
+# generics. These are the exceptions: reading a property must never raise, and
+# printing an object reads every one of them, so a getter whose C symbol is
+# newer than the package floor stays a generic that says which release it
+# needs.
+not_properties <- list(
+  Dataset = c("GetCloseReportsProgress")
+)
+
+# Properties the generator cannot derive, because their subject is hand
+# written. Each names the helpers that read and write it; those live beside
+# the rest of their subject in the R files named here.
+hand_written_properties <- list(
+  Dataset = list(
+    # R/raster-io.R. A geotransform is a double[6] in both directions, which
+    # the generator has no way to express.
+    list(name = "geotransform", class = "S7::class_any",
+         getter = "dataset_geotransform", setter = "dataset_set_geotransform"),
+    # R/raster-io.R. GDAL's own SetProjection takes WKT only; this takes
+    # anything GDAL reads and gives back WKT2.
+    list(name = "crs", class = "S7::class_character",
+         getter = "dataset_crs", setter = "dataset_set_crs"),
+    # R/vector.R.
+    list(name = "layers", class = "S7::class_any", getter = "dataset_layers")
+  )
+)
+
+# =============================================================================
+# Clean stale generated files BEFORE generating
+# =============================================================================
+
 message("=== Cleaning stale files ===")
 unlink("src/cpp11.cpp")
 unlink("R/cpp11.R")
 unlink(list.files("src", pattern = "\\.(o|so|dll)$", full.names = TRUE))
-# Clean old class files (both naming conventions)
-unlink("R/class-majorobject.R")
-unlink("R/class-dataset.R")
 unlink("R/aaa-class-majorobject.R")
 unlink("R/aab-class-dataset.R")
+unlink("src/GDAL7_majorobject.cpp")
+unlink("src/GDAL7_dataset.cpp")
+unlink("src/GDAL7_constants.cpp")
+unlink("src/GDAL7_capabilities.cpp")
 
-# Suppress test output when sourcing
-SOURCED <- TRUE
-SOURCED_GEN <- TRUE
-SOURCED_S7_GEN <- TRUE
-SOURCED_FIX_CPP11 <- TRUE
+# =============================================================================
+# Classes
+# =============================================================================
 
-message("=== Loading generators ===")
-source("data-raw/parse_swig.R")
-source("data-raw/generate_cpp11.R")
-source("data-raw/generate_s7.R")
-source("data-raw/fix_cpp11.R")
-
-# Skip list for Dataset - methods that don't generate correctly yet
-# (GDAL 3.9+ functions, complex signatures, callbacks, arrays, etc.)
-dataset_skip <- c(
-  "MarkSuppressOnClose", "Close", "GetCloseReportsProgress",
-  "IsThreadSafe", "GetThreadSafeDataset", "GetRootGroup",
-  "SetProjection", "SetSpatialRef",
-  "GetGeoTransform", "SetGeoTransform",
-  "GetExtent", "GetExtentWGS84LongLat",
-  "BuildOverviews", "AddBand", "CreateMaskBand", "AdviseRead",
-  "GetFieldDomainNames", "GetRelationshipNames",
-  "GetFieldDomain", "AddFieldDomain", "DeleteFieldDomain", "UpdateFieldDomain",
-  "GetRelationship", "AddRelationship", "DeleteRelationship", "UpdateRelationship",
-  "AsMDArray", "StartTransaction", "CommitTransaction", "RollbackTransaction",
-  "AbortSQL", "ResetReading", "GetLayer", "GetLayerByName", "ClearStatistics"
+# MajorObject is generated first and named "aaa-" so that it loads before the
+# classes that inherit from it.
+outputs <- list(
+  MajorObject = list(cpp = "src/GDAL7_majorobject.cpp",
+                     r = "R/aaa-class-majorobject.R"),
+  Dataset = list(cpp = "src/GDAL7_dataset.cpp",
+                 r = "R/aab-class-dataset.R")
 )
 
-# =============================================================================
-# Generate MajorObject (base class - must load first, hence "aaa-" prefix)
-# =============================================================================
-message("=== Generating MajorObject ===")
-result <- parse_swig_file(file.path(swig_dir, "MajorObject.i"))
-cls <- result$classes[[1]]
+capabilities <- list()
 
-generate_cpp11_file(cls, "src/GDAL7_majorobject.cpp")
-generate_s7_file(cls, "R/aaa-class-majorobject.R")  # aaa- ensures it loads first
+for (cls in model$classes) {
+  name <- cls$public_name
+  message(sprintf("=== Generating %s ===", name))
+
+  paths <- outputs[[name]]
+  if (is.null(paths)) {
+    stop("No output paths are configured for class ", name)
+  }
+
+  result <- generate_cpp11_file(cls, paths$cpp, symbol_versions,
+                                hand_written = hand_written[[name]] %||% character())
+  generate_s7_file(cls, paths$r, methods = result$methods, members = result$members,
+                   not_properties = not_properties[[name]] %||% character(),
+                   hand_written_properties = hand_written_properties[[name]] %||% list())
+
+  capabilities <- c(capabilities, result$capabilities)
+
+  if (length(result$skipped) > 0) {
+    message(sprintf("    %d method(s) not generated; reasons are in %s",
+                    length(unique(vapply(result$skipped, function(x) x$name, ""))),
+                    paths$cpp))
+  }
+}
 
 # =============================================================================
-# Generate Dataset (inherits from MajorObject)
+# Constants and capabilities
 # =============================================================================
-message("=== Generating Dataset ===")
-result <- parse_swig_file(file.path(swig_dir, "Dataset.i"))
-cls <- result$classes[[1]]
 
-generate_cpp11_file(cls, "src/GDAL7_dataset.cpp")
-generate_s7_file(cls, "R/aab-class-dataset.R", skip_methods = dataset_skip)  # aab- loads second
+# The generator only knows about what it generated, and gdal7_capabilities() is
+# meant to answer for every binding that can be unavailable, so the guarded
+# hand-written ones are added here.
+capabilities <- c(capabilities, list(
+  list(name = "dataset_is_thread_safe", since = "3.10.0"),
+  list(name = "dataset_get_thread_safe_dataset", since = "3.10.0")
+))
+
+message("=== Generating constants ===")
+generate_constants_file(model, "src/GDAL7_constants.cpp", symbol_versions)
+
+message("=== Generating capabilities ===")
+generate_capabilities_file(capabilities, "src/GDAL7_capabilities.cpp")
 
 # =============================================================================
-# Generate cpp11 registration and fix it
+# cpp11 registration
 # =============================================================================
+
 message("=== Generating cpp11 registration ===")
 cpp11::cpp_register()
 
-message("=== Fixing cpp11.cpp ===")
-fix_cpp11()
-
-# =============================================================================
-# Done!
-# =============================================================================
 message("")
 message("=== Generation complete ===")
 message("Now run: R CMD INSTALL --no-staged-install .")
-message("")
-message("Or in R:")
-message("  system('R CMD INSTALL --no-staged-install .')")

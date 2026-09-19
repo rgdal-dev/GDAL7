@@ -1,0 +1,43 @@
+{
+  "zarr_format":3,
+  "node_type":"array",
+  "shape":[
+    3,
+    4,
+    5
+  ],
+  "data_type":"float64",
+  "chunk_grid":{
+    "name":"regular",
+    "configuration":{
+      "chunk_shape":[
+        1,
+        4,
+        5
+      ]
+    }
+  },
+  "chunk_key_encoding":{
+    "name":"default",
+    "configuration":{
+      "separator":"\/"
+    }
+  },
+  "fill_value":-999.0,
+  "attributes":{
+    "coordinates":"lat lon",
+    "long_name":"air temperature",
+    "valid_range":[
+      -50.0,
+      50.0
+    ],
+    "units":"degC",
+    "add_offset":0.5,
+    "scale_factor":2.0
+  },
+  "dimension_names":[
+    "time",
+    "lat",
+    "lon"
+  ]
+}

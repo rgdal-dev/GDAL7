@@ -3,3 +3,7 @@
 ^\.Rproj\.user$
 ^README\.Rmd$
 ^CODE_OF_CONDUCT\.md$
+^ROADMAP\.md$
+^\.github$
+^README\.html$
+^inst/examples$

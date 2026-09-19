@@ -17,9 +17,9 @@ map_return_type <- function(swig_type) {
     "int" = "int",
     "double" = "double",
     "bool" = "bool",
-    "const char*" = "std::string",
-    "char const*" = "std::string",
-    "char*" = "std::string",
+    "const char*" = "cpp11::strings",
+    "char const*" = "cpp11::strings",
+    "char*" = "cpp11::strings",
     "char**" = "cpp11::strings",
     "char **" = "cpp11::strings",
     "CPLErr" = "int",
@@ -32,6 +32,11 @@ map_return_type <- function(swig_type) {
     return(mapping[[swig_type]])
   }
 
+  # An enum reaches R as the integer it is.
+  if (swig_type %in% ENUM_PARAM_TYPES) {
+    return("int")
+  }
+
   # GDAL object pointers -> SEXP (external pointer)
   if (grepl("Shadow\\*$|HS\\*$|ShadowH\\*$", swig_type)) {
     return("SEXP")
@@ -41,37 +46,63 @@ map_return_type <- function(swig_type) {
   swig_type
 }
 
-# Map parameter types to cpp11 parameter types
+# Enum parameters. GDAL's C API takes these as their own enum type, so the
+# binding takes an int from R and casts at the call.
+ENUM_PARAM_TYPES <- c(
+  "GDALAccess", "GDALColorInterp", "GDALDataType", "GDALPaletteInterp",
+  "GDALRATFieldType", "GDALRATFieldUsage", "GDALRATTableType",
+  "GDALRIOResampleAlg", "GDALRWFlag"
+)
+
+# Map a parameter to its cpp11 type, or NA when the generator cannot express
+# it. NA is not a failure to be worked around; it is the honest answer, and it
+# is what keeps an unrepresentable method out of the build.
 map_param_type <- function(param) {
   swig_type <- trimws(param$type)
   swig_type <- gsub("\\s*\\*", "*", swig_type)
 
-  # String types
+  # An array parameter arrives with its extent stuck to the name, as in
+  # "double argout[6]". There is no cpp11 spelling for that.
+  if (!grepl("^[A-Za-z_][A-Za-z0-9_]*$", param$name)) {
+    return(NA_character_)
+  }
+
   if (swig_type %in% c("const char*", "char const*", "char*", "const char")) {
     return("std::string")
   }
 
-  # String list with typemap
   if (grepl("char\\s*\\*\\*", swig_type)) {
-    if (!is.na(param$typemap)) {
-      if (param$typemap == "dict") {
-        return("cpp11::list")  # Named list for KEY=VALUE
-      }
+    if (!is.na(param$typemap) && param$typemap == "dict") {
+      return("cpp11::list")  # Named list for KEY=VALUE
     }
     return("cpp11::strings")  # Default string vector
   }
 
-  # Primitives
   if (swig_type == "int") return("int")
   if (swig_type == "double") return("double")
   if (swig_type == "bool") return("bool")
+  if (swig_type %in% ENUM_PARAM_TYPES) return("int")
 
-  # GDAL objects
-  if (grepl("Shadow\\*$|HS\\*$", swig_type)) {
-    return("SEXP")
+  NA_character_
+}
+
+# How the parameter reaches the derived C call.
+param_arg_expr <- function(param) {
+  cpp_type <- map_param_type(param)
+  swig_type <- gsub("\\s*\\*", "*", trimws(param$type))
+
+  if (identical(cpp_type, "std::string")) {
+    return(sprintf("%s.c_str()", param$name))
   }
-
-  swig_type
+  if (cpp_type %in% c("cpp11::list", "cpp11::strings")) {
+    # The CPLStringList temporary lives until the call returns and then frees
+    # itself, which the CSLAddString loops this replaces did not.
+    return(sprintf("gdal7::to_csl(%s).List()", param$name))
+  }
+  if (swig_type %in% ENUM_PARAM_TYPES) {
+    return(sprintf("static_cast<%s>(%s)", swig_type, param$name))
+  }
+  param$name
 }
 
 # Get the GDAL C API handle type for a class
@@ -97,6 +128,36 @@ get_handle_type <- function(class_name) {
   } else {
     paste0("GDAL", class_name, "H")  # Guess
   }
+}
+
+# The gdal7::Kind an object of this class is wrapped as. Kinds drive both the
+# external pointer tag and the ownership chain in inst/include/gdal7.h.
+get_kind <- function(class_name) {
+  kinds <- list(
+    "Dataset" = "Dataset",
+    "RasterBand" = "Band",
+    "Driver" = "Driver",
+    "Group" = "Group",
+    "MDArray" = "MDArray",
+    "SpatialReference" = "SpatialRef"
+  )
+  if (class_name %in% names(kinds)) kinds[[class_name]] else NA_character_
+}
+
+# The Kind to wrap a returned GDAL handle as, and whether the object it came
+# out of is its parent. A band or a spatial reference is borrowed from the
+# dataset and must not outlive it; a driver belongs to GDAL's driver manager
+# and outlives everything, so it has no parent at all.
+handle_to_kind <- function(handle_type) {
+  kinds <- list(
+    "GDALDatasetH" = list(kind = "Dataset", parent = TRUE),
+    "GDALRasterBandH" = list(kind = "Band", parent = TRUE),
+    "GDALDriverH" = list(kind = "Driver", parent = FALSE),
+    "GDALGroupH" = list(kind = "Group", parent = TRUE),
+    "GDALMDArrayH" = list(kind = "MDArray", parent = TRUE),
+    "OGRSpatialReferenceH" = list(kind = "SpatialRef", parent = TRUE)
+  )
+  if (handle_type %in% names(kinds)) kinds[[handle_type]] else NULL
 }
 
 # Map SWIG return type to GDAL handle type
@@ -181,11 +242,25 @@ to_snake_case <- function(name) {
 generate_header <- function(class_name) {
   handle_type <- get_handle_type(class_name)
   class_lower <- tolower(class_name)
+  kind <- get_kind(class_name)
+
+  # MajorObject is the base of the hierarchy rather than a class of its own, so
+  # its bindings are handed a dataset, a band or a driver and only the shared
+  # part of the API is reachable through them.
+  accessor <- if (class_name == "MajorObject") {
+    sprintf('inline %s get_%s_handle(SEXP xp) {
+    return gdal7::major_object(xp);
+}', handle_type, class_lower)
+  } else if (is.na(kind)) {
+    stop(sprintf("No gdal7::Kind is defined for class %s", class_name))
+  } else {
+    sprintf('inline %s get_%s_handle(SEXP xp) {
+    return gdal7::get<%s>(xp, gdal7::Kind::%s);
+}', handle_type, class_lower, handle_type, kind)
+  }
 
   sprintf('// Auto-generated by GDAL7 generator - do not edit
-#include <cpp11.hpp>
-#include "gdal.h"
-#include "cpl_string.h"
+#include "gdal7.h"
 
 using namespace cpp11;
 
@@ -193,37 +268,14 @@ using namespace cpp11;
 // %s bindings
 // -----------------------------------------------------------------------------
 
-// Helper to extract and validate pointer
-inline %s get_%s_handle(SEXP xp) {
-    external_pointer<%s> ptr(xp);
-    if (!ptr || !*ptr) {
-        stop("Invalid %s pointer (NULL or already closed)");
-    }
-    return *ptr;
-}
+namespace {
 
-// Helper to convert R named character vector to char** (KEY=VALUE format)
-inline char** strings_to_csl(cpp11::strings strs) {
-    char** result = NULL;
-    for (auto s : strs) {
-        result = CSLAddString(result, std::string(s).c_str());
-    }
-    return result;
-}
+// Fetch the handle, checking both that the external pointer is of the right
+// kind and that nothing it depends on has been closed.
+%s
 
-// Helper to convert R named list to char** (KEY=VALUE format)
-inline char** list_to_csl(cpp11::list lst) {
-    char** result = NULL;
-    cpp11::strings names = lst.names();
-    for (int i = 0; i < lst.size(); i++) {
-        std::string key = std::string(names[i]);
-        std::string val = cpp11::as_cpp<std::string>(lst[i]);
-        std::string kv = key + "=" + val;
-        result = CSLAddString(result, kv.c_str());
-    }
-    return result;
-}
-', class_name, handle_type, class_lower, handle_type, class_name)
+}  // namespace
+', class_name, accessor)
 }
 
 # Generate a single method binding
@@ -251,36 +303,39 @@ generate_method <- function(method, class_name) {
   body_lines <- c(body_lines, sprintf("    %s h = get_%s_handle(xp);",
                                       handle_type, class_lower))
 
-  # Generate the GDAL C API call
-  gdal_call <- generate_gdal_call(method, class_name, param_names)
+  # Generate the GDAL C API call. The one hand-mapped method has no derived
+  # call; its branch below writes the call out itself.
+  gdal_call <- if (is.null(method$c_call)) {
+    NA_character_
+  } else {
+    generate_gdal_call(method, class_name, param_names)
+  }
 
   # Handle return type
   if (return_type == "void") {
     body_lines <- c(body_lines, sprintf("    %s;", gdal_call))
-  } else if (return_type == "std::string") {
-    body_lines <- c(body_lines, sprintf("    const char* result = %s;", gdal_call))
-    body_lines <- c(body_lines, "    return result ? std::string(result) : std::string(\"\");")
+  } else if (return_type == "cpp11::strings" && !grepl("\\*\\*", method$return_type)) {
+    # A single string. NULL from GDAL means "not set", which reaches R as NA
+    # rather than being flattened into "".
+    body_lines <- c(body_lines, sprintf("    return gdal7::chr(%s);", gdal_call))
   } else if (return_type == "cpp11::strings") {
     # Check if borrowed reference (GetMetadata) vs owned (GetMetadataDomainList, GetFileList)
     is_borrowed <- grepl("^GetMetadata$|^GetMetadata_", method$name)
+    is_dict <- grepl("^GetMetadata_Dict", method$name)
 
     if (is_borrowed) {
-      body_lines <- c(body_lines, sprintf("    CSLConstList result = %s;", gdal_call))
+      # Borrowed from the object - do not free
+      if (is_dict) {
+        body_lines <- c(body_lines, sprintf("    return gdal7::named_from_csl(%s);", gdal_call))
+      } else {
+        body_lines <- c(body_lines, sprintf("    return gdal7::from_csl(%s);", gdal_call))
+      }
     } else {
       body_lines <- c(body_lines, sprintf("    char** result = %s;", gdal_call))
+      body_lines <- c(body_lines, "    strings out = gdal7::from_csl(result);")
+      body_lines <- c(body_lines, "    CSLDestroy(result);")
+      body_lines <- c(body_lines, "    return out;")
     }
-    body_lines <- c(body_lines, "    writable::strings out;")
-    body_lines <- c(body_lines, "    if (result) {")
-    body_lines <- c(body_lines, "        for (int i = 0; result[i] != NULL; i++) {")
-    body_lines <- c(body_lines, "            out.push_back(result[i]);")
-    body_lines <- c(body_lines, "        }")
-    if (is_borrowed) {
-      body_lines <- c(body_lines, "        // Borrowed reference - do not free")
-    } else {
-      body_lines <- c(body_lines, "        CSLDestroy(result);")
-    }
-    body_lines <- c(body_lines, "    }")
-    body_lines <- c(body_lines, "    return out;")
   } else if (return_type == "int" && method$return_type == "CPLErr") {
     base_name <- sub("_[0-9]+$", "", method$name)
 
@@ -295,49 +350,51 @@ generate_method <- function(method, class_name) {
       !grepl("\\*\\*", method$params[[1]]$type) &&
       grepl("char", method$params[[1]]$type)
 
+    # The scope collects what GDAL says about this call, so a failure is
+    # reported with its own message rather than whatever was left over from an
+    # earlier one.
+    body_lines <- c(body_lines, "    gdal7::ErrorScope err;")
+
     if (has_csl || is_single_string_setmetadata) {
       if (is_single_string_setmetadata && !has_csl) {
         domain_arg <- if (length(method$params) > 1) {
           sprintf("%s.c_str()", param_names[2])
         } else { '""' }
-        body_lines <- c(body_lines, sprintf("    char** csl = CSLAddString(NULL, %s.c_str());", param_names[1]))
-        body_lines <- c(body_lines, sprintf("    CPLErr err = GDALSetMetadata(h, csl, %s);", domain_arg))
+        body_lines <- c(body_lines, "    CPLStringList csl;")
+        body_lines <- c(body_lines, sprintf("    csl.AddString(%s.c_str());", param_names[1]))
+        body_lines <- c(body_lines, sprintf("    CPLErr status = GDALSetMetadata(h, csl.List(), %s);", domain_arg))
       } else if (has_csl) {
         csl_param <- which(sapply(method$params, function(p) {
           map_param_type(p) %in% c("cpp11::list", "cpp11::strings")
         }))[1]
         csl_name <- param_names[csl_param]
-        csl_convert <- if (map_param_type(method$params[[csl_param]]) == "cpp11::list") {
-          sprintf("list_to_csl(%s)", csl_name)
-        } else {
-          sprintf("strings_to_csl(%s)", csl_name)
-        }
         domain_arg <- if (length(param_names) > csl_param) {
           sprintf("%s.c_str()", param_names[length(param_names)])
         } else { '""' }
-        body_lines <- c(body_lines, sprintf("    char** csl = %s;", csl_convert))
-        body_lines <- c(body_lines, sprintf("    CPLErr err = GDALSetMetadata(h, csl, %s);", domain_arg))
+        body_lines <- c(body_lines, sprintf("    CPLStringList csl = gdal7::to_csl(%s);", csl_name))
+        body_lines <- c(body_lines, sprintf("    CPLErr status = GDALSetMetadata(h, csl.List(), %s);", domain_arg))
       }
-      body_lines <- c(body_lines, "    CSLDestroy(csl);")
     } else {
-      body_lines <- c(body_lines, sprintf("    CPLErr err = %s;", gdal_call))
+      body_lines <- c(body_lines, sprintf("    CPLErr status = %s;", gdal_call))
     }
-    body_lines <- c(body_lines, "    if (err != CE_None) {")
-    body_lines <- c(body_lines, sprintf('        stop("%s failed: %%s", CPLGetLastErrorMsg());', base_name))
+    body_lines <- c(body_lines, "    if (status != CE_None) {")
+    body_lines <- c(body_lines, sprintf('        err.stop("%s failed");', base_name))
     body_lines <- c(body_lines, "    }")
-    body_lines <- c(body_lines, "    return static_cast<int>(err);")
+    body_lines <- c(body_lines, "    err.flush();")
+    body_lines <- c(body_lines, "    return static_cast<int>(status);")
   } else if (return_type == "SEXP") {
-    # GDAL object return - need to wrap in external_pointer
-    # Extract the handle type from the SWIG return type
-    swig_ret <- method$return_type
-    handle_type <- swig_to_handle_type(swig_ret)
+    # GDAL object return - wrap it with the ownership chain that keeps whatever
+    # it was taken out of alive for as long as R can still reach it.
+    handle_type <- swig_to_handle_type(method$return_type)
+    wrapping <- handle_to_kind(handle_type)
+    if (is.null(wrapping)) {
+      stop(sprintf("No gdal7::Kind is defined for handle type %s", handle_type))
+    }
 
+    parent_arg <- if (wrapping$parent) ", xp" else ""
     body_lines <- c(body_lines, sprintf("    %s result = %s;", handle_type, gdal_call))
-    body_lines <- c(body_lines, "    if (!result) {")
-    body_lines <- c(body_lines, "        return R_NilValue;")
-    body_lines <- c(body_lines, "    }")
-    body_lines <- c(body_lines, sprintf("    return external_pointer<%s>(new %s(result));",
-                                        handle_type, handle_type))
+    body_lines <- c(body_lines, sprintf("    return gdal7::wrap(result, gdal7::Kind::%s%s);",
+                                        wrapping$kind, parent_arg))
   } else {
     body_lines <- c(body_lines, sprintf("    return %s;", gdal_call))
   }
@@ -353,160 +410,214 @@ generate_method <- function(method, class_name) {
 ', return_type, class_lower, method_lower, param_str, body)
 }
 
-# Generate the GDAL C API call for a method
+# The single-string overload of SetMetadata builds a two-element array on the
+# stack instead of calling one C function, so there is no call in its body to
+# derive. It is the one method the generator maps by hand, and the mapping is
+# here rather than in a lookup table so that it stays visible.
+is_single_string_set_metadata <- function(method) {
+  base_name <- sub("_[0-9]+$", "", method$name)
+  base_name == "SetMetadata" &&
+    length(method$params) >= 1 &&
+    grepl("char", method$params[[1]]$type) &&
+    !grepl("\\*\\*", method$params[[1]]$type)
+}
+
+# Literals a derived call may pass that are not parameters.
+C_LITERALS <- c("NULL", "nullptr", "0", "1", "true", "false", "TRUE", "FALSE")
+
+is_c_literal <- function(arg) {
+  arg %in% C_LITERALS ||
+    grepl("^-?[0-9]+(\\.[0-9]+)?$", arg) ||
+    grepl('^".*"$', arg)
+}
+
+# Generate the GDAL C API call for a method, from the call derived out of its
+# %extend body. SWIG's body is the mapping; nothing here guesses at it.
 generate_gdal_call <- function(method, class_name, param_names) {
-  # Map method name to GDAL C API function
-  # MajorObject methods use GDALGetDescription(h), GDALSetDescription(h, val), etc.
-
-  base_name <- sub("_[0-9]+$", "", method$name)  # Strip overload suffix
-  gdal_func <- map_method_to_gdal_func(method$name, class_name)
-
-  # Special case: SetMetadata with single string needs array wrapping
-  if (base_name == "SetMetadata" && length(method$params) >= 1) {
-    first_param <- method$params[[1]]
-    # Check if first param is a single string (not char**)
-    if (!grepl("\\*\\*", first_param$type) && grepl("char", first_param$type)) {
-      # Single string variant - return special call
-      domain_param <- if (length(method$params) > 1) {
-        sprintf("%s.c_str()", param_names[2])
-      } else {
-        '""'
-      }
-      return(sprintf("GDALSetMetadata(h, CSLAddString(NULL, %s.c_str()), %s)",
-                     param_names[1], domain_param))
-    }
+  call <- method$c_call
+  if (is.null(call)) {
+    stop(sprintf("No C call derived for %s::%s", class_name, method$name))
   }
 
-  # Build argument list
-  args <- c("h")  # Handle is always first
+  args <- vapply(call$args, function(arg) {
+    if (arg == "self") return("h")
+    index <- match(arg, param_names)
+    if (!is.na(index)) return(param_arg_expr(method$params[[index]]))
+    if (arg == "NULL") return("nullptr")
+    arg
+  }, character(1))
 
-  for (i in seq_along(method$params)) {
-    p <- method$params[[i]]
-    pname <- param_names[i]
-
-    # Convert cpp11 types to C types where needed
-    if (map_param_type(p) == "std::string") {
-      args <- c(args, sprintf("%s.c_str()", pname))
-    } else if (map_param_type(p) == "cpp11::list") {
-      # Convert list to char** using helper
-      args <- c(args, sprintf("list_to_csl(%s)", pname))
-    } else if (map_param_type(p) == "cpp11::strings") {
-      # Convert strings to char** using helper
-      args <- c(args, sprintf("strings_to_csl(%s)", pname))
-    } else {
-      args <- c(args, pname)
-    }
-  }
-
-  sprintf("%s(%s)", gdal_func, paste(args, collapse = ", "))
+  sprintf("%s(%s)", call$func, paste(args, collapse = ", "))
 }
 
-# Map SWIG method name to GDAL C API function name
-map_method_to_gdal_func <- function(method_name, class_name) {
-  # Strip overload suffix for lookup
-  base_name <- sub("_[0-9]+$", "", method_name)
+# Can this method be generated, and if not, why not? The reasons are recorded
+# in the generated file, so the skip list is something you read rather than
+# something you maintain.
+method_support <- function(method, class_name, symbol_versions) {
+  unsupported <- function(reason) list(ok = FALSE, reason = reason)
 
-  # Class-specific method mappings
-  # These map SWIG method names to actual GDAL C API function names
-  dataset_methods <- list(
-    "GetDriver" = "GDALGetDatasetDriver",
-    "GetRasterBand" = "GDALGetRasterBand",
-    "GetProjection" = "GDALGetProjectionRef",
-    "GetProjectionRef" = "GDALGetProjectionRef",
-    "SetProjection" = "GDALSetProjection",
-    "GetSpatialRef" = "GDALGetSpatialRef",
-    "SetSpatialRef" = "GDALSetSpatialRef",
-    "GetGeoTransform" = "GDALGetGeoTransform",
-    "SetGeoTransform" = "GDALSetGeoTransform",
-    "GetGCPCount" = "GDALGetGCPCount",
-    "GetGCPProjection" = "GDALGetGCPProjection",
-    "GetGCPSpatialRef" = "GDALGetGCPSpatialRef",
-    "FlushCache" = "GDALFlushCache",
-    "AddBand" = "GDALAddBand",
-    "CreateMaskBand" = "GDALCreateMaskBand",
-    "GetFileList" = "GDALGetFileList",
-    "GetLayerCount" = "GDALDatasetGetLayerCount",
-    "GetLayer" = "GDALDatasetGetLayer",
-    "GetLayerByName" = "GDALDatasetGetLayerByName",
-    "GetLayerByIndex" = "GDALDatasetGetLayer",
-    "Close" = "GDALClose",
-    "GetRasterXSize" = "GDALGetRasterXSize",
-    "GetRasterYSize" = "GDALGetRasterYSize",
-    "GetRasterCount" = "GDALGetRasterCount"
-  )
+  if (is_single_string_set_metadata(method)) {
+    return(list(ok = TRUE, since = NA_character_))
+  }
 
-  majorobject_methods <- list(
-    "GetDescription" = "GDALGetDescription",
-    "SetDescription" = "GDALSetDescription",
-    "GetMetadata_Dict" = "GDALGetMetadata",
-    "GetMetadata_List" = "GDALGetMetadata",
-    "GetMetadataDomainList" = "GDALGetMetadataDomainList",
-    "SetMetadata" = "GDALSetMetadata",
-    "GetMetadataItem" = "GDALGetMetadataItem",
-    "SetMetadataItem" = "GDALSetMetadataItem"
-  )
+  call <- method$c_call
+  if (is.null(call)) {
+    return(unsupported("its SWIG body is not a single C call"))
+  }
+  if (length(call$args) == 0 || call$args[1] != "self") {
+    return(unsupported(sprintf("%s does not take the object first", call$func)))
+  }
 
-  # Select mapping based on class
-  if (class_name == "Dataset") {
-    if (base_name %in% names(dataset_methods)) {
-      return(dataset_methods[[base_name]])
+  param_names <- vapply(method$params, function(p) p$name, character(1))
+  for (arg in call$args[-1]) {
+    if (arg %in% param_names || is_c_literal(arg)) next
+    return(unsupported(sprintf("%s is passed %s, which is not a parameter",
+                               call$func, arg)))
+  }
+
+  for (param in method$params) {
+    if (is.na(map_param_type(param))) {
+      return(unsupported(sprintf("parameter %s is %s", param$name, param$type)))
     }
   }
 
-  # Check common MajorObject methods (inherited)
-  if (base_name %in% names(majorobject_methods)) {
-    return(majorobject_methods[[base_name]])
+  return_type <- map_return_type(method$return_type)
+  if (return_type == "SEXP") {
+    handle_type <- swig_to_handle_type(method$return_type)
+    if (is.null(handle_to_kind(handle_type))) {
+      return(unsupported(sprintf("GDAL7 has no class for %s", handle_type)))
+    }
+  } else if (!return_type %in% c("void", "int", "double", "bool", "cpp11::strings")) {
+    return(unsupported(sprintf("it returns %s", method$return_type)))
   }
 
-  # Default: prepend GDAL (this may need fixing for specific methods)
-  paste0("GDAL", base_name)
+  since <- symbol_versions[[call$func]]
+  if (is.null(since)) {
+    return(unsupported(sprintf("%s is in no GDAL release the symbol table covers",
+                               call$func)))
+  }
+
+  list(ok = TRUE, since = since)
 }
 
-# Generate all bindings for a class
-generate_class_bindings <- function(parsed_class) {
+# The version a guard is measured against. A symbol recorded as first appearing
+# in the oldest release the table covers has been there all along as far as the
+# table knows, so it needs no guard; anything newer gets one.
+guard_baseline <- function(symbol_versions) {
+  versions <- unique(stats::na.omit(unname(symbol_versions)))
+  as.character(min(package_version(versions)))
+}
+
+# "3.12.0" -> "GDAL_COMPUTE_VERSION(3, 12, 0)"
+compute_version_macro <- function(version) {
+  parts <- as.integer(strsplit(version, ".", fixed = TRUE)[[1]])
+  parts <- c(parts, rep(0L, 3 - length(parts)))[1:3]
+  sprintf("GDAL_COMPUTE_VERSION(%d, %d, %d)", parts[1], parts[2], parts[3])
+}
+
+# Wrap a binding body so that it compiles against a GDAL that predates the C
+# function it calls, and says so at run time instead of failing to link.
+apply_version_guard <- function(body, since, r_name, arg_names) {
+  unused <- if (length(arg_names) == 0) "" else
+    paste(sprintf("    (void)%s;", arg_names), collapse = "\n")
+  paste(
+    sprintf("#if GDAL_VERSION_NUM >= %s", compute_version_macro(since)),
+    body,
+    "#else",
+    if (unused == "") NULL else unused,
+    sprintf('    gdal7::unavailable("%s", "%s");', r_name, since),
+    "#endif",
+    sep = "\n"
+  )
+}
+
+# Generate the binding for an immutable member, which SWIG implements as a
+# <Shadow>_<Member>_get function whose body is the C call.
+generate_member <- function(member, class_name) {
+  class_lower <- tolower(class_name)
+  handle_type <- get_handle_type(class_name)
+  return_type <- map_return_type(member$type)
+
+  call <- member$c_call
+  args <- vapply(call$args, function(arg) if (arg %in% c("self", "h")) "h" else arg,
+                 character(1))
+  gdal_call <- sprintf("%s(%s)", call$func, paste(args, collapse = ", "))
+
+  body <- sprintf("    %s h = get_%s_handle(xp);", handle_type, class_lower)
+  body <- if (return_type == "cpp11::strings") {
+    paste(body, sprintf("    return gdal7::chr(%s);", gdal_call), sep = "\n")
+  } else {
+    paste(body, sprintf("    return %s;", gdal_call), sep = "\n")
+  }
+
+  sprintf('
+[[cpp11::register]]
+%s GDAL7_%s_%s(SEXP xp) {
+%s
+}
+', return_type, class_lower, to_snake_case(member$name), body)
+}
+
+# Can this member be generated?
+member_support <- function(member, symbol_versions) {
+  call <- member$c_call
+  if (is.null(call)) {
+    return(list(ok = FALSE, reason = "SWIG implements it without a single C call"))
+  }
+  if (length(call$args) != 1 || !call$args[1] %in% c("self", "h")) {
+    return(list(ok = FALSE, reason = sprintf("%s takes more than the object", call$func)))
+  }
+  if (!map_return_type(member$type) %in% c("int", "double", "bool", "cpp11::strings")) {
+    return(list(ok = FALSE, reason = sprintf("it is %s", member$type)))
+  }
+  since <- symbol_versions[[call$func]]
+  if (is.null(since)) {
+    return(list(ok = FALSE, reason = sprintf("%s is in no release the symbol table covers",
+                                             call$func)))
+  }
+  list(ok = TRUE, since = since)
+}
+
+# Generate all bindings for a class.
+#
+# There is no skip list. A method is generated when the generator can express
+# it and left out when it cannot, and every omission is written into the file
+# with the reason, so what GDAL7 does not yet reach is readable from the
+# generated source rather than kept in a list beside it.
+generate_class_bindings <- function(parsed_class, symbol_versions,
+                                    hand_written = character()) {
   class_name <- parsed_class$public_name
+  baseline <- guard_baseline(symbol_versions)
 
   output <- generate_header(class_name)
+  skipped <- list()
+  capabilities <- list()
+  generated_methods <- list()
+  generated_members <- list()
 
-  # Skip list - methods that don't generate correctly yet
-  # (GDAL 3.9+ functions, complex signatures, callbacks, etc.)
-  skip_methods <- c(
-    "MarkSuppressOnClose",        # GDAL 3.9+
-    "Close",                      # Callback params
-    "GetCloseReportsProgress",    # GDAL 3.9+
-    "IsThreadSafe",               # GDAL 3.9+
-    "GetThreadSafeDataset",       # GDAL 3.9+
-    "GetRootGroup",               # Complex return
-    "SetProjection",              # Parser issue with param type
-    "SetSpatialRef",              # Complex param
-    "GetGeoTransform",            # Array output param
-    "SetGeoTransform",            # Array input param
-    "GetExtent",                  # Array output param
-    "GetExtentWGS84LongLat",      # Array output param
-    "BuildOverviews",             # Complex params
-    "AddBand",                   # Complex params
-    "CreateMaskBand",            # Complex params
-    "AdviseRead",                # Complex params
-    "GetFieldDomainNames",        # GDAL 3.3+
-    "GetRelationshipNames",       # GDAL 3.6+
-    "GetFieldDomain",             # Complex return
-    "AddFieldDomain",             # Complex param
-    "DeleteFieldDomain",          # GDAL 3.3+
-    "UpdateFieldDomain",          # GDAL 3.3+
-    "GetRelationship",            # Complex return
-    "AddRelationship",            # Complex param
-    "DeleteRelationship",         # GDAL 3.6+
-    "UpdateRelationship",         # GDAL 3.6+
-    "AsMDArray",                  # Complex return
-    "StartTransaction",           # Needs OGR include
-    "CommitTransaction",          # Needs OGR include
-    "RollbackTransaction",        # Needs OGR include
-    "AbortSQL",                   # Needs OGR include
-    "ResetReading",               # Part of layer iteration
-    "GetLayer",                   # Needs OGR include
-    "GetLayerByName",             # Needs OGR include
-    "ClearStatistics"             # GDAL 3.2+
-  )
+  guard_since <- function(since) {
+    if (is.na(since)) return(NA_character_)
+    if (package_version(since) <= package_version(baseline)) NA_character_ else since
+  }
+
+  for (member in parsed_class$members) {
+    support <- member_support(member, symbol_versions)
+    if (!support$ok) {
+      skipped[[length(skipped) + 1]] <- list(name = member$name, reason = support$reason)
+      next
+    }
+    code <- generate_member(member, class_name)
+    since <- guard_since(support$since)
+    if (!is.na(since)) {
+      r_name <- to_snake_case(member$name)
+      body <- sub("(?s)^.*?\\{\\n(.*)\\n\\}\\n$", "\\1", code, perl = TRUE)
+      code <- sub(body, apply_version_guard(body, since, r_name, "xp"), code, fixed = TRUE)
+      capabilities[[length(capabilities) + 1]] <-
+        list(name = sprintf("%s_%s", tolower(class_name), r_name), since = since)
+    }
+    generated_members[[length(generated_members) + 1]] <- member
+    output <- paste0(output, code)
+  }
 
   # Track method names to handle overloads
   method_counts <- list()
@@ -514,8 +625,13 @@ generate_class_bindings <- function(parsed_class) {
   for (method in parsed_class$methods) {
     base_name <- sub("_[0-9]+$", "", method$name)
 
-    # Skip problematic methods
-    if (base_name %in% skip_methods) {
+    if (base_name %in% hand_written) {
+      next
+    }
+
+    support <- method_support(method, class_name, symbol_versions)
+    if (!support$ok) {
+      skipped[[length(skipped) + 1]] <- list(name = base_name, reason = support$reason)
       next
     }
 
@@ -529,25 +645,64 @@ generate_class_bindings <- function(parsed_class) {
       method$name <- sprintf("%s_%d", base_name, method_counts[[base_name]])
     }
 
-    output <- paste0(output, generate_method(method, class_name))
+    code <- generate_method(method, class_name)
+    since <- guard_since(support$since)
+    if (!is.na(since)) {
+      r_name <- to_snake_case(method$name)
+      arg_names <- c("xp", vapply(method$params, function(p) p$name, character(1)))
+      body <- sub("(?s)^.*?\\{\\n(.*)\\n\\}\\n$", "\\1", code, perl = TRUE)
+      code <- sub(body, apply_version_guard(body, since, r_name, arg_names), code, fixed = TRUE)
+      capabilities[[length(capabilities) + 1]] <-
+        list(name = sprintf("%s_%s", tolower(class_name), r_name), since = since)
+    }
+    generated_methods[[length(generated_methods) + 1]] <- method
+    output <- paste0(output, code)
   }
 
-  output
+  # The S7 generator works from what was actually generated here, so the two
+  # sides cannot disagree about which methods exist.
+  list(code = paste0(output, format_skipped(skipped, class_name)),
+       capabilities = capabilities,
+       methods = generated_methods,
+       members = generated_members,
+       skipped = skipped)
+}
+
+# Record what was left out, and why, at the foot of the generated file.
+format_skipped <- function(skipped, class_name) {
+  if (length(skipped) == 0) {
+    return(sprintf("\n// Every %s method GDAL declares is bound above.\n", class_name))
+  }
+
+  names <- vapply(skipped, function(x) x$name, character(1))
+  reasons <- vapply(skipped, function(x) x$reason, character(1))
+  keep <- !duplicated(names)
+  lines <- sprintf("//   %-24s %s", names[keep], reasons[keep])
+
+  paste0(
+    sprintf("\n// Not generated (%d of GDAL's %s methods), with the reason the\n",
+            sum(keep), class_name),
+    "// generator gave. Each is a thing the generator cannot yet express, not a\n",
+    "// thing GDAL7 has decided against.\n",
+    paste(lines, collapse = "\n"), "\n"
+  )
 }
 
 # ============================================================================
 # Main entry point
 # ============================================================================
 
-generate_cpp11_file <- function(parsed_class, output_path = NULL) {
-  code <- generate_class_bindings(parsed_class)
+generate_cpp11_file <- function(parsed_class, output_path = NULL,
+                                symbol_versions = read_symbol_versions(),
+                                hand_written = character()) {
+  result <- generate_class_bindings(parsed_class, symbol_versions, hand_written)
 
   if (!is.null(output_path)) {
-    writeLines(code, output_path)
+    writeLines(result$code, output_path)
     message(sprintf("Generated %s", output_path))
   }
 
-  invisible(code)
+  invisible(result)
 }
 
 # ============================================================================

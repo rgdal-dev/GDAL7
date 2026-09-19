@@ -15,19 +15,33 @@
 #' \dontrun{
 #' # Classic raster mode
 #' ds <- gdal_open("/path/to/raster.tif")
-#' get_projection(ds)
+#' ds@projection
 #' gdal_close(ds)
 #' 
 #' # Multidimensional mode
 #' ds <- gdal_open("/path/to/data.zarr", multidim = TRUE)
 #' grp <- get_root_group(ds)
-#' get_mdarray_names(grp)
+#' grp@mdarray_names
 #' gdal_close(ds)
 #' }
 gdal_open <- function(path, update = FALSE, multidim = FALSE) {
-  path <- normalizePath(path, mustWork = FALSE)
-  ptr <- GDAL7_gdal_open(path, update, multidim)
+  ptr <- GDAL7_gdal_open(gdal_dsn(path), update, multidim)
   GDALDataset(.ptr = ptr)
+}
+
+# GDAL accepts connection strings as well as file paths: "WMTS:https://...",
+# 'ZARR:"/vsizip/x.zip/y"', 'NETCDF:"file.nc":var', "/vsicurl/https://...".
+# normalizePath() rewrites separators to backslashes on Windows, which corrupts
+# every one of those, so only resolve something that really is a file on disk.
+gdal_dsn <- function(path) {
+  if (!is.character(path) || length(path) != 1L || is.na(path)) {
+    stop("`path` must be a single, non-missing string", call. = FALSE)
+  }
+  if (file.exists(path)) {
+    normalizePath(path, winslash = "/", mustWork = FALSE)
+  } else {
+    path
+  }
 }
 
 #' Close a GDAL dataset

@@ -8,20 +8,56 @@
 
 #' GDALDriver class
 #'
-#' Represents a GDAL format driver (e.g., GTiff, GPKG, etc.)
+#' Represents a GDAL format driver, such as GTiff or GPKG. What a driver is
+#' called is a property of it: `short_name` is the name GDAL is asked for it
+#' by, such as `"GTiff"`, `long_name` is what it calls itself, and
+#' `help_topic` is the URL of its page in GDAL's own documentation.
 #'
+#' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
+#' @examples
+#' drv <- gdal_get_driver_by_name("GTiff")
+#' drv@short_name
+#' drv@long_name
 GDALDriver <- S7::new_class(
     "GDALDriver",
     parent = GDALMajorObject,
+
+    # Built from a GDAL handle and nothing else; see GDALRasterBand for why
+    # these classes write their constructor out.
+    constructor = function(.ptr) {
+        S7::new_object(GDALMajorObject(.ptr = .ptr), .ptr = .ptr)
+    },
+
     properties = list(
-        .ptr = S7::class_any
+        .ptr = S7::class_any,
+
+        short_name = S7::new_property(
+            S7::class_character,
+            getter = function(self) GDAL7_driver_get_short_name(self@.ptr)
+        ),
+        long_name = S7::new_property(
+            S7::class_character,
+            getter = function(self) GDAL7_driver_get_long_name(self@.ptr)
+        ),
+        help_topic = S7::new_property(
+            S7::class_character,
+            getter = function(self) GDAL7_driver_get_help_topic(self@.ptr)
+        )
     )
 )
 
 # ============================================================================
-# Override get_driver to return proper GDALDriver class
+# Dataset accessor for the owning driver
 # ============================================================================
+
+#' Get the driver that opened a dataset
+#'
+#' @param x A GDALDataset object
+#' @param ... Arguments passed on to methods.
+#' @return A GDALDriver object, or NULL
+#' @export
+get_driver <- S7::new_generic("get_driver", "x")
 
 S7::method(get_driver, GDALDataset) <- function(x) {
     ptr <- GDAL7_dataset_get_driver_ptr(x@.ptr)
@@ -29,43 +65,6 @@ S7::method(get_driver, GDALDataset) <- function(x) {
         return(NULL)
     }
     GDALDriver(.ptr = ptr)
-}
-
-# ============================================================================
-# Driver info methods
-# ============================================================================
-
-#' Get driver short name
-#'
-#' @param x A GDALDriver object
-#' @return Character driver short name (e.g., "GTiff", "GPKG")
-#' @export
-get_short_name <- S7::new_generic("get_short_name", "x")
-
-S7::method(get_short_name, GDALDriver) <- function(x) {
-    GDAL7_driver_get_short_name(x@.ptr)
-}
-
-#' Get driver long name
-#'
-#' @param x A GDALDriver object
-#' @return Character driver long name (e.g., "GeoTIFF", "GeoPackage")
-#' @export
-get_long_name <- S7::new_generic("get_long_name", "x")
-
-S7::method(get_long_name, GDALDriver) <- function(x) {
-    GDAL7_driver_get_long_name(x@.ptr)
-}
-
-#' Get driver help topic URL
-#'
-#' @param x A GDALDriver object
-#' @return Character help topic URL
-#' @export
-get_help_topic <- S7::new_generic("get_help_topic", "x")
-
-S7::method(get_help_topic, GDALDriver) <- function(x) {
-    GDAL7_driver_get_help_topic(x@.ptr)
 }
 
 # ============================================================================
@@ -78,7 +77,7 @@ S7::method(get_help_topic, GDALDriver) <- function(x) {
 #' @param option_name Name of the open option to check
 #' @return Logical TRUE if driver supports the option
 #' @export
-has_open_option <- S7::new_generic("has_open_option", "x")
+has_open_option <- S7::new_generic("has_open_option", "x", function(x, option_name) S7::S7_dispatch())
 
 S7::method(has_open_option, GDALDriver) <- function(x, option_name) {
     GDAL7_driver_has_open_option(x@.ptr, option_name)
@@ -98,23 +97,10 @@ S7::method(has_open_option, GDALDriver) <- function(x, option_name) {
 #' @param capability Capability name (e.g., "DCAP_RASTER")
 #' @return Logical TRUE if driver has the capability
 #' @export
-test_capability <- S7::new_generic("test_capability", "x")
+test_capability <- S7::new_generic("test_capability", "x", function(x, capability) S7::S7_dispatch())
 
 S7::method(test_capability, GDALDriver) <- function(x, capability) {
     GDAL7_driver_test_capability(x@.ptr, capability)
-}
-
-#' Get driver creation options XML
-#'
-#' Returns the XML describing creation options for this driver.
-#'
-#' @param x A GDALDriver object
-#' @return Character XML string describing creation options
-#' @export
-get_creation_options <- S7::new_generic("get_creation_options", "x")
-
-S7::method(get_creation_options, GDALDriver) <- function(x) {
-    GDAL7_driver_get_creation_options(x@.ptr)
 }
 
 # ============================================================================
@@ -155,77 +141,59 @@ gdal_get_driver <- function(index) {
     GDALDriver(.ptr = ptr)
 }
 
-#' List all registered GDAL drivers
+#' Every driver this GDAL has
 #'
-#' @param capabilities Optional character vector of required capabilities
-#'   (e.g., c("DCAP_RASTER", "DCAP_CREATE"))
-#' @return Data frame with driver information
+#' The whole table in one call rather than one call per property per driver,
+#' which on a typical build is the difference between one round trip and about
+#' fourteen hundred.
+#'
+#' @param capabilities Optional character vector of capabilities every returned
+#'   driver must have, named as GDAL names them: `"DCAP_RASTER"`,
+#'   `"DCAP_VECTOR"`, `"DCAP_MULTIDIM_RASTER"`, `"DCAP_CREATE"`,
+#'   `"DCAP_CREATECOPY"`, `"DCAP_VIRTUALIO"`.
+#' @return A data frame with one row per driver: `short_name`, `long_name`,
+#'   `raster`, `vector`, `multidim`, `create`, `copy`, `vsi` and `extensions`.
 #' @export
+#' @examples
+#' drivers <- gdal_drivers()
+#' nrow(drivers)
+#'
+#' # The formats that can be written from nothing, rather than only copied.
+#' head(gdal_drivers("DCAP_CREATE")$short_name, 12)
 gdal_drivers <- function(capabilities = NULL) {
-    n <- gdal_get_driver_count()
-    
-    short_name <- character(n)
-    long_name <- character(n)
-    is_raster <- logical(n)
-    is_vector <- logical(n)
-    can_create <- logical(n)
-    can_copy <- logical(n)
-    can_vsi <- logical(n)
-    
-    for (i in seq_len(n)) {
-        drv <- gdal_get_driver(i - 1L)
-        if (!is.null(drv)) {
-            short_name[i] <- get_short_name(drv)
-            long_name[i] <- get_long_name(drv)
-            is_raster[i] <- test_capability(drv, "DCAP_RASTER")
-            is_vector[i] <- test_capability(drv, "DCAP_VECTOR")
-            can_create[i] <- test_capability(drv, "DCAP_CREATE")
-            can_copy[i] <- test_capability(drv, "DCAP_CREATECOPY")
-            can_vsi[i] <- test_capability(drv, "DCAP_VIRTUALIO")
-        }
-    }
-    
-    result <- data.frame(
-        short_name = short_name,
-        long_name = long_name,
-        raster = is_raster,
-        vector = is_vector,
-        create = can_create,
-        copy = can_copy,
-        vsi = can_vsi,
-        stringsAsFactors = FALSE
-    )
-    
-    # Filter by capabilities if requested
-    if (!is.null(capabilities)) {
-        for (cap in capabilities) {
-            if (cap == "DCAP_RASTER") {
-                result <- result[result$raster, ]
-            } else if (cap == "DCAP_VECTOR") {
-                result <- result[result$vector, ]
-            } else if (cap == "DCAP_CREATE") {
-                result <- result[result$create, ]
-            } else if (cap == "DCAP_CREATECOPY") {
-                result <- result[result$copy, ]
-            } else if (cap == "DCAP_VIRTUALIO") {
-                result <- result[result$vsi, ]
-            }
-        }
-    }
-    
-    result
+  result <- as.data.frame(GDAL7_driver_table(), stringsAsFactors = FALSE)
+
+  if (is.null(capabilities)) {
+    return(result)
+  }
+
+  columns <- c(DCAP_RASTER = "raster", DCAP_VECTOR = "vector",
+               DCAP_MULTIDIM_RASTER = "multidim", DCAP_CREATE = "create",
+               DCAP_CREATECOPY = "copy", DCAP_VIRTUALIO = "vsi")
+  unknown <- setdiff(capabilities, names(columns))
+  if (length(unknown) > 0) {
+    stop("Cannot filter on ", paste(unknown, collapse = ", "),
+         ". One of: ", paste(names(columns), collapse = ", "), call. = FALSE)
+  }
+
+  for (capability in capabilities) {
+    result <- result[result[[columns[[capability]]]], , drop = FALSE]
+  }
+  rownames(result) <- NULL
+  result
 }
 
 # ============================================================================
 # Print method for GDALDriver
 # ============================================================================
 
+#' @export
 S7::method(print, GDALDriver) <- function(x, ...) {
     cat("<GDALDriver>\n")
-    cat("  Short name: ", get_short_name(x), "\n", sep = "")
-    cat("  Long name:  ", get_long_name(x), "\n", sep = "")
+    cat("  Short name: ", x@short_name, "\n", sep = "")
+    cat("  Long name:  ", x@long_name, "\n", sep = "")
     
-    help <- get_help_topic(x)
+    help <- x@help_topic
     if (nchar(help) > 0) {
         cat("  Help:       ", help, "\n", sep = "")
     }

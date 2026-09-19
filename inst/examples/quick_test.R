@@ -17,10 +17,10 @@ if (!file.exists(dsn)) {
 cat("Opening:", dsn, "\n")
 
 ds <- gdal_open(dsn)
-cat("Description:", get_description(ds), "\n")
-cat("GCP Count:", get_gcpcount(ds), "\n")
-cat("Layer Count:", get_layer_count(ds), "\n")
-cat("Projection:", substr(get_projection(ds), 1, 60), "...\n")
+cat("Description:", ds@description, "\n")
+cat("GCP Count:", ds@gcp_count, "\n")
+cat("Layer Count:", ds@layer_count, "\n")
+cat("Projection:", substr(ds@projection, 1, 60), "...\n")
 gdal_close(ds)
 
 cat("\nSuccess!\n")

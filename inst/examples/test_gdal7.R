@@ -57,12 +57,12 @@ section("2. MajorObject Methods (inherited by Dataset)")
 ds <- gdal_open(test_file)
 
 # get_description
-desc <- get_description(ds)
-cat("get_description():\n  ", desc, "\n\n")
+desc <- ds@description
+cat("description:\n  ", desc, "\n\n")
 
 # get_metadata_domain_list
-domains <- get_metadata_domain_list(ds)
-cat("get_metadata_domain_list():\n")
+domains <- ds@metadata_domain_list
+cat("metadata_domain_list:\n")
 if (length(domains) > 0) {
   for (d in domains) cat("  - '", d, "'\n", sep = "")
 } else {
@@ -109,37 +109,37 @@ section("3. Dataset-Specific Methods")
 ds <- gdal_open(test_file)
 
 # get_projection
-proj <- get_projection(ds)
-cat("get_projection():\n")
+proj <- ds@projection
+cat("projection:\n")
 if (nchar(proj) > 100) {
   cat("  ", substr(proj, 1, 100), "...\n\n")
 } else {
   cat("  ", proj, "\n\n")
 }
 
-# get_projection_ref (same as get_projection)
-proj_ref <- get_projection_ref(ds)
-cat("get_projection_ref(): (same as get_projection)\n")
+# same as get_projection@projection_ref
+proj_ref <- ds@projection_ref
+cat("projection_ref: (same as projection)\n")
 cat("  Length:", nchar(proj_ref), "chars\n\n")
 
 # get_file_list
-files <- get_file_list(ds)
-cat("get_file_list():\n")
+files <- ds@file_list
+cat("file_list:\n")
 for (f in files) cat("  ", f, "\n")
 cat("\n")
 
 # get_gcpcount
-gcp_count <- get_gcpcount(ds)
-cat("get_gcpcount():\n  ", gcp_count, "\n\n")
+gcp_count <- ds@gcp_count
+cat("gcp_count:\n  ", gcp_count, "\n\n")
 
 # get_gcpprojection
-gcp_proj <- get_gcpprojection(ds)
-cat("get_gcpprojection():\n  ",
+gcp_proj <- ds@gcp_projection
+cat("gcp_projection:\n  ",
     if (nchar(gcp_proj) > 0) substr(gcp_proj, 1, 50) else "(none)", "\n\n")
 
-# get_layer_count (for vector datasets, will be 0 for rasters)
-layer_count <- get_layer_count(ds)
-cat("get_layer_count():\n  ", layer_count, "\n\n")
+# for vector datasets, will be 0 for rasters@layer_count
+layer_count <- ds@layer_count
+cat("layer_count:\n  ", layer_count, "\n\n")
 
 # flush_cache
 result <- flush_cache(ds)
@@ -218,10 +218,10 @@ tryCatch({
 
   cat("Successfully opened remote dataset!\n\n")
 
-  desc <- get_description(ds)
+  desc <- ds@description
   cat("Description:\n  ", desc, "\n\n")
 
-  proj <- get_projection(ds)
+  proj <- ds@projection
   cat("Projection (first 80 chars):\n  ", substr(proj, 1, 80), "...\n\n")
 
   gdal_close(ds)
@@ -240,9 +240,9 @@ cat("All tests completed!\n\n")
 
 cat("Working methods:\n")
 cat("  MajorObject:\n")
-cat("    - get_description()\n")
-cat("    - set_description() [not tested - modifies file]\n")
-cat("    - get_metadata_domain_list()\n")
+cat("    - description\n")
+cat("    - description [not tested - modifies file]\n")
+cat("    - metadata_domain_list\n")
 cat("    - get_metadata_list(domain)\n")
 cat("    - get_metadata_dict(domain)\n")
 cat("    - get_metadata_item(name, domain)\n")
@@ -252,12 +252,12 @@ cat("\n")
 cat("  Dataset:\n")
 cat("    - gdal_open(path)\n")
 cat("    - gdal_close(ds)\n")
-cat("    - get_projection()\n")
-cat("    - get_projection_ref()\n")
-cat("    - get_file_list()\n")
-cat("    - get_gcpcount()\n")
-cat("    - get_gcpprojection()\n")
-cat("    - get_layer_count()\n")
+cat("    - projection\n")
+cat("    - projection_ref\n")
+cat("    - file_list\n")
+cat("    - gcp_count\n")
+cat("    - gcp_projection\n")
+cat("    - layer_count\n")
 cat("    - flush_cache()\n")
 cat("\n")
 cat("Methods exist but return classes not implemented:\n")
