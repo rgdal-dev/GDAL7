@@ -120,6 +120,21 @@ Algorithm instantiate(cpp11::strings path) {
             }
             names += static_cast<std::string>(cpp11::r_string(available[i]));
         }
+        if (names.empty()) {
+            // Two builds land here. GDAL_ENABLE_ALGORITHMS can be turned off.
+            // And before GDAL 3.12 each algorithm put itself in the registry
+            // as a side effect of its own translation unit being loaded,
+            // which a static link, keeping no object nothing refers to,
+            // leaves out; 3.12 registers them from the registry's own
+            // constructor, which a static link does keep.
+            cpp11::stop(
+                "This GDAL has the algorithm API but no algorithms in it. "
+                "That is either a GDAL built with its algorithms turned off, "
+                "or a statically linked GDAL older than 3.12, where the "
+                "algorithms register themselves as a side effect of being "
+                "loaded. gdal_has_algorithms() answers this before you ask "
+                "for one.");
+        }
         cpp11::stop("GDAL has no algorithm called '%s'. One of: %s",
                     first.c_str(), names.c_str());
     }

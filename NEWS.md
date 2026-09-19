@@ -25,9 +25,14 @@
 
 * A long algorithm draws a progress bar and stops on Ctrl-C.
 
-* `gdal_has_algorithms()` says whether this build has any of it. The registry
-  arrived in GDAL 3.11; below that the functions still exist and raise an error
-  naming the release, and the tests skip rather than fail.
+* `gdal_has_algorithms()` says whether this build has any algorithms to run.
+  The registry arrived in GDAL 3.11; below that the functions still exist and
+  raise an error naming the release, and the tests skip rather than fail.
+  Having the API is not the same as having the algorithms: a GDAL can be built
+  with them turned off, and before GDAL 3.12 each algorithm registered itself
+  as a side effect of being loaded, which a static link leaves out. Both cases
+  are an empty registry, which is what the Windows build here has, so
+  `gdal_has_algorithms()` looks in it rather than only at the version.
 
 * `data-raw/refresh_symbol_versions.R` now reads the symbols the hand-written
   bindings call out of the sources as well as those the generator emits, so a

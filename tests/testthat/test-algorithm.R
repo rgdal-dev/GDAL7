@@ -1,8 +1,9 @@
-# GDAL's algorithm registry arrived in 3.11. Everything here needs it, and says
-# so rather than failing on an older build.
+# GDAL's algorithm registry arrived in 3.11, and a statically linked GDAL 3.11
+# has the API with nothing in the registry. Everything here needs an algorithm
+# to actually run, and says so rather than failing on a build without one.
 skip_if_no_algorithms <- function() {
   if (!gdal_has_algorithms()) {
-    testthat::skip("GDAL is older than 3.11, so it has no algorithm registry")
+    testthat::skip("this GDAL has no algorithms to run")
   }
 }
 
@@ -21,12 +22,21 @@ test_that("whether this build has the algorithm API is a plain answer", {
   expect_length(gdal_has_algorithms(), 1L)
 })
 
-test_that("an older GDAL says which release it would need", {
-  if (gdal_has_algorithms()) {
-    skip("this GDAL has the algorithm registry")
-  }
+test_that("a GDAL without the algorithm API says which release it would need", {
+  skip_if(GDAL7:::GDAL7_algorithms_available(), "this GDAL has the algorithm API")
+
   expect_error(gdal_algorithms(), "3\\.11")
   expect_error(gdal_run("raster reproject"), "3\\.11")
+})
+
+test_that("a GDAL whose registry is empty says that instead", {
+  skip_if(!GDAL7:::GDAL7_algorithms_available(), "this GDAL has no algorithm API")
+  skip_if(gdal_has_algorithms(), "this GDAL has algorithms in its registry")
+
+  # The API answers, there is simply nothing in it. Listing is empty rather
+  # than an error; asking for one by name explains why it is not there.
+  expect_length(gdal_algorithms(), 0L)
+  expect_error(gdal_run("raster reproject"), "no algorithms in it")
 })
 
 # ============================================================================

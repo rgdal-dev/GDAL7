@@ -252,6 +252,12 @@ GDAL 3.11 added a registry of the algorithms its own command line is built
 from. GDAL7 binds the registry rather than each utility, so what `gdal` can do
 arrives with GDAL rather than with a GDAL7 release.
 
+`gdal_has_algorithms()` says whether this build has any. Having the API is not
+the same as having the algorithms: a GDAL can be built with them turned off,
+and before 3.12 they registered themselves as a side effect of being loaded,
+which a static link leaves out. The Windows build here links GDAL statically,
+and answers FALSE today; Linux and macOS have the algorithms.
+
 ```{r algorithms}
 gdal_algorithms()
 

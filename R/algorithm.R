@@ -19,18 +19,25 @@ algorithm_path <- function(path) {
   parts[nzchar(parts)]
 }
 
-#' Whether this GDAL has the algorithm API
+#' Whether this GDAL has algorithms to run
 #'
 #' The algorithm registry arrived in GDAL 3.11. Everything in [gdal_run()],
 #' [gdal_algorithms()] and [gdal_algorithm_info()] depends on it, and raises an
 #' error naming the release when it is not there.
+#'
+#' Having the API is not the same as having the algorithms. A GDAL can be built
+#' with them turned off, and before GDAL 3.12 each algorithm registered itself
+#' as a side effect of being loaded, which a static link leaves out, so a
+#' statically linked GDAL 3.11 answers from an empty registry. This checks
+#' both, so TRUE means there is something to run.
 #'
 #' @return TRUE or FALSE.
 #' @export
 #' @examples
 #' gdal_has_algorithms()
 gdal_has_algorithms <- function() {
-  GDAL7_algorithms_available()
+  GDAL7_algorithms_available() &&
+    length(GDAL7_algorithm_names(character(0))) > 0L
 }
 
 #' List GDAL's algorithms

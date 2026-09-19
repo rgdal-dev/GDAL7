@@ -2,7 +2,7 @@
 % Please edit documentation in R/algorithm.R
 \name{gdal_has_algorithms}
 \alias{gdal_has_algorithms}
-\title{Whether this GDAL has the algorithm API}
+\title{Whether this GDAL has algorithms to run}
 \usage{
 gdal_has_algorithms()
 }
@@ -13,6 +13,13 @@ TRUE or FALSE.
 The algorithm registry arrived in GDAL 3.11. Everything in \code{\link[=gdal_run]{gdal_run()}},
 \code{\link[=gdal_algorithms]{gdal_algorithms()}} and \code{\link[=gdal_algorithm_info]{gdal_algorithm_info()}} depends on it, and raises an
 error naming the release when it is not there.
+}
+\details{
+Having the API is not the same as having the algorithms. A GDAL can be built
+with them turned off, and before GDAL 3.12 each algorithm registered itself
+as a side effect of being loaded, which a static link leaves out, so a
+statically linked GDAL 3.11 answers from an empty registry. This checks
+both, so TRUE means there is something to run.
 }
 \examples{
 gdal_has_algorithms()
