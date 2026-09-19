@@ -328,6 +328,88 @@ identical(read_vector(path), places)
 unlink(path)
 ```
 
+### Algorithms
+
+GDAL 3.11 added a registry of the algorithms its own command line is
+built from. GDAL7 binds the registry rather than each utility, so what
+`gdal` can do arrives with GDAL rather than with a GDAL7 release.
+
+``` r
+gdal_algorithms()
+#> [1] "convert"  "dataset"  "info"     "mdim"     "pipeline" "raster"   "vector"  
+#> [8] "vsi"
+
+head(gdal_algorithms("raster"), 12)
+#>  [1] "as-features"  "aspect"       "blend"        "calc"         "clean-collar"
+#>  [6] "clip"         "color-map"    "compare"      "contour"      "convert"     
+#> [11] "create"       "edit"
+```
+
+Every algorithm describes itself, so there is no table of arguments in
+this package to fall out of date.
+
+``` r
+info <- gdal_algorithm_info("raster reproject")
+info$description
+#> [1] "Reproject a raster dataset."
+
+head(info$arguments[c("name", "type", "required")], 8)
+#>           name         type required
+#> 1         help      boolean    FALSE
+#> 2     help-doc      boolean    FALSE
+#> 3   json-usage      boolean    FALSE
+#> 4       config  string_list    FALSE
+#> 5 input-format  string_list    FALSE
+#> 6  open-option  string_list    FALSE
+#> 7        input dataset_list     TRUE
+#> 8        quiet      boolean    FALSE
+```
+
+Arguments go in by name. An algorithm told to write to memory hands back
+a dataset and touches no disk; one given a file name writes it, closes
+it and hands back the path.
+
+``` r
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+
+reprojected <- gdal_run("raster reproject", list(
+  input = ds,
+  output = "",
+  "output-format" = "MEM",
+  "dst-crs" = "EPSG:3857",
+  bbox = c(-180, -85, 180, 85),
+  "bbox-crs" = "EPSG:4326"
+), progress = FALSE)
+
+c(get_raster_xsize(reprojected), get_raster_ysize(reprojected))
+#> [1] 19 19
+substr(get_projection(reprojected), 1, 40)
+#> [1] "PROJCS[\"WGS 84 / Pseudo-Mercator\",GEOGCS"
+
+gdal_close(reprojected)
+gdal_close(ds)
+```
+
+Pipelines work the same way, with the steps written as GDAL writes them:
+
+``` r
+piped <- gdal_run("raster pipeline", list(
+  pipeline = paste(
+    "read", system.file("extdata/overviews.tif", package = "GDAL7"),
+    "! reproject --dst-crs EPSG:3857 --resampling average",
+    "! write --output-format MEM streamed"
+  )
+), progress = FALSE)
+#> Warning: GDAL: Clamping output bounds to (-20037508.342789,-20037508.342789) ->
+#> (20037508.342789, 20037508.342789)
+
+c(get_raster_xsize(piped), get_raster_ysize(piped))
+#> [1] 497 497
+gdal_close(piped)
+```
+
+A long algorithm draws a progress bar and stops on Ctrl-C.
+
 ### Constants and capabilities
 
 The enumerators and metadata keys that GDAL declares come through as two
@@ -361,14 +443,14 @@ GDAL in use is too old for raises an error naming the release it needs.
 
 ``` r
 gdal_version()[["release"]]
-#> [1] "3.8.4"
+#> [1] "3.12.4"
 gdal7_capabilities()
 #>                              binding   gdal available
-#> 1     dataset_mark_suppress_on_close 3.12.0     FALSE
+#> 1     dataset_mark_suppress_on_close 3.12.0      TRUE
 #> 2 dataset_get_close_reports_progress 3.13.0     FALSE
-#> 3             dataset_is_thread_safe 3.10.0     FALSE
-#> 4    dataset_get_thread_safe_dataset 3.10.0     FALSE
-#> 5                 dataset_as_mdarray 3.12.0     FALSE
+#> 3             dataset_is_thread_safe 3.10.0      TRUE
+#> 4    dataset_get_thread_safe_dataset 3.10.0      TRUE
+#> 5                 dataset_as_mdarray 3.12.0      TRUE
 ```
 
 ## Code of Conduct

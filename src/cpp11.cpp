@@ -5,6 +5,34 @@
 #include "cpp11/declarations.hpp"
 #include <R_ext/Visibility.h>
 
+// GDAL7_algorithm.cpp
+bool GDAL7_algorithms_available();
+extern "C" SEXP _GDAL7_GDAL7_algorithms_available() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_algorithms_available());
+  END_CPP11
+}
+// GDAL7_algorithm.cpp
+cpp11::strings GDAL7_algorithm_names(cpp11::strings path);
+extern "C" SEXP _GDAL7_GDAL7_algorithm_names(SEXP path) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_algorithm_names(cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(path)));
+  END_CPP11
+}
+// GDAL7_algorithm.cpp
+cpp11::list GDAL7_algorithm_info(cpp11::strings path);
+extern "C" SEXP _GDAL7_GDAL7_algorithm_info(SEXP path) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_algorithm_info(cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(path)));
+  END_CPP11
+}
+// GDAL7_algorithm.cpp
+SEXP GDAL7_algorithm_run(cpp11::strings path, cpp11::list args, bool progress);
+extern "C" SEXP _GDAL7_GDAL7_algorithm_run(SEXP path, SEXP args, SEXP progress) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_algorithm_run(cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(path), cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(args), cpp11::as_cpp<cpp11::decay_t<bool>>(progress)));
+  END_CPP11
+}
 // GDAL7_capabilities.cpp
 list GDAL7_capabilities();
 extern "C" SEXP _GDAL7_GDAL7_capabilities() {
@@ -920,6 +948,10 @@ extern "C" SEXP _GDAL7_GDAL7_create_vector_dataset(SEXP driver_name, SEXP path, 
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"_GDAL7_GDAL7_algorithm_info",                       (DL_FUNC) &_GDAL7_GDAL7_algorithm_info,                       1},
+    {"_GDAL7_GDAL7_algorithm_names",                      (DL_FUNC) &_GDAL7_GDAL7_algorithm_names,                      1},
+    {"_GDAL7_GDAL7_algorithm_run",                        (DL_FUNC) &_GDAL7_GDAL7_algorithm_run,                        3},
+    {"_GDAL7_GDAL7_algorithms_available",                 (DL_FUNC) &_GDAL7_GDAL7_algorithms_available,                 0},
     {"_GDAL7_GDAL7_apply_geotransform",                   (DL_FUNC) &_GDAL7_GDAL7_apply_geotransform,                   3},
     {"_GDAL7_GDAL7_band_get_band_number",                 (DL_FUNC) &_GDAL7_GDAL7_band_get_band_number,                 1},
     {"_GDAL7_GDAL7_band_get_block_size",                  (DL_FUNC) &_GDAL7_GDAL7_band_get_block_size,                  1},

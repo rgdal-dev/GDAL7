@@ -94,8 +94,16 @@ struct Owner {
     Kind kind;
     std::shared_ptr<Owner> parent;
 
-    Owner(void* h, Kind k, std::shared_ptr<Owner> p)
-        : handle(h), kind(k), parent(std::move(p)) {}
+    // A dataset GDAL7 holds one reference to among several, rather than owns
+    // outright. GDALClose() deletes a non-shared dataset whatever its
+    // reference count says, so anything else still holding it would be left
+    // with a dangling pointer; GDALReleaseDataset() drops one reference and
+    // deletes only when the last one goes. An algorithm's output dataset
+    // arrives this way.
+    bool by_reference;
+
+    Owner(void* h, Kind k, std::shared_ptr<Owner> p, bool by_ref = false)
+        : handle(h), kind(k), parent(std::move(p)), by_reference(by_ref) {}
 
     Owner(const Owner&) = delete;
     Owner& operator=(const Owner&) = delete;
@@ -112,7 +120,13 @@ struct Owner {
         }
         handle = nullptr;
         switch (kind) {
-            case Kind::Dataset: GDALClose(static_cast<GDALDatasetH>(h)); break;
+            case Kind::Dataset:
+                if (by_reference) {
+                    GDALReleaseDataset(static_cast<GDALDatasetH>(h));
+                } else {
+                    GDALClose(static_cast<GDALDatasetH>(h));
+                }
+                break;
             case Kind::Group: GDALGroupRelease(static_cast<GDALGroupH>(h)); break;
             case Kind::MDArray: GDALMDArrayRelease(static_cast<GDALMDArrayH>(h)); break;
             case Kind::SQLResult: {
@@ -171,7 +185,8 @@ inline void finalize_handle(SEXP xp) {
 // Wrap a GDAL handle for R. `parent` is the external pointer of the object it
 // came from, or R_NilValue. It is stored in the protection slot as well as
 // being followed for its Owner, so the R object graph mirrors the C++ one.
-inline SEXP wrap(void* ptr, Kind kind, SEXP parent = R_NilValue) {
+inline SEXP wrap(void* ptr, Kind kind, SEXP parent = R_NilValue,
+                 bool by_reference = false) {
     if (ptr == nullptr) {
         return R_NilValue;
     }
@@ -185,8 +200,9 @@ inline SEXP wrap(void* ptr, Kind kind, SEXP parent = R_NilValue) {
     }
 
     std::shared_ptr<Owner> owner =
-        kind_is_owned(kind) ? std::make_shared<Owner>(ptr, kind, parent_owner)
-                            : parent_owner;
+        kind_is_owned(kind)
+            ? std::make_shared<Owner>(ptr, kind, parent_owner, by_reference)
+            : parent_owner;
 
     std::unique_ptr<Handle> handle(new Handle(ptr, kind, std::move(owner)));
 

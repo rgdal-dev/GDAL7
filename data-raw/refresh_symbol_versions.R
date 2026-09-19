@@ -24,6 +24,9 @@ HEADERS <- c(
   "gcore/gdal.h",
   "gcore/gdal_rat.h",
   "gcore/gdalalgorithm.h",
+  # Split out of gdalalgorithm.h in 3.12. Both are read, so a symbol is found
+  # whichever side of that move the release is on.
+  "gcore/gdalalgorithm_c.h",
   "gcore/gdal_version.h.in",
   "port/cpl_conv.h",
   "port/cpl_error.h",
@@ -50,8 +53,32 @@ read_headers <- function(tag) {
   paste(texts, collapse = "\n")
 }
 
-symbols_to_check <- function(model) {
+# The symbols the hand-written bindings call, read out of them rather than
+# listed here, so a guard in src/GDAL7_algorithm.cpp or inst/include/gdal7.h
+# rests on the same recorded table as a generated one. Anything that is not
+# actually a GDAL function, a macro or a type name, costs one row in the CSV
+# and nothing else.
+hand_written_symbols <- function() {
+  files <- c(list.files("src", pattern = "\\.cpp$", full.names = TRUE),
+             "inst/include/gdal7.h")
+  files <- files[file.exists(files)]
+
   symbols <- character()
+  for (file in files) {
+    text <- paste(readLines(file, warn = FALSE), collapse = "\n")
+    # A call: a GDAL, OGR, OSR or CPL name with an opening bracket after it.
+    matches <- regmatches(text, gregexpr("\\b(GDAL|OGR|OSR|CPL)[A-Za-z0-9_]*\\s*\\(", text))[[1]]
+    symbols <- c(symbols, trimws(sub("\\($", "", trimws(matches))))
+  }
+
+  # GDAL7's own bindings are named for what they wrap, so they match the same
+  # pattern. They are not GDAL symbols.
+  symbols <- symbols[!grepl("^GDAL7_", symbols)]
+  sort(unique(symbols))
+}
+
+symbols_to_check <- function(model) {
+  symbols <- hand_written_symbols()
 
   for (cls in model$classes) {
     for (method in cls$methods) {
@@ -77,7 +104,16 @@ symbols_to_check <- function(model) {
 }
 
 main <- function() {
-  model <- build_api_model(swig_dir = "~/gdal/swig/include")
+  # The vendored model unless a GDAL checkout is there to re-extract from, so
+  # this runs anywhere with network rather than only on a machine with GDAL's
+  # sources.
+  swig_dir <- "~/gdal/swig/include"
+  model <- if (dir.exists(path.expand(swig_dir))) {
+    build_api_model(swig_dir = swig_dir)
+  } else {
+    message("No GDAL checkout at ", swig_dir, "; using the vendored API model")
+    read_api_model()
+  }
   symbols <- symbols_to_check(model)
   message(sprintf("Checking %d symbols across %d releases", length(symbols), length(TAGS)))
 

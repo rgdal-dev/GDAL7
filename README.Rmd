@@ -246,6 +246,68 @@ identical(read_vector(path), places)
 unlink(path)
 ```
 
+### Algorithms
+
+GDAL 3.11 added a registry of the algorithms its own command line is built
+from. GDAL7 binds the registry rather than each utility, so what `gdal` can do
+arrives with GDAL rather than with a GDAL7 release.
+
+```{r algorithms}
+gdal_algorithms()
+
+head(gdal_algorithms("raster"), 12)
+```
+
+Every algorithm describes itself, so there is no table of arguments in this
+package to fall out of date.
+
+```{r alginfo}
+info <- gdal_algorithm_info("raster reproject")
+info$description
+
+head(info$arguments[c("name", "type", "required")], 8)
+```
+
+Arguments go in by name. An algorithm told to write to memory hands back a
+dataset and touches no disk; one given a file name writes it, closes it and
+hands back the path.
+
+```{r algrun}
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+
+reprojected <- gdal_run("raster reproject", list(
+  input = ds,
+  output = "",
+  "output-format" = "MEM",
+  "dst-crs" = "EPSG:3857",
+  bbox = c(-180, -85, 180, 85),
+  "bbox-crs" = "EPSG:4326"
+), progress = FALSE)
+
+c(get_raster_xsize(reprojected), get_raster_ysize(reprojected))
+substr(get_projection(reprojected), 1, 40)
+
+gdal_close(reprojected)
+gdal_close(ds)
+```
+
+Pipelines work the same way, with the steps written as GDAL writes them:
+
+```{r algpipeline}
+piped <- gdal_run("raster pipeline", list(
+  pipeline = paste(
+    "read", system.file("extdata/overviews.tif", package = "GDAL7"),
+    "! reproject --dst-crs EPSG:3857 --resampling average",
+    "! write --output-format MEM streamed"
+  )
+), progress = FALSE)
+
+c(get_raster_xsize(piped), get_raster_ysize(piped))
+gdal_close(piped)
+```
+
+A long algorithm draws a progress bar and stops on Ctrl-C.
+
 ### Constants and capabilities
 
 The enumerators and metadata keys that GDAL declares come through as two named

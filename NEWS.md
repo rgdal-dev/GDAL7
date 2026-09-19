@@ -1,5 +1,40 @@
 # GDAL7 (development version)
 
+## Stage 6: algorithms and pipelines
+
+* `gdal_run()` runs any of GDAL's own algorithms, the ones its `gdal` command
+  line is built from, with arguments given by name. Because it binds the
+  registry rather than each utility, an algorithm or an argument GDAL adds
+  arrives without a change here.
+
+* An algorithm told to work in memory hands back a GDALDataset with nothing
+  written to disk; one given a file name writes it, closes it and hands back
+  the path, so the file can be opened straight away. Which of the two it is is
+  decided by asking the output dataset whether it has files behind it.
+
+* A dataset already open in R can be passed straight in, rather than named and
+  reopened, and the algorithm takes its own reference to it.
+
+* `gdal_algorithms()` walks the registry and `gdal_algorithm_info()` reports an
+  algorithm's description, its help URL and every argument it takes with its
+  type, whether it is required and what values it allows. Nothing about GDAL's
+  algorithms is written down in this package.
+
+* Pipelines work through the same call: `gdal_run("raster pipeline", list(
+  pipeline = "read ... ! reproject ... ! write ..."))`.
+
+* A long algorithm draws a progress bar and stops on Ctrl-C.
+
+* `gdal_has_algorithms()` says whether this build has any of it. The registry
+  arrived in GDAL 3.11; below that the functions still exist and raise an error
+  naming the release, and the tests skip rather than fail.
+
+* `data-raw/refresh_symbol_versions.R` now reads the symbols the hand-written
+  bindings call out of the sources as well as those the generator emits, so a
+  guard in a hand-written file rests on the same recorded table as a generated
+  one. It also falls back to the vendored API model when there is no GDAL
+  checkout to re-extract from.
+
 ## Stage 5: multidimensional read
 
 * `read_mdarray()` reads a hyperslab of a multidimensional array: an origin, a

@@ -285,8 +285,17 @@ a prerequisite.
 
 ### 7.2 Bind GDAL's own algorithm registry instead of hand-wrapping utilities
 
-GDAL 3.11 introduced the unified `gdal` command line interface, and **GDAL 3.12
-added a C API for it** in `gdalalgorithm.h`: `GDALGetGlobalAlgorithmRegistry()`,
+*Status: done in Stage 6, and one claim below was wrong.* The C API landed in
+**3.11**, not 3.12: `gcore/gdalalgorithm.h` is absent at the v3.10.0 tag and
+present at v3.11.0, and `data-raw/gdal-symbol-versions.csv` now records
+`GDALAlgorithmRun` and the rest as 3.11.0, read out of GDAL's headers at each
+release tag rather than remembered. The guard is set there.
+`GDALAlgorithmRegistryInstantiateAlgFromPath()` is the one function named below
+that really is 3.12; GDAL7 walks the path with
+`GDALAlgorithmInstantiateSubAlgorithm()` instead, which works on both.
+
+GDAL 3.11 introduced the unified `gdal` command line interface, and the C API
+for it is in `gdalalgorithm.h`: `GDALGetGlobalAlgorithmRegistry()`,
 `GDALAlgorithmRegistryInstantiateAlgFromPath()`, `GDALAlgorithmGetArg()`,
 `GDALAlgorithmArgSetAsString()` / `SetAsInteger()` / `SetAsDouble()` /
 `SetAsDoubleList()`, `GDALAlgorithmRun()` with a progress callback,
@@ -302,9 +311,12 @@ and vector pipelines, which have no equivalent in any existing R binding.
 The rationale's Phase 5 ("Warp, Translate, VRT, VSI") should be re-scoped around
 this. It is arguably the single most distinctive thing GDAL7 could offer.
 
-Caveat worth checking against the target GDAL: the C API landed in 3.12, and
-`DESCRIPTION:16` currently says `GDAL (>= 3.0.0)`, so this needs version guards
-(see 7.4). Current stable is 3.13.3.
+Caveat worth checking against the target GDAL: the C API landed in 3.11, and the
+package floor is 3.10, so this needs version guards (see 7.4). It has them: the
+whole of `src/GDAL7_algorithm.cpp` compiles out below 3.11 and the bindings stay
+registered, so `gdal_run()` exists either way and says which release it would
+need. Both halves are tested, by building the package against GDAL 3.12.4 and
+against 3.8.4 and running the suite on each.
 
 ### 7.3 Use the `%extend` bodies, and emit the constants
 
@@ -376,10 +388,18 @@ depends on it.
 
 ### 7.8 Progress callbacks and interruptibility
 
-Nothing binds `GDALProgressFunc`, and nothing calls `R_CheckUserInterrupt()`. A slow
-`/vsicurl/` read or a warp currently cannot be interrupted and reports no progress.
-Both are table stakes for interactive use, and the algorithm API in 7.2 takes a
-progress callback directly.
+*Status: done for algorithms in Stage 6.* `gdal_run()` draws a progress bar and
+stops on Ctrl-C. The interrupt is the part worth knowing about: calling
+`R_CheckUserInterrupt()` from inside a GDAL callback would longjmp straight past
+every destructor between there and the top level, leaking whatever GDAL holds
+open, so the check runs inside `R_ToplevelExec()`, which catches that jump and
+returns it as a value. The callback then returns false, which is how a
+`GDALProgressFunc` says stop, GDAL unwinds its own way, and the R error is
+raised afterwards.
+
+Raster and vector reads still have neither. A slow `/vsicurl/` read cannot be
+interrupted and reports no progress; the same mechanism applies when it is
+wired up.
 
 ### 7.9 Test fixtures that need neither network nor a personal path
 
@@ -616,13 +636,25 @@ library is needed to rebuild it.
 
 ### Stage 6 - Algorithms and pipelines
 
-The `gdalalgorithm.h` C API from 7.2: registry, instantiate by path, set arguments by
-name, run with a progress callback, retrieve in-memory results. Guarded on GDAL 3.12.
-Progress and interrupt handling from 7.8 lands here.
+*Status: done.* `gdal_algorithms()` walks the registry, `gdal_algorithm_info()`
+reports an algorithm's description and every argument it takes with its type,
+and `gdal_run()` sets arguments by name and runs it. Guarded on GDAL 3.11, which
+is where the C API actually landed.
 
-*Exit:* `gdal raster reproject` and a raster pipeline run from R with named
-arguments, an interruptible progress bar, and a MEM dataset handed back without
-touching disk.
+The algorithm itself never reaches R. It is used once, on the C++ stack: set
+arguments, run, take the result. That is what an algorithm is for, and it leaves
+no half-configured object for R to hold. What comes back depends on where the
+result was put: a GDALDataset when it is in memory, the path when it is a file,
+decided by asking the output dataset whether it has any files behind it rather
+than by what the output was called. A file is closed before the path is
+returned, so it can be opened straight away.
+
+*Exit:* met, and tested in `tests/testthat/test-algorithm.R`. `gdal raster
+reproject` and a `raster pipeline` both run from R with named arguments and hand
+back a MEM dataset with nothing written to disk. The progress bar draws when
+asked for and is silent when not. Ctrl-C during a long reproject raises "The
+algorithm was interrupted" and R exits cleanly, checked by signalling a running
+process rather than asserted.
 
 ### Stage 7 - Write side and creation
 
