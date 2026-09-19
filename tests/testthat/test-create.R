@@ -102,9 +102,14 @@ test_that("what cannot be created is said before anything is attempted", {
                "no driver called 'NoSuchDriver'")
   expect_error(gdal_create(path, 0, 4), "positive width and height")
 
-  skip_if_no_driver("COG")
-  # COG writes only by copying, which is a different function.
-  expect_error(gdal_create(path, 4, 4, driver = "COG"),
+  # Some drivers write only by copying, which is a different function. Which
+  # ones is a matter for the GDAL in front of us: COG gained Create() in 3.13,
+  # so the driver is found by asking rather than by being named here.
+  drivers <- gdal_drivers()
+  copy_only <- drivers$short_name[drivers$raster & drivers$copy & !drivers$create]
+  skip_if(length(copy_only) == 0, "this GDAL has no copy-only raster driver")
+
+  expect_error(gdal_create(path, 4, 4, driver = copy_only[1]),
                "cannot create a dataset from nothing")
 })
 
@@ -187,7 +192,10 @@ test_that("a flush makes what is written readable while still open", {
   write_raster(ds, list(as.double(seq_len(16))))
   gdal_flush(ds)
 
-  other <- gdal_open(path)
+  # A TIFF flushed but not closed can still have an incomplete strip table,
+  # which some libtiff builds warn about and work around while others say
+  # nothing. Either way the values are there, which is what is being tested.
+  other <- suppressWarnings(gdal_open(path))
   on.exit(gdal_close(other), add = TRUE)
   expect_identical(read_raster(other)[[1]], as.double(seq_len(16)))
 })
