@@ -21,12 +21,31 @@ GDAL7, each of which it needs and none of which it can add for itself.
   an error rather than a silent clamp, and for a dataset every band read has
   to fit.
 
-* `transform_bounds()` moves a bounding box between coordinate reference
-  systems. It walks each edge rather than transforming the four corners,
-  because a projected edge usually bows and the box through the corners alone
-  is too small: a window picked with it clips the data it was meant to select.
+* `transform_extent()` moves an extent between coordinate reference systems.
+  It samples the box twice and takes the envelope of the two: GDAL's own walk
+  around the boundary, with `densify` extra points along each edge, and a
+  `(mesh + 1)^2` grid over the interior. The walk alone is provably enough
+  wherever the transform is well behaved, and provably not enough where it is
+  not: a box surrounding the antipode of an azimuthal projection comes back
+  365 km too narrow from the walk alone, because that extreme is interior.
+  The mesh alone is not a replacement either, since it spends nearly all of
+  its points inside the box and samples the edges more coarsely than the walk
+  does. Taking both costs one coordinate transformation object and dominates
+  either sampling by construction.
+
+  Getting an extent wrong in the small direction is the dangerous failure,
+  because a raster window picked from it clips data the caller asked for and
+  nothing downstream can tell. So when part of the box has no image in the
+  target, the result is the envelope of the part that does and an `"outside"`
+  attribute gives the fraction of the mesh that failed; when nothing
+  transforms at all, it is an error. A box given wrapped across the
+  antimeridian, with `xmax` below `xmin`, is refused rather than answered in a
+  form a minimum and a maximum cannot represent.
+
   Both sides are read in x, y order whatever their authority says. This is a
   transformation of four numbers, not a warp, and it reprojects no pixels.
+  `inst/design/extent-transformation.md` records the argument, the measured
+  failures and what is still unresolved.
 
 ## Stage 8: namespace hygiene
 

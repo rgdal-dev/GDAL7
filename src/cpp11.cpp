@@ -908,10 +908,10 @@ extern "C" SEXP _GDAL7_GDAL7_crs_to_wkt(SEXP crs, SEXP format, SEXP multiline) {
   END_CPP11
 }
 // GDAL7_rasterio.cpp
-cpp11::doubles GDAL7_transform_bounds(cpp11::doubles bbox, std::string from, std::string to, int densify);
-extern "C" SEXP _GDAL7_GDAL7_transform_bounds(SEXP bbox, SEXP from, SEXP to, SEXP densify) {
+cpp11::doubles GDAL7_transform_extent(cpp11::doubles bbox, std::string from, std::string to, int densify, int mesh);
+extern "C" SEXP _GDAL7_GDAL7_transform_extent(SEXP bbox, SEXP from, SEXP to, SEXP densify, SEXP mesh) {
   BEGIN_CPP11
-    return cpp11::as_sexp(GDAL7_transform_bounds(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(bbox), cpp11::as_cpp<cpp11::decay_t<std::string>>(from), cpp11::as_cpp<cpp11::decay_t<std::string>>(to), cpp11::as_cpp<cpp11::decay_t<int>>(densify)));
+    return cpp11::as_sexp(GDAL7_transform_extent(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(bbox), cpp11::as_cpp<cpp11::decay_t<std::string>>(from), cpp11::as_cpp<cpp11::decay_t<std::string>>(to), cpp11::as_cpp<cpp11::decay_t<int>>(densify), cpp11::as_cpp<cpp11::decay_t<int>>(mesh)));
   END_CPP11
 }
 // GDAL7_summary.cpp
@@ -1326,7 +1326,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_release_arrow_stream",                 (DL_FUNC) &_GDAL7_GDAL7_release_arrow_stream,                 1},
     {"_GDAL7_GDAL7_set_config_option",                    (DL_FUNC) &_GDAL7_GDAL7_set_config_option,                    2},
     {"_GDAL7_GDAL7_string_constants",                     (DL_FUNC) &_GDAL7_GDAL7_string_constants,                     0},
-    {"_GDAL7_GDAL7_transform_bounds",                     (DL_FUNC) &_GDAL7_GDAL7_transform_bounds,                     4},
+    {"_GDAL7_GDAL7_transform_extent",                     (DL_FUNC) &_GDAL7_GDAL7_transform_extent,                     5},
     {"_GDAL7_GDAL7_vsi_copy",                             (DL_FUNC) &_GDAL7_GDAL7_vsi_copy,                             2},
     {"_GDAL7_GDAL7_vsi_exists",                           (DL_FUNC) &_GDAL7_GDAL7_vsi_exists,                           1},
     {"_GDAL7_GDAL7_vsi_list",                             (DL_FUNC) &_GDAL7_GDAL7_vsi_list,                             2},

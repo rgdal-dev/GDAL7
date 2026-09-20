@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -648,21 +649,44 @@ cpp11::strings GDAL7_crs_to_wkt(std::string crs, std::string format,
     return out;
 }
 
-// Move a bounding box from one coordinate reference system to another.
+// Move an extent from one coordinate reference system to another.
 //
-// This is OCTTransformBounds rather than four corner transforms, and the
-// difference is not academic: a projected edge usually bows, so the box drawn
-// through the transformed corners is too small and a window picked with it
-// clips the data it was meant to select. OCTTransformBounds walks each edge
-// and takes the envelope of the whole curve.
+// Two samplings, unioned, because neither is enough on its own.
+//
+// OCTTransformBounds walks the boundary of the box. For a transform that is a
+// diffeomorphism over the box that is provably sufficient: an interior
+// extremum of the easting would need the first row of the Jacobian to vanish,
+// and a non-singular Jacobian has no zero row, so there is nothing inside to
+// find. GDAL then patches the places where that assumption fails and it knows
+// to look: the pole at the target's central meridian, plus or minus 180 from
+// it, and Mercator's latitude limit.
+//
+// It does not patch the ones it did not enumerate. A box around the antipode
+// of an oblique azimuthal equidistant comes back 365 km short in easting; a
+// box straddling an orthographic's limb comes back 8 percent short in area.
+// Those are singularities in the interior, which is exactly where the boundary
+// argument stops applying.
+//
+// So an interior mesh goes in as well. It is not a replacement: a mesh spends
+// almost all its points in the interior and samples the boundary more coarsely
+// than the walk does, and on an oblique Mercator box a 65 by 65 mesh comes
+// back 2.4 km inside the walk's answer. The union of the two dominates either.
+//
+// See inst/design/extent-transformation.md for the measurements.
 [[cpp11::register]]
-cpp11::doubles GDAL7_transform_bounds(cpp11::doubles bbox, std::string from,
-                                      std::string to, int densify) {
+cpp11::doubles GDAL7_transform_extent(cpp11::doubles bbox, std::string from,
+                                      std::string to, int densify, int mesh) {
     if (bbox.size() != 4) {
-        cpp11::stop("`bbox` is 4 numbers: xmin, ymin, xmax, ymax");
+        cpp11::stop("`extent` is 4 numbers: xmin, ymin, xmax, ymax");
     }
     if (densify < 0) {
         cpp11::stop("`densify` cannot be negative");
+    }
+    if (mesh < 0 || mesh > 1000) {
+        cpp11::stop("`mesh` is between 0 and 1000");
+    }
+    if (!(bbox[3] >= bbox[1])) {
+        cpp11::stop("`extent` has ymax below ymin");
     }
 
     gdal7::ErrorScope err;
@@ -686,6 +710,25 @@ cpp11::doubles GDAL7_transform_bounds(cpp11::doubles bbox, std::string from,
     OSRSetAxisMappingStrategy(src, OAMS_TRADITIONAL_GIS_ORDER);
     OSRSetAxisMappingStrategy(dst, OAMS_TRADITIONAL_GIS_ORDER);
 
+    // GDAL reads xmax below xmin as a box crossing the antimeridian, and
+    // returns the answer in the same wrapped form. That form cannot survive
+    // being unioned with anything, because a min and a max over the two
+    // samplings would turn the 20 degrees across the dateline into the 340
+    // degrees the other way round. Rather than half-support it, a wrapped box
+    // is refused and the caller splits it, which is what a caller has to do
+    // anyway to turn the answer into raster windows.
+    if (!(bbox[2] >= bbox[0])) {
+        OSRDestroySpatialReference(src);
+        OSRDestroySpatialReference(dst);
+        err.stop("`extent` has xmax below xmin. A box crossing the "
+                 "antimeridian has to be split into two before it is "
+                 "transformed");
+    }
+    const double x_span = bbox[2] - bbox[0];
+    const double y_span = bbox[3] - bbox[1];
+
+    // One transformation object for both samplings: building it is most of
+    // the cost of the call, and moving the points is almost none of it.
     OGRCoordinateTransformationH ct = OCTNewCoordinateTransformation(src, dst);
     OSRDestroySpatialReference(src);
     OSRDestroySpatialReference(dst);
@@ -693,30 +736,83 @@ cpp11::doubles GDAL7_transform_bounds(cpp11::doubles bbox, std::string from,
         err.stop("Could not transform from '" + from + "' to '" + to + "'");
     }
 
-    double values[4] = {0, 0, 0, 0};
-    const int ok = OCTTransformBounds(ct, bbox[0], bbox[1], bbox[2], bbox[3],
-                                      &values[0], &values[1], &values[2],
-                                      &values[3], densify);
-    OCTDestroyCoordinateTransformation(ct);
+    double lo_x = std::numeric_limits<double>::infinity();
+    double lo_y = lo_x;
+    double hi_x = -lo_x;
+    double hi_y = -lo_x;
+    bool any = false;
 
-    if (!ok) {
-        err.stop("Could not transform these bounds from '" + from + "' to '" + to + "'");
-    }
+    const auto keep = [&](double x, double y) {
+        if (!std::isfinite(x) || !std::isfinite(y)) {
+            return;
+        }
+        lo_x = std::min(lo_x, x);
+        hi_x = std::max(hi_x, x);
+        lo_y = std::min(lo_y, y);
+        hi_y = std::max(hi_y, y);
+        any = true;
+    };
 
-    // A box can transform without failing and still come back unusable, when
-    // part of it falls outside the target's area of use. Infinity is not an
-    // answer a caller can pick a window with, so it is reported rather than
-    // returned.
-    for (int i = 0; i < 4; i++) {
-        if (!std::isfinite(values[i])) {
-            err.stop("These bounds have no finite extent in '" + to +
-                     "'; some of the box falls outside where that coordinate "
-                     "reference system is defined");
+    // 1. The boundary walk, with GDAL's own special cases inside it. A walk
+    //    that fails or comes back infinite is discarded rather than raised,
+    //    because the mesh may still have found the box.
+    {
+        double w[4] = {0, 0, 0, 0};
+        CPLErrorStateBackuper quiet(CPLQuietErrorHandler);
+        if (OCTTransformBounds(ct, bbox[0], bbox[1], bbox[2], bbox[3], &w[0],
+                               &w[1], &w[2], &w[3], densify)) {
+            keep(w[0], w[1]);
+            keep(w[2], w[3]);
         }
     }
 
-    cpp11::writable::doubles out({values[0], values[1], values[2], values[3]});
+    // 2. The interior mesh.
+    size_t outside = 0;
+    size_t sampled = 0;
+    if (mesh > 0) {
+        const int side = mesh + 1;
+        const size_t n = static_cast<size_t>(side) * static_cast<size_t>(side);
+        std::vector<double> xs(n);
+        std::vector<double> ys(n);
+        for (int j = 0; j < side; j++) {
+            for (int i = 0; i < side; i++) {
+                xs[static_cast<size_t>(j) * side + i] =
+                    bbox[0] + x_span * i / mesh;
+                ys[static_cast<size_t>(j) * side + i] =
+                    bbox[1] + y_span * j / mesh;
+            }
+        }
+
+        std::vector<int> ok(n, 0);
+        {
+            CPLErrorStateBackuper quiet(CPLQuietErrorHandler);
+            OCTTransformEx(ct, static_cast<int>(n), xs.data(), ys.data(),
+                           nullptr, ok.data());
+        }
+        sampled = n;
+        for (size_t i = 0; i < n; i++) {
+            if (ok[i] && std::isfinite(xs[i]) && std::isfinite(ys[i])) {
+                keep(xs[i], ys[i]);
+            } else {
+                outside++;
+            }
+        }
+    }
+
+    OCTDestroyCoordinateTransformation(ct);
+
+    if (!any) {
+        err.stop("No part of this extent exists in '" + to + "'");
+    }
+
+    cpp11::writable::doubles out({lo_x, lo_y, hi_x, hi_y});
     out.names() = {"xmin", "ymin", "xmax", "ymax"};
+    // How much of the box has no image in the target. Zero is the ordinary
+    // case. Anything above it means the extent returned is the envelope of the
+    // part that survived, which is narrower than the box asked for, and a
+    // caller picking a window from it should say so rather than hide it.
+    out.attr("outside") = cpp11::as_sexp(
+        sampled == 0 ? 0.0 : static_cast<double>(outside) / static_cast<double>(sampled));
     err.flush();
     return out;
 }

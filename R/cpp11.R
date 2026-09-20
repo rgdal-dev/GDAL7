@@ -504,8 +504,8 @@ GDAL7_crs_to_wkt <- function(crs, format, multiline) {
   .Call(`_GDAL7_GDAL7_crs_to_wkt`, crs, format, multiline)
 }
 
-GDAL7_transform_bounds <- function(bbox, from, to, densify) {
-  .Call(`_GDAL7_GDAL7_transform_bounds`, bbox, from, to, densify)
+GDAL7_transform_extent <- function(bbox, from, to, densify, mesh) {
+  .Call(`_GDAL7_GDAL7_transform_extent`, bbox, from, to, densify, mesh)
 }
 
 GDAL7_data_types <- function() {
