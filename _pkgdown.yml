@@ -1,0 +1,180 @@
+url: https://rgdal-dev.github.io/GDAL7/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: The package
+  contents:
+  - GDAL7-package
+
+- title: Classes
+  desc: >
+    Every GDAL handle reaches R as one of these S7 classes. Their accessors are
+    properties rather than get_/set_ functions, so a dataset's size, projection
+    and geotransform are read with $ and set the same way where GDAL allows it.
+  contents:
+  - GDALMajorObject
+  - GDALDataset
+  - GDALDriver
+  - GDALRasterBand
+  - GDALLayer
+  - GDALGroup
+  - GDALMDArray
+
+- title: Open and close a dataset
+  desc: >
+    Opening is where a source is told what its own metadata does not say, and
+    closing is where a written dataset is actually finished. A dataset closes
+    itself when R garbage collects it, so gdal_close() is for closing it sooner
+    rather than for avoiding a leak.
+  contents:
+  - gdal_open
+  - gdal_close
+  - gdal_flush
+  - gdal_info
+  - mark_suppress_on_close
+  - get_thread_safe_dataset
+  - get_close_reports_progress
+
+- title: Drivers
+  desc: >
+    What this build of GDAL can read and write, and what a given driver will
+    accept. Asking the library beats trusting a version number, because a
+    driver is only present if it was compiled in.
+  contents:
+  - gdal_drivers
+  - gdal_get_driver_count
+  - gdal_get_driver
+  - gdal_get_driver_by_name
+  - get_driver
+  - driver_options
+  - has_open_option
+  - validate_creation_options
+  - test_capability
+
+- title: Raster I/O
+  desc: >
+    read_raster() is one call onto GDALRasterIOEx: a fractional source
+    window, an output size chosen independently of it, a resampling algorithm,
+    and the values read straight into the R vector of the requested type.
+    Overviews are reached explicitly when a band's own pyramid is wanted.
+  contents:
+  - read_raster
+  - get_raster_band
+  - get_overview
+  - flush_cache
+  - clear_statistics
+
+- title: Vector
+  desc: >
+    Features come back over GDAL's own Arrow stream rather than feature by
+    feature, so a layer read is a columnar transfer. The filters and the SQL
+    are set on the layer before the stream is asked for, and transactions wrap
+    edits on drivers that support them.
+  contents:
+  - read_vector
+  - get_layer
+  - feature_count
+  - get_extent
+  - set_filter
+  - reset_reading
+  - arrow_stream
+  - release_arrow_stream
+  - execute_sql
+  - abort_sql
+  - start_transaction
+  - commit_transaction
+  - rollback_transaction
+  - get_field_domain_names
+  - delete_field_domain
+  - get_relationship_names
+  - delete_relationship
+
+- title: Multidimensional
+  desc: >
+    GDAL's multidimensional model, for the sources that have more than two
+    dimensions: netCDF, Zarr, HDF5. read_mdarray() returns dim in the order
+    the values arrive in, which is the reverse of GDAL's own dimension order;
+    the array's dimensions property still reports GDAL's.
+  contents:
+  - get_root_group
+  - open_group
+  - open_mdarray
+  - read_mdarray
+  - mdarray_info
+  - get_view
+  - as_classic_dataset
+  - as_mdarray
+
+- title: Algorithms and pipelines
+  desc: >
+    GDAL's own algorithm registry, the C API behind the gdal command line.
+    A pipeline is named and its arguments passed as a list, so anything the
+    installed GDAL registers is callable without a wrapper being written for
+    it here. Not every build has it: ask gdal_has_algorithms() first.
+  contents:
+  - gdal_has_algorithms
+  - gdal_algorithms
+  - gdal_algorithm_info
+  - gdal_run
+
+- title: Creating and writing
+  desc: >
+    The write side. A dataset is created empty and filled, or copied from an
+    existing one in a single driver call, and creation options are validated
+    against the driver rather than discovered by the write failing.
+  contents:
+  - gdal_create
+  - gdal_create_copy
+  - gdal_delete
+  - write_raster
+  - write_vector
+  - add_band
+  - create_mask_band
+
+- title: Metadata
+  desc: >
+    Metadata on any major object, in GDAL's domains. The same six functions
+    serve a dataset, a band, a layer, a group and an array.
+  contents:
+  - get_metadata_list
+  - get_metadata_dict
+  - get_metadata_item
+  - set_metadata
+  - set_metadata_2
+  - set_metadata_item
+
+- title: Coordinates and extents
+  desc: >
+    Moving between pixel space, projected space and another coordinate
+    reference system. transform_extent() walks the edges of a box rather than
+    transforming its four corners, which is the difference between a correct
+    box and a wrong one wherever an edge is not monotonic.
+  contents:
+  - crs_to_wkt
+  - pixel_to_xy
+  - transform_extent
+
+- title: File systems
+  desc: >
+    GDAL's virtual file system, which is how a path into a zip, an S3 bucket
+    or an HTTP range request is read like a local file. These work on any
+    /vsi... path as well as on ordinary ones.
+  contents:
+  - vfs_list
+  - vfs_read_file
+  - vfs_unlink
+
+- title: Configuration and capabilities
+  desc: >
+    What this build can do, and how to change how it behaves. GDAL's
+    configuration options are process-global, so with_gdal_config() sets them
+    for one expression and restores them afterwards.
+  contents:
+  - gdal_config
+  - gdal7_capabilities
+  - gdal_release
+  - gdal_constants
+  - gdal_data_types
+  - gdal_string_constants
