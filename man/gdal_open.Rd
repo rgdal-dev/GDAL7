@@ -4,7 +4,13 @@
 \alias{gdal_open}
 \title{Open a GDAL dataset}
 \usage{
-gdal_open(path, update = FALSE, multidim = FALSE)
+gdal_open(
+  path,
+  update = FALSE,
+  multidim = FALSE,
+  options = NULL,
+  drivers = NULL
+)
 }
 \arguments{
 \item{path}{Path to the dataset (file, URL, or connection string)}
@@ -14,6 +20,19 @@ gdal_open(path, update = FALSE, multidim = FALSE)
 \item{multidim}{Logical. If TRUE, open in multidimensional mode (for NetCDF,
 Zarr, HDF5, etc.). Use get_root_group() to access the multidimensional structure.
 Default FALSE.}
+
+\item{options}{Character vector of \code{KEY=VALUE} open options, or \code{NULL} for
+none. These are the driver's own, and are how a source is told what its
+own metadata does not say: a CSV's \code{X_POSSIBLE_NAMES=lon}, a raster's
+\code{OVERVIEW_LEVEL=2}. \code{\link[=driver_options]{driver_options()}} lists what a driver accepts and
+\code{\link[=has_open_option]{has_open_option()}} asks about one by name. An option a driver does not
+recognise is a warning from GDAL, not an error.}
+
+\item{drivers}{Character vector of driver short names to try, or \code{NULL} to
+let every driver try, which is the default. Naming the driver skips the
+probing and stops a second driver claiming a file the first should have
+had. \code{character(0)} is not the same as \code{NULL}: it would allow no driver
+at all, so it is rejected.}
 }
 \value{
 A GDALDataset object
@@ -22,12 +41,16 @@ A GDALDataset object
 Open a GDAL dataset
 }
 \examples{
-\dontrun{
-# Classic raster mode
-ds <- gdal_open("/path/to/raster.tif")
-ds@projection
+ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+ds@raster_count
 gdal_close(ds)
 
+# Naming the driver, and reading the first overview instead of full size.
+ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"),
+                options = "OVERVIEW_LEVEL=0", drivers = "GTiff")
+c(ds@raster_xsize, ds@raster_ysize)
+gdal_close(ds)
+\dontrun{
 # Multidimensional mode
 ds <- gdal_open("/path/to/data.zarr", multidim = TRUE)
 grp <- get_root_group(ds)

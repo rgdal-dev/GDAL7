@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -261,6 +262,65 @@ cpp11::list GDAL7_band_get_overview_sizes(SEXP xp) {
 // Windowed reads
 // ============================================================================
 
+// The R vector a read fills, and the GDAL buffer type that fills it. Reading
+// straight into the R type is the point: a Byte band read as raw is one eighth
+// the memory of the same band read as double, which is the difference between
+// a workable RGB image in memory and an unworkable one.
+struct ReadType {
+    GDALDataType gdal;
+    SEXPTYPE sexp;
+};
+
+ReadType read_type(const std::string& type) {
+    if (type == "double") {
+        return {GDT_Float64, REALSXP};
+    }
+    if (type == "integer") {
+        return {GDT_Int32, INTSXP};
+    }
+    if (type == "raw") {
+        return {GDT_Byte, RAWSXP};
+    }
+    cpp11::stop("`type` is one of \"double\", \"integer\" or \"raw\"");
+}
+
+// Whether a band's values can survive the trip into that R type. GDAL would
+// clamp silently, so this refuses instead: a read that quietly turns 40000
+// into 255 is worse than one that will not run.
+void check_read_type(GDALRasterBandH h, const ReadType& rt, int band_number) {
+    if (rt.sexp == REALSXP) {
+        return;
+    }
+
+    const GDALDataType band_type = GDALGetRasterDataType(h);
+    const bool fits_raw = band_type == GDT_Byte;
+    const bool fits_integer = fits_raw || band_type == GDT_Int8 ||
+                              band_type == GDT_Int16 || band_type == GDT_UInt16 ||
+                              band_type == GDT_Int32;
+
+    if ((rt.sexp == RAWSXP && fits_raw) || (rt.sexp == INTSXP && fits_integer)) {
+        return;
+    }
+
+    cpp11::stop("Band %d holds %s, which does not fit R's %s; read it as \"double\"",
+                band_number, GDALGetDataTypeName(band_type),
+                rt.sexp == RAWSXP ? "raw" : "integer");
+}
+
+// The start of a vector's data, whichever of the three types it is.
+void* vector_data(SEXP x) {
+    switch (TYPEOF(x)) {
+        case REALSXP:
+            return REAL(x);
+        case INTSXP:
+            return INTEGER(x);
+        case RAWSXP:
+            return RAW(x);
+        default:
+            cpp11::stop("Unsupported buffer type");  // # nocov
+    }
+}
+
 // Read a window of a band at a chosen output size.
 //
 // This is GDALRasterIOEx rather than plain RasterIO: the window may be
@@ -269,20 +329,23 @@ cpp11::list GDAL7_band_get_overview_sizes(SEXP xp) {
 // /vsicurl/ be read at a useful size without fetching all of it, because GDAL
 // picks an overview level to satisfy the output size.
 [[cpp11::register]]
-cpp11::doubles GDAL7_band_read(SEXP xp, cpp11::doubles window,
-                               cpp11::integers out_size, std::string resample) {
+SEXP GDAL7_band_read(SEXP xp, cpp11::doubles window, cpp11::integers out_size,
+                     std::string resample, std::string type) {
     GDALRasterBandH h = band(xp);
     Window w = make_window(window, out_size, resample);
 
-    // Values come back as double whatever the band holds, so one return type
-    // covers every band type. Int64 beyond 2^53 is the one case that loses
-    // precision.
-    cpp11::writable::doubles out(static_cast<R_xlen_t>(w.out_x) * w.out_y);
+    const ReadType rt = read_type(type);
+    check_read_type(h, rt, GDALGetBandNumber(h));
+
+    // "double" holds any band type, which is why it is the default. Int64
+    // beyond 2^53 is the one case where it still loses precision.
+    cpp11::sexp out(Rf_allocVector(
+        rt.sexp, static_cast<R_xlen_t>(w.out_x) * w.out_y));
 
     gdal7::ErrorScope err;
     const CPLErr status = GDALRasterIOEx(
         h, GF_Read, w.off_x, w.off_y, w.size_x, w.size_y,
-        REAL(out), w.out_x, w.out_y, GDT_Float64, 0, 0, &w.extra);
+        vector_data(out), w.out_x, w.out_y, rt.gdal, 0, 0, &w.extra);
 
     if (status != CE_None) {
         err.stop("Could not read the raster window");
@@ -297,19 +360,28 @@ cpp11::doubles GDAL7_band_read(SEXP xp, cpp11::doubles window,
 // GDAL issues them together when it is asked for the bands at once.
 [[cpp11::register]]
 cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles window,
-                               cpp11::integers out_size, std::string resample) {
+                               cpp11::integers out_size, std::string resample,
+                               std::string type) {
     GDALDatasetH h = dataset(xp);
     Window w = make_window(window, out_size, resample);
     const std::vector<int> bands_to_read = band_list(h, bands);
 
+    // Every band has to survive the requested type, not just the first one:
+    // a Byte band beside a Float32 band would otherwise read as raw and clamp.
+    const ReadType rt = read_type(type);
+    for (int b : bands_to_read) {
+        check_read_type(GDALGetRasterBand(h, b), rt, b);
+    }
+
     // One buffer, band sequential, split into a vector per band afterwards.
     const size_t per_band = static_cast<size_t>(w.out_x) * static_cast<size_t>(w.out_y);
-    std::vector<double> buffer(per_band * bands_to_read.size());
+    const size_t item = static_cast<size_t>(GDALGetDataTypeSizeBytes(rt.gdal));
+    std::vector<unsigned char> buffer(per_band * bands_to_read.size() * item);
 
     gdal7::ErrorScope err;
     const CPLErr status = GDALDatasetRasterIOEx(
         h, GF_Read, w.off_x, w.off_y, w.size_x, w.size_y,
-        buffer.data(), w.out_x, w.out_y, GDT_Float64,
+        buffer.data(), w.out_x, w.out_y, rt.gdal,
         static_cast<int>(bands_to_read.size()),
         const_cast<int*>(bands_to_read.data()), 0, 0, 0, &w.extra);
 
@@ -321,10 +393,9 @@ cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles wi
     cpp11::writable::list out(static_cast<R_xlen_t>(bands_to_read.size()));
     cpp11::writable::strings names(static_cast<R_xlen_t>(bands_to_read.size()));
     for (size_t i = 0; i < bands_to_read.size(); i++) {
-        cpp11::writable::doubles values(static_cast<R_xlen_t>(per_band));
-        std::copy(buffer.begin() + static_cast<std::ptrdiff_t>(i * per_band),
-                  buffer.begin() + static_cast<std::ptrdiff_t>((i + 1) * per_band),
-                  REAL(values));
+        cpp11::sexp values(Rf_allocVector(rt.sexp, static_cast<R_xlen_t>(per_band)));
+        std::memcpy(vector_data(values), buffer.data() + i * per_band * item,
+                    per_band * item);
         out[static_cast<R_xlen_t>(i)] = values;
         names[static_cast<R_xlen_t>(i)] =
             cpp11::r_string(std::to_string(bands_to_read[i]));
@@ -573,6 +644,79 @@ cpp11::strings GDAL7_crs_to_wkt(std::string crs, std::string format,
 
     cpp11::strings out = gdal7::chr(wkt);
     CPLFree(wkt);
+    err.flush();
+    return out;
+}
+
+// Move a bounding box from one coordinate reference system to another.
+//
+// This is OCTTransformBounds rather than four corner transforms, and the
+// difference is not academic: a projected edge usually bows, so the box drawn
+// through the transformed corners is too small and a window picked with it
+// clips the data it was meant to select. OCTTransformBounds walks each edge
+// and takes the envelope of the whole curve.
+[[cpp11::register]]
+cpp11::doubles GDAL7_transform_bounds(cpp11::doubles bbox, std::string from,
+                                      std::string to, int densify) {
+    if (bbox.size() != 4) {
+        cpp11::stop("`bbox` is 4 numbers: xmin, ymin, xmax, ymax");
+    }
+    if (densify < 0) {
+        cpp11::stop("`densify` cannot be negative");
+    }
+
+    gdal7::ErrorScope err;
+
+    OGRSpatialReferenceH src = OSRNewSpatialReference(nullptr);
+    if (OSRSetFromUserInput(src, from.c_str()) != OGRERR_NONE) {
+        OSRDestroySpatialReference(src);
+        err.stop("Could not read '" + from + "' as a coordinate reference system");
+    }
+
+    OGRSpatialReferenceH dst = OSRNewSpatialReference(nullptr);
+    if (OSRSetFromUserInput(dst, to.c_str()) != OGRERR_NONE) {
+        OSRDestroySpatialReference(src);
+        OSRDestroySpatialReference(dst);
+        err.stop("Could not read '" + to + "' as a coordinate reference system");
+    }
+
+    // Without this, a CRS whose authority puts latitude first would read the
+    // box in that order, and the caller's c(xmin, ymin, xmax, ymax) would
+    // quietly mean something else. Both sides are pinned to x, y.
+    OSRSetAxisMappingStrategy(src, OAMS_TRADITIONAL_GIS_ORDER);
+    OSRSetAxisMappingStrategy(dst, OAMS_TRADITIONAL_GIS_ORDER);
+
+    OGRCoordinateTransformationH ct = OCTNewCoordinateTransformation(src, dst);
+    OSRDestroySpatialReference(src);
+    OSRDestroySpatialReference(dst);
+    if (ct == nullptr) {
+        err.stop("Could not transform from '" + from + "' to '" + to + "'");
+    }
+
+    double values[4] = {0, 0, 0, 0};
+    const int ok = OCTTransformBounds(ct, bbox[0], bbox[1], bbox[2], bbox[3],
+                                      &values[0], &values[1], &values[2],
+                                      &values[3], densify);
+    OCTDestroyCoordinateTransformation(ct);
+
+    if (!ok) {
+        err.stop("Could not transform these bounds from '" + from + "' to '" + to + "'");
+    }
+
+    // A box can transform without failing and still come back unusable, when
+    // part of it falls outside the target's area of use. Infinity is not an
+    // answer a caller can pick a window with, so it is reported rather than
+    // returned.
+    for (int i = 0; i < 4; i++) {
+        if (!std::isfinite(values[i])) {
+            err.stop("These bounds have no finite extent in '" + to +
+                     "'; some of the box falls outside where that coordinate "
+                     "reference system is defined");
+        }
+    }
+
+    cpp11::writable::doubles out({values[0], values[1], values[2], values[3]});
+    out.names() = {"xmin", "ymin", "xmax", "ymax"};
     err.flush();
     return out;
 }

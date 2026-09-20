@@ -9,24 +9,63 @@
 #' @param multidim Logical. If TRUE, open in multidimensional mode (for NetCDF, 
 #'   Zarr, HDF5, etc.). Use get_root_group() to access the multidimensional structure.
 #'   Default FALSE.
+#' @param options Character vector of `KEY=VALUE` open options, or `NULL` for
+#'   none. These are the driver's own, and are how a source is told what its
+#'   own metadata does not say: a CSV's `X_POSSIBLE_NAMES=lon`, a raster's
+#'   `OVERVIEW_LEVEL=2`. [driver_options()] lists what a driver accepts and
+#'   [has_open_option()] asks about one by name. An option a driver does not
+#'   recognise is a warning from GDAL, not an error.
+#' @param drivers Character vector of driver short names to try, or `NULL` to
+#'   let every driver try, which is the default. Naming the driver skips the
+#'   probing and stops a second driver claiming a file the first should have
+#'   had. `character(0)` is not the same as `NULL`: it would allow no driver
+#'   at all, so it is rejected.
 #' @return A GDALDataset object
 #' @export
 #' @examples
-#' \dontrun{
-#' # Classic raster mode
-#' ds <- gdal_open("/path/to/raster.tif")
-#' ds@projection
+#' ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
+#' ds@raster_count
 #' gdal_close(ds)
-#' 
+#'
+#' # Naming the driver, and reading the first overview instead of full size.
+#' ds <- gdal_open(system.file("extdata/overviews.tif", package = "GDAL7"),
+#'                 options = "OVERVIEW_LEVEL=0", drivers = "GTiff")
+#' c(ds@raster_xsize, ds@raster_ysize)
+#' gdal_close(ds)
+#' \dontrun{
 #' # Multidimensional mode
 #' ds <- gdal_open("/path/to/data.zarr", multidim = TRUE)
 #' grp <- get_root_group(ds)
 #' grp@mdarray_names
 #' gdal_close(ds)
 #' }
-gdal_open <- function(path, update = FALSE, multidim = FALSE) {
-  ptr <- GDAL7_gdal_open(gdal_dsn(path), update, multidim)
+gdal_open <- function(path, update = FALSE, multidim = FALSE,
+                      options = NULL, drivers = NULL) {
+  ptr <- GDAL7_gdal_open(
+    gdal_dsn(path), update, multidim,
+    gdal_open_strings(options, "options"),
+    gdal_open_strings(drivers, "drivers")
+  )
   GDALDataset(.ptr = ptr)
+}
+
+# NULL means "no list" and is what both arguments default to. An empty
+# character vector is a different thing and a mistake worth naming: as an
+# allowed-driver list it would let nothing open, and it is almost always
+# something like drivers[0] rather than a deliberate choice.
+gdal_open_strings <- function(x, what) {
+  if (is.null(x)) {
+    return(character())
+  }
+  if (!is.character(x) || anyNA(x)) {
+    stop("`", what, "` must be a character vector with no missing values",
+         call. = FALSE)
+  }
+  if (length(x) == 0L) {
+    stop("`", what, "` is empty; use NULL to place no restriction",
+         call. = FALSE)
+  }
+  x
 }
 
 # GDAL accepts connection strings as well as file paths: "WMTS:https://...",

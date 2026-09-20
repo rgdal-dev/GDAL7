@@ -412,8 +412,8 @@ GDAL7_init <- function() {
   invisible(.Call(`_GDAL7_GDAL7_init`))
 }
 
-GDAL7_gdal_open <- function(path, update, multidim) {
-  .Call(`_GDAL7_GDAL7_gdal_open`, path, update, multidim)
+GDAL7_gdal_open <- function(path, update, multidim, options, drivers) {
+  .Call(`_GDAL7_GDAL7_gdal_open`, path, update, multidim, options, drivers)
 }
 
 GDAL7_close <- function(xp) {
@@ -452,12 +452,12 @@ GDAL7_band_get_overview_sizes <- function(xp) {
   .Call(`_GDAL7_GDAL7_band_get_overview_sizes`, xp)
 }
 
-GDAL7_band_read <- function(xp, window, out_size, resample) {
-  .Call(`_GDAL7_GDAL7_band_read`, xp, window, out_size, resample)
+GDAL7_band_read <- function(xp, window, out_size, resample, type) {
+  .Call(`_GDAL7_GDAL7_band_read`, xp, window, out_size, resample, type)
 }
 
-GDAL7_dataset_read <- function(xp, bands, window, out_size, resample) {
-  .Call(`_GDAL7_GDAL7_dataset_read`, xp, bands, window, out_size, resample)
+GDAL7_dataset_read <- function(xp, bands, window, out_size, resample, type) {
+  .Call(`_GDAL7_GDAL7_dataset_read`, xp, bands, window, out_size, resample, type)
 }
 
 GDAL7_band_write <- function(xp, values, window, out_size, resample) {
@@ -502,6 +502,10 @@ GDAL7_dataset_get_crs <- function(xp) {
 
 GDAL7_crs_to_wkt <- function(crs, format, multiline) {
   .Call(`_GDAL7_GDAL7_crs_to_wkt`, crs, format, multiline)
+}
+
+GDAL7_transform_bounds <- function(bbox, from, to, densify) {
+  .Call(`_GDAL7_GDAL7_transform_bounds`, bbox, from, to, densify)
 }
 
 GDAL7_data_types <- function() {

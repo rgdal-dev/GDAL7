@@ -132,8 +132,19 @@ S7::method(get_overview, GDALRasterBand) <- function(x, index) {
 #' @param bands For a dataset, which bands to read, one-based. Defaults to all
 #'   of them. Reading several at once is one pass over the data rather than one
 #'   per band.
-#' @return For a band, a numeric vector of `out_size[1] * out_size[2]` values.
-#'   For a dataset, a named list of one such vector per band.
+#' @param type The R type to read into: `"double"` (the default), `"integer"`
+#'   or `"raw"`. `"double"` holds any band type and is eight bytes a value.
+#'   `"raw"` is one byte and reads a Byte band as-is, which is what an RGB
+#'   image wants. `"integer"` is four bytes and covers Byte, Int8, Int16,
+#'   UInt16 and Int32. A band whose type will not fit is an error rather than
+#'   a silent clamp, and for a dataset every band read has to fit.
+#'
+#'   Two things the narrower types cannot carry. `"raw"` has no missing value,
+#'   so a nodata pixel comes back as whatever byte the file holds. `"integer"`
+#'   has one, and it is `.Machine$integer.max + 1` in disguise, so an Int32
+#'   band holding that exact value reads as `NA`.
+#' @return For a band, a vector of `out_size[1] * out_size[2]` values, of the
+#'   requested `type`. For a dataset, a named list of one such vector per band.
 #' @export
 #' @examples
 #' ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
@@ -149,10 +160,26 @@ S7::method(get_overview, GDALRasterBand) <- function(x, index) {
 #' # Both bands at once.
 #' str(read_raster(ds, out_size = c(5, 5)))
 #'
+#' # test.tif holds Int16, which fits an R integer but not a raw byte.
+#' str(read_raster(band, out_size = c(4, 4), type = "integer"))
+#'
 #' gdal_close(ds)
+#'
+#' # A Byte band does fit, and as raw it is an eighth of the memory of the
+#' # same read as double.
+#' path <- tempfile(fileext = ".tif")
+#' bytes <- gdal_create(path, 4, 4, bands = 1, type = "Byte")
+#' write_raster(bytes, list(as.double(0:15)))
+#' gdal_close(bytes)
+#'
+#' ds <- gdal_open(path)
+#' str(read_raster(get_raster_band(ds, 1), type = "raw"))
+#' gdal_close(ds)
+#' unlink(path)
 read_raster <- S7::new_generic(
   "read_raster", "x",
-  function(x, window = NULL, out_size = NULL, resample = "nearest", bands = NULL) {
+  function(x, window = NULL, out_size = NULL, resample = "nearest",
+           bands = NULL, type = "double") {
     S7::S7_dispatch()
   }
 )
@@ -160,26 +187,41 @@ read_raster <- S7::new_generic(
 S7::method(read_raster, GDALRasterBand) <- function(x, window = NULL,
                                                     out_size = NULL,
                                                     resample = "nearest",
-                                                    bands = NULL) {
+                                                    bands = NULL,
+                                                    type = "double") {
   if (!is.null(bands)) {
     stop("`bands` applies to a dataset, not to a single band", call. = FALSE)
   }
   window <- resolve_window(window, x@xsize, x@ysize)
-  GDAL7_band_read(x@.ptr, window, resolve_out_size(out_size, window), resample)
+  GDAL7_band_read(x@.ptr, window, resolve_out_size(out_size, window), resample,
+                  resolve_read_type(type))
 }
 
 S7::method(read_raster, GDALDataset) <- function(x, window = NULL,
                                                  out_size = NULL,
                                                  resample = "nearest",
-                                                 bands = NULL) {
+                                                 bands = NULL,
+                                                 type = "double") {
   if (is.null(bands)) {
     bands <- seq_len(x@raster_count)
   }
   window <- resolve_window(window, x@raster_xsize, x@raster_ysize)
   GDAL7_dataset_read(
     x@.ptr, as.integer(bands), window,
-    resolve_out_size(out_size, window), resample
+    resolve_out_size(out_size, window), resample, resolve_read_type(type)
   )
+}
+
+# Checked here rather than in C++ so a typo is an R error naming the three
+# choices, before any GDAL handle is touched.
+resolve_read_type <- function(type) {
+  if (!is.character(type) || length(type) != 1L || is.na(type)) {
+    stop("`type` must be a single, non-missing string", call. = FALSE)
+  }
+  if (!type %in% c("double", "integer", "raw")) {
+    stop("`type` is one of \"double\", \"integer\" or \"raw\"", call. = FALSE)
+  }
+  type
 }
 
 resolve_window <- function(window, xsize, ysize) {
@@ -352,6 +394,46 @@ crs_to_wkt <- function(crs, format = c("WKT2", "WKT2_2019", "WKT2_2015", "WKT1")
                        multiline = FALSE) {
   format <- match.arg(format)
   GDAL7_crs_to_wkt(crs, format, isTRUE(multiline))
+}
+
+#' Move a bounding box between coordinate reference systems
+#'
+#' The four numbers of a box, in another CRS. GDAL walks each edge of the box
+#' rather than transforming its four corners, because a projected edge usually
+#' bows: the box drawn through the corners alone is too small, and a window
+#' picked with it clips the data it was meant to select.
+#'
+#' Both sides are read in x, y order whatever their authority says, so
+#' `"EPSG:4326"` here means longitude then latitude.
+#'
+#' This is a transformation of four numbers, not a warp. It is what turns a
+#' query rectangle given in one CRS into a window on a raster held in another;
+#' it does not reproject any pixels.
+#'
+#' @param bbox Numeric of length 4: `c(xmin, ymin, xmax, ymax)`.
+#' @param from,to Coordinate reference systems, as anything GDAL reads: an
+#'   authority code like `"EPSG:4326"`, a PROJ string, WKT, or the contents of
+#'   a `.prj` file.
+#' @param densify How many points to add along each edge before taking the
+#'   envelope. 21 is GDAL's own default. Zero transforms the corners only,
+#'   which is faster and wrong for any box wide enough to bow.
+#' @return A named numeric of length 4: `xmin`, `ymin`, `xmax`, `ymax`.
+#' @export
+#' @examples
+#' # An Antarctic box in longlat, as polar stereographic metres.
+#' transform_bounds(c(60, -70, 120, -60), "EPSG:4326", "EPSG:3031")
+#'
+#' # What the corners alone would have given: the same box, half as wide,
+#' # because the easting of a parallel peaks in the middle of that edge.
+#' transform_bounds(c(60, -70, 120, -60), "EPSG:4326", "EPSG:3031",
+#'                  densify = 0)
+transform_bounds <- function(bbox, from, to, densify = 21L) {
+  bbox <- as.double(bbox)
+  if (length(bbox) != 4L || anyNA(bbox)) {
+    stop("`bbox` must be 4 non-missing numbers: xmin, ymin, xmax, ymax",
+         call. = FALSE)
+  }
+  GDAL7_transform_bounds(bbox, from, to, as.integer(densify))
 }
 
 # ============================================================================

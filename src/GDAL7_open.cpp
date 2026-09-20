@@ -14,7 +14,8 @@ void GDAL7_init() {
 }
 
 [[cpp11::register]]
-SEXP GDAL7_gdal_open(std::string path, bool update, bool multidim) {
+SEXP GDAL7_gdal_open(std::string path, bool update, bool multidim,
+                     cpp11::strings options, cpp11::strings drivers) {
     unsigned int flags = update ? GDAL_OF_UPDATE : GDAL_OF_READONLY;
     flags |= GDAL_OF_VERBOSE_ERROR;
 
@@ -22,8 +23,19 @@ SEXP GDAL7_gdal_open(std::string path, bool update, bool multidim) {
         flags |= GDAL_OF_MULTIDIM_RASTER;
     }
 
+    CPLStringList open_options = gdal7::to_csl(options);
+    CPLStringList allowed_drivers = gdal7::to_csl(drivers);
+
+    // An empty list and no list are different things to GDAL. No allowed
+    // drivers means every driver may try; an empty allowed-driver list means
+    // none may, and nothing would ever open. The same distinction does no harm
+    // for the open options, so both are passed the same way.
     gdal7::ErrorScope err;
-    GDALDatasetH h = GDALOpenEx(path.c_str(), flags, nullptr, nullptr, nullptr);
+    GDALDatasetH h = GDALOpenEx(
+        path.c_str(), flags,
+        drivers.size() > 0 ? allowed_drivers.List() : nullptr,
+        options.size() > 0 ? open_options.List() : nullptr,
+        nullptr);
     if (!h) {
         // GDAL names the file in its own message, so the path is only added
         // back when GDAL had nothing to say.

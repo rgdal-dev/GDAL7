@@ -1,5 +1,33 @@
 # GDAL7 0.1.0
 
+## Engine gaps for a downstream reader
+
+Three additions asked for by the lazy IO package being designed on top of
+GDAL7, each of which it needs and none of which it can add for itself.
+
+* `gdal_open()` takes `options` and `drivers`. Open options are how a source
+  is told what its own metadata does not say, without wrapping it in anything:
+  a CSV's `X_POSSIBLE_NAMES=lon`, a raster's `OVERVIEW_LEVEL=2`. `drivers`
+  names the drivers that may try, so a second driver cannot claim a file the
+  first should have had. `NULL` places no restriction and is the default;
+  `character(0)` would allow nothing at all and is an error rather than a
+  silent no-op.
+
+* `read_raster()` takes `type`, one of `"double"` (the default, unchanged),
+  `"integer"` or `"raw"`. A Byte band read as raw is an eighth of the memory
+  of the same band read as double, which is the difference between a workable
+  RGB image in memory and an unworkable one. GDAL reads straight into the R
+  vector rather than converting afterwards. A band whose type will not fit is
+  an error rather than a silent clamp, and for a dataset every band read has
+  to fit.
+
+* `transform_bounds()` moves a bounding box between coordinate reference
+  systems. It walks each edge rather than transforming the four corners,
+  because a projected edge usually bows and the box through the corners alone
+  is too small: a window picked with it clips the data it was meant to select.
+  Both sides are read in x, y order whatever their authority says. This is a
+  transformation of four numbers, not a warp, and it reprojects no pixels.
+
 ## Stage 8: namespace hygiene
 
 * What an object knows about itself is now a property rather than a verb:

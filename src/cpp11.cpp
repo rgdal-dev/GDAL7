@@ -735,10 +735,10 @@ extern "C" SEXP _GDAL7_GDAL7_init() {
   END_CPP11
 }
 // GDAL7_open.cpp
-SEXP GDAL7_gdal_open(std::string path, bool update, bool multidim);
-extern "C" SEXP _GDAL7_GDAL7_gdal_open(SEXP path, SEXP update, SEXP multidim) {
+SEXP GDAL7_gdal_open(std::string path, bool update, bool multidim, cpp11::strings options, cpp11::strings drivers);
+extern "C" SEXP _GDAL7_GDAL7_gdal_open(SEXP path, SEXP update, SEXP multidim, SEXP options, SEXP drivers) {
   BEGIN_CPP11
-    return cpp11::as_sexp(GDAL7_gdal_open(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<bool>>(update), cpp11::as_cpp<cpp11::decay_t<bool>>(multidim)));
+    return cpp11::as_sexp(GDAL7_gdal_open(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<bool>>(update), cpp11::as_cpp<cpp11::decay_t<bool>>(multidim), cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(options), cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(drivers)));
   END_CPP11
 }
 // GDAL7_open.cpp
@@ -808,17 +808,17 @@ extern "C" SEXP _GDAL7_GDAL7_band_get_overview_sizes(SEXP xp) {
   END_CPP11
 }
 // GDAL7_rasterio.cpp
-cpp11::doubles GDAL7_band_read(SEXP xp, cpp11::doubles window, cpp11::integers out_size, std::string resample);
-extern "C" SEXP _GDAL7_GDAL7_band_read(SEXP xp, SEXP window, SEXP out_size, SEXP resample) {
+SEXP GDAL7_band_read(SEXP xp, cpp11::doubles window, cpp11::integers out_size, std::string resample, std::string type);
+extern "C" SEXP _GDAL7_GDAL7_band_read(SEXP xp, SEXP window, SEXP out_size, SEXP resample, SEXP type) {
   BEGIN_CPP11
-    return cpp11::as_sexp(GDAL7_band_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample)));
+    return cpp11::as_sexp(GDAL7_band_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample), cpp11::as_cpp<cpp11::decay_t<std::string>>(type)));
   END_CPP11
 }
 // GDAL7_rasterio.cpp
-cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles window, cpp11::integers out_size, std::string resample);
-extern "C" SEXP _GDAL7_GDAL7_dataset_read(SEXP xp, SEXP bands, SEXP window, SEXP out_size, SEXP resample) {
+cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles window, cpp11::integers out_size, std::string resample, std::string type);
+extern "C" SEXP _GDAL7_GDAL7_dataset_read(SEXP xp, SEXP bands, SEXP window, SEXP out_size, SEXP resample, SEXP type) {
   BEGIN_CPP11
-    return cpp11::as_sexp(GDAL7_dataset_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample)));
+    return cpp11::as_sexp(GDAL7_dataset_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample), cpp11::as_cpp<cpp11::decay_t<std::string>>(type)));
   END_CPP11
 }
 // GDAL7_rasterio.cpp
@@ -905,6 +905,13 @@ cpp11::strings GDAL7_crs_to_wkt(std::string crs, std::string format, bool multil
 extern "C" SEXP _GDAL7_GDAL7_crs_to_wkt(SEXP crs, SEXP format, SEXP multiline) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_crs_to_wkt(cpp11::as_cpp<cpp11::decay_t<std::string>>(crs), cpp11::as_cpp<cpp11::decay_t<std::string>>(format), cpp11::as_cpp<cpp11::decay_t<bool>>(multiline)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+cpp11::doubles GDAL7_transform_bounds(cpp11::doubles bbox, std::string from, std::string to, int densify);
+extern "C" SEXP _GDAL7_GDAL7_transform_bounds(SEXP bbox, SEXP from, SEXP to, SEXP densify) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_transform_bounds(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(bbox), cpp11::as_cpp<cpp11::decay_t<std::string>>(from), cpp11::as_cpp<cpp11::decay_t<std::string>>(to), cpp11::as_cpp<cpp11::decay_t<int>>(densify)));
   END_CPP11
 }
 // GDAL7_summary.cpp
@@ -1189,7 +1196,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_band_get_unit_type",                   (DL_FUNC) &_GDAL7_GDAL7_band_get_unit_type,                   1},
     {"_GDAL7_GDAL7_band_get_xsize",                       (DL_FUNC) &_GDAL7_GDAL7_band_get_xsize,                       1},
     {"_GDAL7_GDAL7_band_get_ysize",                       (DL_FUNC) &_GDAL7_GDAL7_band_get_ysize,                       1},
-    {"_GDAL7_GDAL7_band_read",                            (DL_FUNC) &_GDAL7_GDAL7_band_read,                            4},
+    {"_GDAL7_GDAL7_band_read",                            (DL_FUNC) &_GDAL7_GDAL7_band_read,                            5},
     {"_GDAL7_GDAL7_band_set_color_interpretation",        (DL_FUNC) &_GDAL7_GDAL7_band_set_color_interpretation,        2},
     {"_GDAL7_GDAL7_band_set_nodata_value",                (DL_FUNC) &_GDAL7_GDAL7_band_set_nodata_value,                2},
     {"_GDAL7_GDAL7_band_set_offset",                      (DL_FUNC) &_GDAL7_GDAL7_band_set_offset,                      2},
@@ -1240,7 +1247,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_dataset_raster_count",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_raster_count,                 1},
     {"_GDAL7_GDAL7_dataset_raster_xsize",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_raster_xsize,                 1},
     {"_GDAL7_GDAL7_dataset_raster_ysize",                 (DL_FUNC) &_GDAL7_GDAL7_dataset_raster_ysize,                 1},
-    {"_GDAL7_GDAL7_dataset_read",                         (DL_FUNC) &_GDAL7_GDAL7_dataset_read,                         5},
+    {"_GDAL7_GDAL7_dataset_read",                         (DL_FUNC) &_GDAL7_GDAL7_dataset_read,                         6},
     {"_GDAL7_GDAL7_dataset_reset_reading",                (DL_FUNC) &_GDAL7_GDAL7_dataset_reset_reading,                1},
     {"_GDAL7_GDAL7_dataset_rollback_transaction",         (DL_FUNC) &_GDAL7_GDAL7_dataset_rollback_transaction,         1},
     {"_GDAL7_GDAL7_dataset_set_crs",                      (DL_FUNC) &_GDAL7_GDAL7_dataset_set_crs,                      2},
@@ -1260,7 +1267,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_driver_test_capability",               (DL_FUNC) &_GDAL7_GDAL7_driver_test_capability,               2},
     {"_GDAL7_GDAL7_driver_validate_creation_options",     (DL_FUNC) &_GDAL7_GDAL7_driver_validate_creation_options,     2},
     {"_GDAL7_GDAL7_emit_gdal_message",                    (DL_FUNC) &_GDAL7_GDAL7_emit_gdal_message,                    2},
-    {"_GDAL7_GDAL7_gdal_open",                            (DL_FUNC) &_GDAL7_GDAL7_gdal_open,                            3},
+    {"_GDAL7_GDAL7_gdal_open",                            (DL_FUNC) &_GDAL7_GDAL7_gdal_open,                            5},
     {"_GDAL7_GDAL7_gdal_version",                         (DL_FUNC) &_GDAL7_GDAL7_gdal_version,                         0},
     {"_GDAL7_GDAL7_get_config_option",                    (DL_FUNC) &_GDAL7_GDAL7_get_config_option,                    1},
     {"_GDAL7_GDAL7_get_driver",                           (DL_FUNC) &_GDAL7_GDAL7_get_driver,                           1},
@@ -1319,6 +1326,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_release_arrow_stream",                 (DL_FUNC) &_GDAL7_GDAL7_release_arrow_stream,                 1},
     {"_GDAL7_GDAL7_set_config_option",                    (DL_FUNC) &_GDAL7_GDAL7_set_config_option,                    2},
     {"_GDAL7_GDAL7_string_constants",                     (DL_FUNC) &_GDAL7_GDAL7_string_constants,                     0},
+    {"_GDAL7_GDAL7_transform_bounds",                     (DL_FUNC) &_GDAL7_GDAL7_transform_bounds,                     4},
     {"_GDAL7_GDAL7_vsi_copy",                             (DL_FUNC) &_GDAL7_GDAL7_vsi_copy,                             2},
     {"_GDAL7_GDAL7_vsi_exists",                           (DL_FUNC) &_GDAL7_GDAL7_vsi_exists,                           1},
     {"_GDAL7_GDAL7_vsi_list",                             (DL_FUNC) &_GDAL7_GDAL7_vsi_list,                             2},

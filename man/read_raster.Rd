@@ -9,7 +9,8 @@ read_raster(
   window = NULL,
   out_size = NULL,
   resample = "nearest",
-  bands = NULL
+  bands = NULL,
+  type = "double"
 )
 }
 \arguments{
@@ -27,10 +28,22 @@ Defaults to the size of the window, which is a read with no resampling.}
 \item{bands}{For a dataset, which bands to read, one-based. Defaults to all
 of them. Reading several at once is one pass over the data rather than one
 per band.}
+
+\item{type}{The R type to read into: \code{"double"} (the default), \code{"integer"}
+or \code{"raw"}. \code{"double"} holds any band type and is eight bytes a value.
+\code{"raw"} is one byte and reads a Byte band as-is, which is what an RGB
+image wants. \code{"integer"} is four bytes and covers Byte, Int8, Int16,
+UInt16 and Int32. A band whose type will not fit is an error rather than
+a silent clamp, and for a dataset every band read has to fit.
+
+Two things the narrower types cannot carry. \code{"raw"} has no missing value,
+so a nodata pixel comes back as whatever byte the file holds. \code{"integer"}
+has one, and it is \code{.Machine$integer.max + 1} in disguise, so an Int32
+band holding that exact value reads as \code{NA}.}
 }
 \value{
-For a band, a numeric vector of \code{out_size[1] * out_size[2]} values.
-For a dataset, a named list of one such vector per band.
+For a band, a vector of \code{out_size[1] * out_size[2]} values, of the
+requested \code{type}. For a dataset, a named list of one such vector per band.
 }
 \description{
 Reads a window of a band, or of several bands of a dataset, at a chosen
@@ -64,5 +77,20 @@ read_raster(band, window = c(0, 0, 4, 4), out_size = c(2, 2),
 # Both bands at once.
 str(read_raster(ds, out_size = c(5, 5)))
 
+# test.tif holds Int16, which fits an R integer but not a raw byte.
+str(read_raster(band, out_size = c(4, 4), type = "integer"))
+
 gdal_close(ds)
+
+# A Byte band does fit, and as raw it is an eighth of the memory of the
+# same read as double.
+path <- tempfile(fileext = ".tif")
+bytes <- gdal_create(path, 4, 4, bands = 1, type = "Byte")
+write_raster(bytes, list(as.double(0:15)))
+gdal_close(bytes)
+
+ds <- gdal_open(path)
+str(read_raster(get_raster_band(ds, 1), type = "raw"))
+gdal_close(ds)
+unlink(path)
 }
