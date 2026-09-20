@@ -1,4 +1,4 @@
-# GDAL7 (development version)
+# GDAL7 0.1.0
 
 ## Stage 8: namespace hygiene
 
