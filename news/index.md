@@ -2,19 +2,6 @@
 
 ## GDAL7 0.1.0
 
-### Documentation site
-
-- A pkgdown site, built and published by GitHub Actions on every push to
-  `main` and built without publishing on every pull request, so a change
-  that breaks the site is caught by the pull request that makes it.
-  `_pkgdown.yml` groups the reference by what each function is for
-  rather than by name, and every exported topic is listed exactly once:
-  a new export with no home in that file fails the build rather than
-  quietly going missing from the index.
-
-- `DESCRIPTION` gains `URL` and `BugReports`, which is where the site’s
-  navbar links come from.
-
 ### Engine gaps for a downstream reader
 
 Three additions asked for by the lazy IO package being designed on top

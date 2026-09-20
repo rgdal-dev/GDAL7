@@ -35,11 +35,6 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="gdal7-010">GDAL7 0.1.0<a class="anchor" aria-label="anchor" href="#gdal7-010"></a></h2>
 <div class="section level3">
-<h3 id="documentation-site-0-1-0">Documentation site<a class="anchor" aria-label="anchor" href="#documentation-site-0-1-0"></a></h3>
-<ul><li><p>A pkgdown site, built and published by GitHub Actions on every push to <code>main</code> and built without publishing on every pull request, so a change that breaks the site is caught by the pull request that makes it. <code>_pkgdown.yml</code> groups the reference by what each function is for rather than by name, and every exported topic is listed exactly once: a new export with no home in that file fails the build rather than quietly going missing from the index.</p></li>
-<li><p><code>DESCRIPTION</code> gains <code>URL</code> and <code>BugReports</code>, which is where the site’s navbar links come from.</p></li>
-</ul></div>
-<div class="section level3">
 <h3 id="engine-gaps-for-a-downstream-reader-0-1-0">Engine gaps for a downstream reader<a class="anchor" aria-label="anchor" href="#engine-gaps-for-a-downstream-reader-0-1-0"></a></h3>
 <p>Three additions asked for by the lazy IO package being designed on top of GDAL7, each of which it needs and none of which it can add for itself.</p>
 <ul><li><p><code><a href="../reference/gdal_open.html">gdal_open()</a></code> takes <code>options</code> and <code>drivers</code>. Open options are how a source is told what its own metadata does not say, without wrapping it in anything: a CSV’s <code>X_POSSIBLE_NAMES=lon</code>, a raster’s <code>OVERVIEW_LEVEL=2</code>. <code>drivers</code> names the drivers that may try, so a second driver cannot claim a file the first should have had. <code>NULL</code> places no restriction and is the default; <code>character(0)</code> would allow nothing at all and is an error rather than a silent no-op.</p></li>
