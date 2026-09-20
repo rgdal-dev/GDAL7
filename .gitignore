@@ -28,3 +28,6 @@ src/Makevars
 
 # rmarkdown leaves a preview next to the github_document output.
 README.html
+
+# pkgdown builds the site here; it is published from the gh-pages branch.
+docs/

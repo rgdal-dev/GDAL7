@@ -6,6 +6,8 @@ Authors@R:
 Description: Comprehensive GDAL bindings for R using S7 classes and cpp11.
     Auto-generated from GDAL's SWIG interface definitions.
 License: MIT + file LICENSE
+URL: https://github.com/rgdal-dev/GDAL7, https://rgdal-dev.github.io/GDAL7/
+BugReports: https://github.com/rgdal-dev/GDAL7/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1

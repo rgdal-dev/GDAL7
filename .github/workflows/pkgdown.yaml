@@ -1,0 +1,68 @@
+# Build the pkgdown site and publish it to GitHub Pages.
+#
+# Same shape as the r-lib workflow, with the GDAL step the check workflow uses:
+# pkgdown loads GDAL7 to build the reference pages and runs the examples, so
+# the package has to be compiled against a real GDAL here too. The site is
+# built into docs/ and pushed to the gh-pages branch, which is what
+# Settings > Pages is pointed at.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+name: pkgdown
+
+permissions: read-all
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-26.04
+
+    # A pull request builds the site to prove it still builds, and deploys
+    # nothing. Only the real branch needs serialising.
+    concurrency:
+      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install GDAL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev
+
+      - name: Report the GDAL that was found
+        run: gdal-config --version
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::pkgdown, local::.
+          needs: website
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs
