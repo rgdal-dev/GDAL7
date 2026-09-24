@@ -265,3 +265,61 @@ test_that("a format that stores no column names gets GDAL's own", {
   expect_true(all(c(layer@fid_column, layer@geometry_column) %in%
                     names(read_vector(layer))))
 })
+
+stream_frame <- function(...) {
+  stream <- arrow_stream(...)
+  on.exit(release_arrow_stream(stream))
+  suppressWarnings(nanoarrow::convert_array_stream(stream))
+}
+
+test_that("a stream can rename its columns and stop after so many features", {
+  ds <- gdal_open(test_gpkg())
+  on.exit(gdal_close(ds))
+  layer <- get_layer(ds, 1)
+
+  d <- stream_frame(layer, rename = c(id = "fid", shape = "geom"), limit = 2)
+  expect_identical(names(d), c("id", "name", "population", "elevation", "shape"))
+  expect_equal(nrow(d), 2L)
+  expect_equal(d$name, c("Hobart", "Melbourne"))
+  expect_length(d$shape, 2L)
+
+  # The limit is counted across batches, and one past the end is harmless.
+  expect_equal(stream_frame(layer, options = "MAX_FEATURES_IN_BATCH=2",
+                            limit = 3)$fid, c(1, 2, 3))
+  expect_equal(nrow(stream_frame(layer, limit = 10)), 5L)
+  expect_equal(nrow(stream_frame(layer, limit = 0)), 0L)
+
+  # A name that is not there is left alone rather than being an error.
+  expect_identical(names(stream_frame(layer, rename = c(a = "nowhere"))),
+                   names(read_vector(layer)))
+
+  expect_error(arrow_stream(layer, rename = "fid"), "named character")
+  expect_error(arrow_stream(layer, limit = -1), "whole number")
+})
+
+test_that("a stream that stops early can be taken again at once", {
+  ds <- gdal_open(test_gpkg())
+  on.exit(gdal_close(ds))
+  layer <- get_layer(ds, 1)
+  for (i in 1:50) {
+    expect_equal(nrow(stream_frame(layer, limit = 1, rename = c(id = "fid"))), 1L)
+  }
+  gc()
+  expect_equal(nrow(read_vector(layer)), 5L)
+})
+
+test_that("ignored fields are left out of the read, and can be cleared", {
+  ds <- gdal_open(test_gpkg())
+  on.exit(gdal_close(ds))
+  layer <- get_layer(ds, 1)
+  expect_identical(layer@field_names, c("name", "population", "elevation"))
+  expect_identical(layer@ignored_fields, character(0))
+
+  layer@ignored_fields <- c("population", "OGR_GEOMETRY")
+  expect_setequal(layer@ignored_fields, c("population", "OGR_GEOMETRY"))
+  expect_identical(names(read_vector(layer)), c("fid", "name", "elevation"))
+
+  layer@ignored_fields <- character(0)
+  expect_identical(names(read_vector(layer)),
+                   c("fid", "name", "population", "elevation", "geom"))
+})

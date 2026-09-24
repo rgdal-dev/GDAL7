@@ -27,6 +27,13 @@ GDAL7, each of which it needs and none of which it can add for itself.
   A reader that wants one name per column can rename from these rather than
   guessing per driver.
 
+* `arrow_stream()` takes `rename` and `limit`, the two things a reader wants
+  from a stream that GDAL has no option for: columns under other names, and
+  a stop after so many features. Neither copies a value; the schema is
+  renamed and the last batch shortened, and a limit stops GDAL reading
+  further. A layer also has `field_names`, and `ignored_fields`, set by
+  assignment, which tells the driver not to read those fields at all.
+
 * `transform_extent()` moves an extent between coordinate reference systems.
   It samples the box twice and takes the envelope of the two: GDAL's own walk
   around the boundary, with `densify` extra points along each edge, and a

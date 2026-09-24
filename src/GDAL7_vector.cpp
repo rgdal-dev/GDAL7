@@ -9,6 +9,11 @@
 
 #include <ogr_recordbatch.h>
 
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <vector>
+
 using namespace cpp11;
 
 namespace {
@@ -63,6 +68,183 @@ void finalize_stream(SEXP xp) {
         stream->release(stream);
     }
     delete stream;
+}
+
+// ---------------------------------------------------------------------------
+// A stream over a stream
+//
+// Two things a reader wants from a layer's stream that GDAL has no option
+// for: columns under other names, and a stop after so many rows. Both are
+// done here, around GDAL's own stream, so the batches still travel without a
+// value being copied.
+//
+// Renaming means handing out a schema whose names differ from the producer's,
+// and the producer's schema can only be freed by the producer, so the schema
+// is deep-copied into memory this file owns and renamed there. Arrays carry
+// no names, so batches pass through untouched. The limit shortens the length
+// of the last batch and of its columns, which leaves each buffer as it was
+// and only claims fewer of its rows.
+// ---------------------------------------------------------------------------
+
+char* copy_string(const char* value) {
+    if (value == nullptr) {
+        return nullptr;
+    }
+    const size_t n = std::strlen(value) + 1;
+    char* out = static_cast<char*>(std::malloc(n));
+    std::memcpy(out, value, n);
+    return out;
+}
+
+// Schema metadata is a count followed by length-prefixed keys and values,
+// all int32 in native order.
+char* copy_metadata(const char* metadata) {
+    if (metadata == nullptr) {
+        return nullptr;
+    }
+    const char* p = metadata;
+    int32_t n = 0;
+    std::memcpy(&n, p, sizeof(int32_t));
+    p += sizeof(int32_t);
+    for (int32_t i = 0; i < 2 * n; ++i) {
+        int32_t len = 0;
+        std::memcpy(&len, p, sizeof(int32_t));
+        p += sizeof(int32_t) + len;
+    }
+    const size_t size = static_cast<size_t>(p - metadata);
+    char* out = static_cast<char*>(std::malloc(size));
+    std::memcpy(out, metadata, size);
+    return out;
+}
+
+void release_copied_schema(ArrowSchema* schema) {
+    std::free(const_cast<char*>(schema->format));
+    std::free(const_cast<char*>(schema->name));
+    std::free(const_cast<char*>(schema->metadata));
+    for (int64_t i = 0; i < schema->n_children; ++i) {
+        if (schema->children[i]->release != nullptr) {
+            schema->children[i]->release(schema->children[i]);
+        }
+        std::free(schema->children[i]);
+    }
+    std::free(schema->children);
+    if (schema->dictionary != nullptr) {
+        if (schema->dictionary->release != nullptr) {
+            schema->dictionary->release(schema->dictionary);
+        }
+        std::free(schema->dictionary);
+    }
+    schema->release = nullptr;
+}
+
+void copy_schema(const ArrowSchema* from, ArrowSchema* to) {
+    to->format = copy_string(from->format);
+    to->name = copy_string(from->name);
+    to->metadata = copy_metadata(from->metadata);
+    to->flags = from->flags;
+    to->n_children = from->n_children;
+    to->children = nullptr;
+    if (from->n_children > 0) {
+        to->children = static_cast<ArrowSchema**>(
+            std::malloc(sizeof(ArrowSchema*) * from->n_children));
+        for (int64_t i = 0; i < from->n_children; ++i) {
+            to->children[i] = static_cast<ArrowSchema*>(std::malloc(sizeof(ArrowSchema)));
+            copy_schema(from->children[i], to->children[i]);
+        }
+    }
+    to->dictionary = nullptr;
+    if (from->dictionary != nullptr) {
+        to->dictionary = static_cast<ArrowSchema*>(std::malloc(sizeof(ArrowSchema)));
+        copy_schema(from->dictionary, to->dictionary);
+    }
+    to->private_data = nullptr;
+    to->release = release_copied_schema;
+}
+
+struct StreamView {
+    ArrowArrayStream inner;
+    std::vector<std::string> from;
+    std::vector<std::string> to;
+    int64_t remaining;  // negative: no limit
+};
+
+StreamView* view_of(ArrowArrayStream* stream) {
+    return static_cast<StreamView*>(stream->private_data);
+}
+
+int view_get_schema(ArrowArrayStream* stream, ArrowSchema* out) {
+    StreamView* view = view_of(stream);
+    ArrowSchema original;
+    original.release = nullptr;
+    const int status = view->inner.get_schema(&view->inner, &original);
+    if (status != 0) {
+        return status;
+    }
+    copy_schema(&original, out);
+    original.release(&original);
+
+    for (int64_t i = 0; i < out->n_children; ++i) {
+        ArrowSchema* child = out->children[i];
+        if (child->name == nullptr) {
+            continue;
+        }
+        for (size_t j = 0; j < view->from.size(); ++j) {
+            if (view->from[j] == child->name) {
+                std::free(const_cast<char*>(child->name));
+                child->name = copy_string(view->to[j].c_str());
+                break;
+            }
+        }
+    }
+    return 0;
+}
+
+// An array with no validity buffer has no nulls, and says so with a count of
+// zero; one with a buffer may have lost some, so its count becomes unknown.
+void shorten(ArrowArray* array, int64_t length) {
+    array->length = length;
+    if (array->n_buffers > 0 && array->buffers[0] != nullptr) {
+        array->null_count = -1;
+    }
+}
+
+int view_get_next(ArrowArrayStream* stream, ArrowArray* out) {
+    StreamView* view = view_of(stream);
+    if (view->remaining == 0) {
+        out->release = nullptr;
+        return 0;
+    }
+    const int status = view->inner.get_next(&view->inner, out);
+    if (status != 0 || out->release == nullptr || view->remaining < 0) {
+        return status;
+    }
+    if (out->length > view->remaining) {
+        // The children are shortened as well: the format lets a child run
+        // longer than its parent, but not every reader goes by the parent.
+        // The null counts are no longer known once rows are cut off.
+        shorten(out, view->remaining);
+        for (int64_t i = 0; i < out->n_children; ++i) {
+            if (out->children[i]->length > view->remaining) {
+                shorten(out->children[i], view->remaining);
+            }
+        }
+    }
+    view->remaining -= out->length;
+    return 0;
+}
+
+const char* view_get_last_error(ArrowArrayStream* stream) {
+    StreamView* view = view_of(stream);
+    return view->inner.get_last_error(&view->inner);
+}
+
+void view_release(ArrowArrayStream* stream) {
+    StreamView* view = view_of(stream);
+    if (view->inner.release != nullptr) {
+        view->inner.release(&view->inner);
+    }
+    delete view;
+    stream->release = nullptr;
 }
 
 }  // namespace
@@ -162,6 +344,52 @@ strings GDAL7_layer_geometry_column(SEXP xp) {
     return gdal7::chr(OGR_L_GetGeometryColumn(gdal7::layer(xp)));
 }
 
+// The attribute fields, not counting the id or the geometry.
+[[cpp11::register]]
+strings GDAL7_layer_field_names(SEXP xp) {
+    OGRFeatureDefnH defn = OGR_L_GetLayerDefn(gdal7::layer(xp));
+    const int n = OGR_FD_GetFieldCount(defn);
+    writable::strings out(n);
+    for (int i = 0; i < n; ++i) {
+        out[i] = OGR_Fld_GetNameRef(OGR_FD_GetFieldDefn(defn, i));
+    }
+    return out;
+}
+
+// GDAL keeps no list of what it was told to ignore, so it is read back from
+// the field definitions; OGR_GEOMETRY stands for the geometry, as it does
+// when set.
+[[cpp11::register]]
+strings GDAL7_layer_get_ignored_fields(SEXP xp) {
+    OGRFeatureDefnH defn = OGR_L_GetLayerDefn(gdal7::layer(xp));
+    writable::strings out;
+    for (int i = 0; i < OGR_FD_GetFieldCount(defn); ++i) {
+        OGRFieldDefnH field = OGR_FD_GetFieldDefn(defn, i);
+        if (OGR_Fld_IsIgnored(field)) {
+            out.push_back(OGR_Fld_GetNameRef(field));
+        }
+    }
+    if (OGR_FD_GetGeomFieldCount(defn) > 0 &&
+        OGR_GFld_IsIgnored(OGR_FD_GetGeomFieldDefn(defn, 0))) {
+        out.push_back("OGR_GEOMETRY");
+    }
+    return out;
+}
+
+[[cpp11::register]]
+void GDAL7_layer_set_ignored_fields(SEXP xp, strings fields) {
+    CPLStringList csl;
+    for (R_xlen_t i = 0; i < fields.size(); ++i) {
+        csl.AddString(std::string(fields[i]).c_str());
+    }
+    gdal7::ErrorScope err;
+    if (OGR_L_SetIgnoredFields(gdal7::layer(xp),
+                               const_cast<const char**>(csl.List())) != OGRERR_NONE) {
+        err.stop("GDAL did not accept those fields as ones to ignore");
+    }
+    err.flush();
+}
+
 [[cpp11::register]]
 double GDAL7_layer_feature_count(SEXP xp, bool force) {
     gdal7::ErrorScope err;
@@ -255,7 +483,8 @@ void GDAL7_layer_reset_reading(SEXP xp) {
 // ---------------------------------------------------------------------------
 
 [[cpp11::register]]
-SEXP GDAL7_layer_arrow_stream(SEXP xp, strings options) {
+SEXP GDAL7_layer_arrow_stream(SEXP xp, strings options, strings rename_from,
+                              strings rename_to, double limit) {
     OGRLayerH lyr = gdal7::layer(xp);
     CPLStringList csl = gdal7::to_csl(options);
 
@@ -267,6 +496,24 @@ SEXP GDAL7_layer_arrow_stream(SEXP xp, strings options) {
         err.stop("This layer would not open an Arrow stream");
     }
     err.flush();
+
+    // Only wrapped when there is something to do, so a plain stream is still
+    // GDAL's own.
+    if (rename_from.size() > 0 || limit >= 0) {
+        auto* view = new StreamView();
+        view->inner = *stream;
+        stream->release = nullptr;
+        for (R_xlen_t i = 0; i < rename_from.size(); ++i) {
+            view->from.push_back(std::string(rename_from[i]));
+            view->to.push_back(std::string(rename_to[i]));
+        }
+        view->remaining = limit >= 0 ? static_cast<int64_t>(limit) : -1;
+        stream->get_schema = view_get_schema;
+        stream->get_next = view_get_next;
+        stream->get_last_error = view_get_last_error;
+        stream->release = view_release;
+        stream->private_data = view;
+    }
 
     SEXP out = PROTECT(cpp11::safe[R_MakeExternalPtr](
         stream.get(), Rf_install("GDAL7_arrow_stream"), xp));

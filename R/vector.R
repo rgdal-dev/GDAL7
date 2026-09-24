@@ -15,11 +15,25 @@
 #'   names the format declares when it stores them as named columns, and
 #'   GDAL's own `OGC_FID` and `wkb_geometry` when it does not.
 #'   `geometry_column` is `NA` for a layer with no geometry.
+#'
+#'   `field_names` lists the attribute fields, not counting those two.
+#'   `ignored_fields` is what the driver has been told to skip reading, and is
+#'   set by assignment: attribute names, and `"OGR_GEOMETRY"` for the
+#'   geometry. A skipped field is left out of [read_vector()] and
+#'   [arrow_stream()] altogether, so a driver that reads by column never
+#'   touches it. `character(0)` reads everything again. Like a filter, it
+#'   stays set on the layer.
 #' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALLayer <- S7::new_class(
   "GDALLayer",
   package = "GDAL7",
+
+  # S7's default constructor would call every setter with an empty value, so
+  # a layer is built from its handle and nothing else.
+  constructor = function(.ptr) {
+    S7::new_object(S7::S7_object(), .ptr = .ptr)
+  },
 
   properties = list(
     .ptr = S7::class_any,
@@ -46,6 +60,18 @@ GDALLayer <- S7::new_class(
           return(NA_character_)
         }
         arrow_column_name(GDAL7_layer_geometry_column(self@.ptr), "wkb_geometry")
+      }
+    ),
+    field_names = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_layer_field_names(self@.ptr)
+    ),
+    ignored_fields = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_layer_get_ignored_fields(self@.ptr),
+      setter = function(self, value) {
+        GDAL7_layer_set_ignored_fields(self@.ptr, as.character(value))
+        self
       }
     )
   ),
@@ -254,10 +280,18 @@ S7::method(set_filter, GDALLayer) <- function(x, where, bbox) {
 #' collected, or at once by [release_arrow_stream()]; [read_vector()] does that
 #' for you.
 #'
+#' Two things GDAL has no stream option for are done around its stream:
+#' `rename` gives columns other names, and `limit` stops after that many
+#' features. Neither copies a value; the schema is renamed and the last batch
+#' is shortened.
+#'
 #' @param x A GDALLayer object.
 #' @param options Character vector of `KEY=VALUE` options for
 #'   `OGR_L_GetArrowStream`, for instance `"MAX_FEATURES_IN_BATCH=1000"` or
 #'   `"GEOMETRY_ENCODING=WKB"`.
+#' @param rename A named character vector, `c(new = "old")`, of columns to
+#'   rename. `NULL` renames nothing.
+#' @param limit Stop after this many features. `NULL` reads them all.
 #' @return A `nanoarrow_array_stream`.
 #' @examples
 #' ds <- gdal_open(system.file("extdata/test.gpkg", package = "GDAL7"))
@@ -265,12 +299,32 @@ S7::method(set_filter, GDALLayer) <- function(x, where, bbox) {
 #' nanoarrow::infer_nanoarrow_schema(stream)
 #' gdal_close(ds)
 #' @export
-arrow_stream <- S7::new_generic("arrow_stream", "x", function(x, options = NULL) {
-  S7::S7_dispatch()
-})
+arrow_stream <- S7::new_generic(
+  "arrow_stream", "x",
+  function(x, options = NULL, rename = NULL, limit = NULL) {
+    S7::S7_dispatch()
+  }
+)
 
-S7::method(arrow_stream, GDALLayer) <- function(x, options = NULL) {
-  GDAL7_layer_arrow_stream(x@.ptr, as.character(options))
+S7::method(arrow_stream, GDALLayer) <- function(x, options = NULL, rename = NULL,
+                                                limit = NULL) {
+  if (!is.null(rename)) {
+    if (!is.character(rename) || is.null(names(rename)) || anyNA(rename) ||
+        any(!nzchar(names(rename)))) {
+      stop("`rename` must be a named character vector, c(new = \"old\")",
+           call. = FALSE)
+    }
+  }
+  if (!is.null(limit)) {
+    if (!is.numeric(limit) || length(limit) != 1L || is.na(limit) || limit < 0 ||
+        limit != trunc(limit)) {
+      stop("`limit` must be a single whole number, zero or more", call. = FALSE)
+    }
+  }
+  GDAL7_layer_arrow_stream(x@.ptr, as.character(options),
+                           unname(as.character(rename %||% character())),
+                           names(rename) %||% character(),
+                           if (is.null(limit)) -1 else as.double(limit))
 }
 
 #' Read a vector layer into a data frame

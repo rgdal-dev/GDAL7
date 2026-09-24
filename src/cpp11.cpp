@@ -985,6 +985,28 @@ extern "C" SEXP _GDAL7_GDAL7_layer_geometry_column(SEXP xp) {
   END_CPP11
 }
 // GDAL7_vector.cpp
+strings GDAL7_layer_field_names(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_field_names(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_field_names(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+strings GDAL7_layer_get_ignored_fields(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_get_ignored_fields(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_get_ignored_fields(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+void GDAL7_layer_set_ignored_fields(SEXP xp, strings fields);
+extern "C" SEXP _GDAL7_GDAL7_layer_set_ignored_fields(SEXP xp, SEXP fields) {
+  BEGIN_CPP11
+    GDAL7_layer_set_ignored_fields(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<strings>>(fields));
+    return R_NilValue;
+  END_CPP11
+}
+// GDAL7_vector.cpp
 double GDAL7_layer_feature_count(SEXP xp, bool force);
 extern "C" SEXP _GDAL7_GDAL7_layer_feature_count(SEXP xp, SEXP force) {
   BEGIN_CPP11
@@ -1044,10 +1066,10 @@ extern "C" SEXP _GDAL7_GDAL7_layer_reset_reading(SEXP xp) {
   END_CPP11
 }
 // GDAL7_vector.cpp
-SEXP GDAL7_layer_arrow_stream(SEXP xp, strings options);
-extern "C" SEXP _GDAL7_GDAL7_layer_arrow_stream(SEXP xp, SEXP options) {
+SEXP GDAL7_layer_arrow_stream(SEXP xp, strings options, strings rename_from, strings rename_to, double limit);
+extern "C" SEXP _GDAL7_GDAL7_layer_arrow_stream(SEXP xp, SEXP options, SEXP rename_from, SEXP rename_to, SEXP limit) {
   BEGIN_CPP11
-    return cpp11::as_sexp(GDAL7_layer_arrow_stream(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<strings>>(options)));
+    return cpp11::as_sexp(GDAL7_layer_arrow_stream(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<strings>>(options), cpp11::as_cpp<cpp11::decay_t<strings>>(rename_from), cpp11::as_cpp<cpp11::decay_t<strings>>(rename_to), cpp11::as_cpp<cpp11::decay_t<double>>(limit)));
   END_CPP11
 }
 // GDAL7_vector.cpp
@@ -1299,17 +1321,20 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_init",                                 (DL_FUNC) &_GDAL7_GDAL7_init,                                 0},
     {"_GDAL7_GDAL7_integer_constants",                    (DL_FUNC) &_GDAL7_GDAL7_integer_constants,                    0},
     {"_GDAL7_GDAL7_inv_geotransform",                     (DL_FUNC) &_GDAL7_GDAL7_inv_geotransform,                     1},
-    {"_GDAL7_GDAL7_layer_arrow_stream",                   (DL_FUNC) &_GDAL7_GDAL7_layer_arrow_stream,                   2},
+    {"_GDAL7_GDAL7_layer_arrow_stream",                   (DL_FUNC) &_GDAL7_GDAL7_layer_arrow_stream,                   5},
     {"_GDAL7_GDAL7_layer_create_fields",                  (DL_FUNC) &_GDAL7_GDAL7_layer_create_fields,                  4},
     {"_GDAL7_GDAL7_layer_crs",                            (DL_FUNC) &_GDAL7_GDAL7_layer_crs,                            1},
     {"_GDAL7_GDAL7_layer_extent",                         (DL_FUNC) &_GDAL7_GDAL7_layer_extent,                         2},
     {"_GDAL7_GDAL7_layer_feature_count",                  (DL_FUNC) &_GDAL7_GDAL7_layer_feature_count,                  2},
     {"_GDAL7_GDAL7_layer_fid_column",                     (DL_FUNC) &_GDAL7_GDAL7_layer_fid_column,                     1},
+    {"_GDAL7_GDAL7_layer_field_names",                    (DL_FUNC) &_GDAL7_GDAL7_layer_field_names,                    1},
     {"_GDAL7_GDAL7_layer_geometry_column",                (DL_FUNC) &_GDAL7_GDAL7_layer_geometry_column,                1},
     {"_GDAL7_GDAL7_layer_geometry_type",                  (DL_FUNC) &_GDAL7_GDAL7_layer_geometry_type,                  1},
+    {"_GDAL7_GDAL7_layer_get_ignored_fields",             (DL_FUNC) &_GDAL7_GDAL7_layer_get_ignored_fields,             1},
     {"_GDAL7_GDAL7_layer_name",                           (DL_FUNC) &_GDAL7_GDAL7_layer_name,                           1},
     {"_GDAL7_GDAL7_layer_reset_reading",                  (DL_FUNC) &_GDAL7_GDAL7_layer_reset_reading,                  1},
     {"_GDAL7_GDAL7_layer_set_attribute_filter",           (DL_FUNC) &_GDAL7_GDAL7_layer_set_attribute_filter,           2},
+    {"_GDAL7_GDAL7_layer_set_ignored_fields",             (DL_FUNC) &_GDAL7_GDAL7_layer_set_ignored_fields,             2},
     {"_GDAL7_GDAL7_layer_set_spatial_filter",             (DL_FUNC) &_GDAL7_GDAL7_layer_set_spatial_filter,             2},
     {"_GDAL7_GDAL7_layer_test_capability",                (DL_FUNC) &_GDAL7_GDAL7_layer_test_capability,                2},
     {"_GDAL7_GDAL7_layer_write_arrow_batch",              (DL_FUNC) &_GDAL7_GDAL7_layer_write_arrow_batch,              4},

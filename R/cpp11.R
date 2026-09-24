@@ -548,6 +548,18 @@ GDAL7_layer_geometry_column <- function(xp) {
   .Call(`_GDAL7_GDAL7_layer_geometry_column`, xp)
 }
 
+GDAL7_layer_field_names <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_field_names`, xp)
+}
+
+GDAL7_layer_get_ignored_fields <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_get_ignored_fields`, xp)
+}
+
+GDAL7_layer_set_ignored_fields <- function(xp, fields) {
+  invisible(.Call(`_GDAL7_GDAL7_layer_set_ignored_fields`, xp, fields))
+}
+
 GDAL7_layer_feature_count <- function(xp, force) {
   .Call(`_GDAL7_GDAL7_layer_feature_count`, xp, force)
 }
@@ -580,8 +592,8 @@ GDAL7_layer_reset_reading <- function(xp) {
   invisible(.Call(`_GDAL7_GDAL7_layer_reset_reading`, xp))
 }
 
-GDAL7_layer_arrow_stream <- function(xp, options) {
-  .Call(`_GDAL7_GDAL7_layer_arrow_stream`, xp, options)
+GDAL7_layer_arrow_stream <- function(xp, options, rename_from, rename_to, limit) {
+  .Call(`_GDAL7_GDAL7_layer_arrow_stream`, xp, options, rename_from, rename_to, limit)
 }
 
 GDAL7_release_arrow_stream <- function(xp) {
