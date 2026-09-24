@@ -234,3 +234,34 @@ test_that("feature ids too large for an integer are refused rather than wrapped"
   huge <- data.frame(fid = 2^40, name = "far")
   expect_error(write_vector(huge, path), "too large for a 32-bit integer")
 })
+
+test_that("a layer names its id and geometry columns as its Arrow stream does", {
+  ds <- gdal_open(test_gpkg())
+  on.exit(gdal_close(ds))
+  layer <- get_layer(ds, 1)
+  expect_identical(layer@fid_column, "fid")
+  expect_identical(layer@geometry_column, "geom")
+
+  # A result set declares neither, and the stream falls back to GDAL's names.
+  result <- execute_sql(ds, "SELECT name, geom FROM places")
+  expect_identical(result@fid_column, "OGC_FID")
+  expect_identical(result@geometry_column, "geom")
+  expect_true(all(c(result@fid_column, result@geometry_column) %in%
+                    names(read_vector(result))))
+
+  bare <- execute_sql(ds, "SELECT name FROM places")
+  expect_identical(bare@geometry_column, NA_character_)
+})
+
+test_that("a format that stores no column names gets GDAL's own", {
+  skip_if_not("GeoJSON" %in% gdal_drivers()$short_name)
+  path <- tempfile(fileext = ".geojson")
+  on.exit(unlink(path))
+  write_vector(read_vector(test_gpkg()), path, driver = "GeoJSON",
+               geometry_type = "Point")
+  ds <- gdal_open(path)
+  on.exit(gdal_close(ds), add = TRUE, after = FALSE)
+  layer <- get_layer(ds, 1)
+  expect_true(all(c(layer@fid_column, layer@geometry_column) %in%
+                    names(read_vector(layer))))
+})

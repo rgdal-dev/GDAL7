@@ -971,6 +971,20 @@ extern "C" SEXP _GDAL7_GDAL7_layer_name(SEXP xp) {
   END_CPP11
 }
 // GDAL7_vector.cpp
+strings GDAL7_layer_fid_column(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_fid_column(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_fid_column(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
+strings GDAL7_layer_geometry_column(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_layer_geometry_column(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_layer_geometry_column(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_vector.cpp
 double GDAL7_layer_feature_count(SEXP xp, bool force);
 extern "C" SEXP _GDAL7_GDAL7_layer_feature_count(SEXP xp, SEXP force) {
   BEGIN_CPP11
@@ -1290,6 +1304,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_layer_crs",                            (DL_FUNC) &_GDAL7_GDAL7_layer_crs,                            1},
     {"_GDAL7_GDAL7_layer_extent",                         (DL_FUNC) &_GDAL7_GDAL7_layer_extent,                         2},
     {"_GDAL7_GDAL7_layer_feature_count",                  (DL_FUNC) &_GDAL7_GDAL7_layer_feature_count,                  2},
+    {"_GDAL7_GDAL7_layer_fid_column",                     (DL_FUNC) &_GDAL7_GDAL7_layer_fid_column,                     1},
+    {"_GDAL7_GDAL7_layer_geometry_column",                (DL_FUNC) &_GDAL7_GDAL7_layer_geometry_column,                1},
     {"_GDAL7_GDAL7_layer_geometry_type",                  (DL_FUNC) &_GDAL7_GDAL7_layer_geometry_type,                  1},
     {"_GDAL7_GDAL7_layer_name",                           (DL_FUNC) &_GDAL7_GDAL7_layer_name,                           1},
     {"_GDAL7_GDAL7_layer_reset_reading",                  (DL_FUNC) &_GDAL7_GDAL7_layer_reset_reading,                  1},
