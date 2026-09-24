@@ -12,4 +12,10 @@ GDALLayer(.ptr = NULL)
 \description{
 S7 class wrapping an OGRLayer. A layer belongs to the dataset
 it came from, and stops working when that dataset is closed.
+
+\code{fid_column} and \code{geometry_column} are the names those two columns have
+when the layer is read with \code{\link[=read_vector]{read_vector()}} or \code{\link[=arrow_stream]{arrow_stream()}}: the
+names the format declares when it stores them as named columns, and
+GDAL's own \code{OGC_FID} and \code{wkb_geometry} when it does not.
+\code{geometry_column} is \code{NA} for a layer with no geometry.
 }

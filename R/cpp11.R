@@ -540,6 +540,14 @@ GDAL7_layer_name <- function(xp) {
   .Call(`_GDAL7_GDAL7_layer_name`, xp)
 }
 
+GDAL7_layer_fid_column <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_fid_column`, xp)
+}
+
+GDAL7_layer_geometry_column <- function(xp) {
+  .Call(`_GDAL7_GDAL7_layer_geometry_column`, xp)
+}
+
 GDAL7_layer_feature_count <- function(xp, force) {
   .Call(`_GDAL7_GDAL7_layer_feature_count`, xp, force)
 }

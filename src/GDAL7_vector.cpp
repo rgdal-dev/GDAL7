@@ -150,6 +150,18 @@ strings GDAL7_layer_name(SEXP xp) {
     return gdal7::chr(OGR_L_GetName(gdal7::layer(xp)));
 }
 
+// The two column names GDAL declares for a layer. An empty string is GDAL's
+// "none declared", and the Arrow stream then names the column itself.
+[[cpp11::register]]
+strings GDAL7_layer_fid_column(SEXP xp) {
+    return gdal7::chr(OGR_L_GetFIDColumn(gdal7::layer(xp)));
+}
+
+[[cpp11::register]]
+strings GDAL7_layer_geometry_column(SEXP xp) {
+    return gdal7::chr(OGR_L_GetGeometryColumn(gdal7::layer(xp)));
+}
+
 [[cpp11::register]]
 double GDAL7_layer_feature_count(SEXP xp, bool force) {
     gdal7::ErrorScope err;

@@ -9,6 +9,12 @@
 #'
 #' @description S7 class wrapping an OGRLayer. A layer belongs to the dataset
 #'   it came from, and stops working when that dataset is closed.
+#'
+#'   `fid_column` and `geometry_column` are the names those two columns have
+#'   when the layer is read with [read_vector()] or [arrow_stream()]: the
+#'   names the format declares when it stores them as named columns, and
+#'   GDAL's own `OGC_FID` and `wkb_geometry` when it does not.
+#'   `geometry_column` is `NA` for a layer with no geometry.
 #' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
 GDALLayer <- S7::new_class(
@@ -28,6 +34,19 @@ GDALLayer <- S7::new_class(
     crs = S7::new_property(
       S7::class_character,
       getter = function(self) GDAL7_layer_crs(self@.ptr)
+    ),
+    fid_column = S7::new_property(
+      S7::class_character,
+      getter = function(self) arrow_column_name(GDAL7_layer_fid_column(self@.ptr), "OGC_FID")
+    ),
+    geometry_column = S7::new_property(
+      S7::class_character,
+      getter = function(self) {
+        if (identical(GDAL7_layer_geometry_type(self@.ptr), "None")) {
+          return(NA_character_)
+        }
+        arrow_column_name(GDAL7_layer_geometry_column(self@.ptr), "wkb_geometry")
+      }
     )
   ),
 
@@ -37,6 +56,14 @@ GDALLayer <- S7::new_class(
     }
   }
 )
+
+# The name a column has in the layer's Arrow stream. GDAL declares one for the
+# feature id and the geometry only when the format stores them as named
+# columns (a GeoPackage does, a shapefile does not); otherwise the stream names
+# them itself, OGC_FID and wkb_geometry, which is what the stream is read as.
+arrow_column_name <- function(declared, fallback) {
+  if (length(declared) == 0L || is.na(declared) || !nzchar(declared)) fallback else declared
+}
 
 # ----------------------------------------------------------------------------
 # Finding layers
