@@ -4,9 +4,8 @@
 
 ### Engine gaps for a downstream reader
 
-Three additions asked for by the lazy IO package being designed on top
-of GDAL7, each of which it needs and none of which it can add for
-itself.
+Additions asked for by the lazy IO package being designed on top of
+GDAL7, each of which it needs and none of which it can add for itself.
 
 - [`gdal_open()`](https://rgdal-dev.github.io/GDAL7/reference/gdal_open.md)
   takes `options` and `drivers`. Open options are how a source is told
@@ -25,6 +24,12 @@ itself.
   the R vector rather than converting afterwards. A band whose type will
   not fit is an error rather than a silent clamp, and for a dataset
   every band read has to fit.
+
+- A layer has `fid_column` and `geometry_column` properties, the names
+  those two columns have when it is read: the format’s own where it
+  stores them as named columns, and GDAL’s `OGC_FID` and `wkb_geometry`
+  where it does not. A reader that wants one name per column can rename
+  from these rather than guessing per driver.
 
 - [`transform_extent()`](https://rgdal-dev.github.io/GDAL7/reference/transform_extent.md)
   moves an extent between coordinate reference systems. It samples the
