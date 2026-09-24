@@ -5,13 +5,27 @@ fid_column and geometry_column are the names those two columns have
 when the layer is read with read_vector() or arrow_stream(): the
 names the format declares when it stores them as named columns, and
 GDAL's own OGC_FID and wkb_geometry when it does not.
-geometry_column is NA for a layer with no geometry."><meta property="og:description" content="S7 class wrapping an OGRLayer. A layer belongs to the dataset
+geometry_column is NA for a layer with no geometry.
+field_names lists the attribute fields, not counting those two.
+ignored_fields is what the driver has been told to skip reading, and is
+set by assignment: attribute names, and &quot;OGR_GEOMETRY&quot; for the
+geometry. A skipped field is left out of read_vector() and
+arrow_stream() altogether, so a driver that reads by column never
+touches it. character(0) reads everything again. Like a filter, it
+stays set on the layer."><meta property="og:description" content="S7 class wrapping an OGRLayer. A layer belongs to the dataset
 it came from, and stops working when that dataset is closed.
 fid_column and geometry_column are the names those two columns have
 when the layer is read with read_vector() or arrow_stream(): the
 names the format declares when it stores them as named columns, and
 GDAL's own OGC_FID and wkb_geometry when it does not.
-geometry_column is NA for a layer with no geometry."></head><body>
+geometry_column is NA for a layer with no geometry.
+field_names lists the attribute fields, not counting those two.
+ignored_fields is what the driver has been told to skip reading, and is
+set by assignment: attribute names, and &quot;OGR_GEOMETRY&quot; for the
+geometry. A skipped field is left out of read_vector() and
+arrow_stream() altogether, so a driver that reads by column never
+touches it. character(0) reads everything again. Like a filter, it
+stays set on the layer."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -53,11 +67,18 @@ when the layer is read with <code><a href="read_vector.html">read_vector()</a></
 names the format declares when it stores them as named columns, and
 GDAL's own <code>OGC_FID</code> and <code>wkb_geometry</code> when it does not.
 <code>geometry_column</code> is <code>NA</code> for a layer with no geometry.</p>
+<p><code>field_names</code> lists the attribute fields, not counting those two.
+<code>ignored_fields</code> is what the driver has been told to skip reading, and is
+set by assignment: attribute names, and <code>"OGR_GEOMETRY"</code> for the
+geometry. A skipped field is left out of <code><a href="read_vector.html">read_vector()</a></code> and
+<code><a href="arrow_stream.html">arrow_stream()</a></code> altogether, so a driver that reads by column never
+touches it. <code>character(0)</code> reads everything again. Like a filter, it
+stays set on the layer.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">GDALLayer</span><span class="op">(</span>.ptr <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">GDALLayer</span><span class="op">(</span><span class="va">.ptr</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">

@@ -8,7 +8,7 @@ is this plus a conversion to a data frame.
 ## Usage
 
 ``` r
-arrow_stream(x, options = NULL)
+arrow_stream(x, options = NULL, rename = NULL, limit = NULL)
 ```
 
 ## Arguments
@@ -22,6 +22,15 @@ arrow_stream(x, options = NULL)
   Character vector of `KEY=VALUE` options for `OGR_L_GetArrowStream`,
   for instance `"MAX_FEATURES_IN_BATCH=1000"` or
   `"GEOMETRY_ENCODING=WKB"`.
+
+- rename:
+
+  A named character vector, `c(new = "old")`, of columns to rename.
+  `NULL` renames nothing.
+
+- limit:
+
+  Stop after this many features. `NULL` reads them all.
 
 ## Value
 
@@ -38,6 +47,11 @@ collected, or at once by
 [`release_arrow_stream()`](https://rgdal-dev.github.io/GDAL7/reference/release_arrow_stream.md);
 [`read_vector()`](https://rgdal-dev.github.io/GDAL7/reference/read_vector.md)
 does that for you.
+
+Two things GDAL has no stream option for are done around its stream:
+`rename` gives columns other names, and `limit` stops after that many
+features. Neither copies a value; the schema is renamed and the last
+batch is shortened.
 
 ## Examples
 

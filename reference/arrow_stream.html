@@ -45,7 +45,7 @@ to a data frame.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">arrow_stream</span><span class="op">(</span><span class="va">x</span>, options <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">arrow_stream</span><span class="op">(</span><span class="va">x</span>, options <span class="op">=</span> <span class="cn">NULL</span>, rename <span class="op">=</span> <span class="cn">NULL</span>, limit <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -61,6 +61,15 @@ to a data frame.</p>
 <code>OGR_L_GetArrowStream</code>, for instance <code>"MAX_FEATURES_IN_BATCH=1000"</code> or
 <code>"GEOMETRY_ENCODING=WKB"</code>.</p></dd>
 
+
+<dt id="arg-rename">rename<a class="anchor" aria-label="anchor" href="#arg-rename"></a></dt>
+<dd><p>A named character vector, <code>c(new = "old")</code>, of columns to
+rename. <code>NULL</code> renames nothing.</p></dd>
+
+
+<dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
+<dd><p>Stop after this many features. <code>NULL</code> reads them all.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -73,6 +82,10 @@ stream stays valid until it is released or the dataset is closed by hand.</p>
 <p>A layer allows one stream at a time. A stream is released when it is
 collected, or at once by <code><a href="release_arrow_stream.html">release_arrow_stream()</a></code>; <code><a href="read_vector.html">read_vector()</a></code> does that
 for you.</p>
+<p>Two things GDAL has no stream option for are done around its stream:
+<code>rename</code> gives columns other names, and <code>limit</code> stops after that many
+features. Neither copies a value; the schema is renamed and the last batch
+is shortened.</p>
     </div>
 
     <div class="section level2">
