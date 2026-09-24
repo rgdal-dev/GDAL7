@@ -4,7 +4,7 @@
 \alias{arrow_stream}
 \title{The Arrow stream of a layer}
 \usage{
-arrow_stream(x, options = NULL)
+arrow_stream(x, options = NULL, rename = NULL, limit = NULL)
 }
 \arguments{
 \item{x}{A GDALLayer object.}
@@ -12,6 +12,11 @@ arrow_stream(x, options = NULL)
 \item{options}{Character vector of \code{KEY=VALUE} options for
 \code{OGR_L_GetArrowStream}, for instance \code{"MAX_FEATURES_IN_BATCH=1000"} or
 \code{"GEOMETRY_ENCODING=WKB"}.}
+
+\item{rename}{A named character vector, \code{c(new = "old")}, of columns to
+rename. \code{NULL} renames nothing.}
+
+\item{limit}{Stop after this many features. \code{NULL} reads them all.}
 }
 \value{
 A \code{nanoarrow_array_stream}.
@@ -28,6 +33,11 @@ stream stays valid until it is released or the dataset is closed by hand.
 A layer allows one stream at a time. A stream is released when it is
 collected, or at once by \code{\link[=release_arrow_stream]{release_arrow_stream()}}; \code{\link[=read_vector]{read_vector()}} does that
 for you.
+
+Two things GDAL has no stream option for are done around its stream:
+\code{rename} gives columns other names, and \code{limit} stops after that many
+features. Neither copies a value; the schema is renamed and the last batch
+is shortened.
 }
 \examples{
 ds <- gdal_open(system.file("extdata/test.gpkg", package = "GDAL7"))

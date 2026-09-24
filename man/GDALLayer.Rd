@@ -4,7 +4,7 @@
 \alias{GDALLayer}
 \title{GDAL layer class}
 \usage{
-GDALLayer(.ptr = NULL)
+GDALLayer(.ptr)
 }
 \arguments{
 \item{.ptr}{Internal. External pointer to the underlying GDAL object.}
@@ -18,4 +18,12 @@ when the layer is read with \code{\link[=read_vector]{read_vector()}} or \code{\
 names the format declares when it stores them as named columns, and
 GDAL's own \code{OGC_FID} and \code{wkb_geometry} when it does not.
 \code{geometry_column} is \code{NA} for a layer with no geometry.
+
+\code{field_names} lists the attribute fields, not counting those two.
+\code{ignored_fields} is what the driver has been told to skip reading, and is
+set by assignment: attribute names, and \code{"OGR_GEOMETRY"} for the
+geometry. A skipped field is left out of \code{\link[=read_vector]{read_vector()}} and
+\code{\link[=arrow_stream]{arrow_stream()}} altogether, so a driver that reads by column never
+touches it. \code{character(0)} reads everything again. Like a filter, it
+stays set on the layer.
 }
