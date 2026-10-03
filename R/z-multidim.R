@@ -75,6 +75,11 @@ GDALGroup <- S7::new_class(
 #'   latitude and longitude the values are placed at, and it is the shorter
 #'   road than `coordinate_variables`. A dimension with no coordinate variable
 #'   is NULL.
+#' * `block_size`, how the format stores the array: the chunk shape, one value
+#'   per dimension in GDAL's order and named like `dimensions`. A dimension
+#'   the format does not chunk along is 0, as a contiguous netCDF variable is
+#'   along every dimension. Reading whole chunks is what a store is fastest
+#'   at, so this is the grid a chunked reader such as [as_altarr()] plans on.
 #'
 #' @param .ptr Internal. External pointer to the underlying GDAL object.
 #' @export
@@ -136,6 +141,10 @@ GDALMDArray <- S7::new_class(
     dimension_values = S7::new_property(
       S7::class_any,
       getter = function(self) mdarray_dimension_values(self)
+    ),
+    block_size = S7::new_property(
+      S7::class_any,
+      getter = function(self) mdarray_block_size(self)
     )
   )
 )
@@ -257,6 +266,13 @@ mdarray_dimension_values <- function(x) {
   values
 }
 
+# The body behind the array's block_size property.
+mdarray_block_size <- function(x) {
+  sizes <- GDAL7_mdarray_get_block_size(x@.ptr)
+  names(sizes) <- x@dimensions$name
+  sizes
+}
+
 # ============================================================================
 # Reading
 # ============================================================================
@@ -354,6 +370,25 @@ S7::method(read_mdarray, GDALMDArray) <- function(x, start = NULL, count = NULL,
     names(dim(values)) <- rev(dims$name)
   }
   values
+}
+
+S7::method(advise_read, GDALMDArray) <- function(x, ..., start = NULL,
+                                                 count = NULL, options = NULL) {
+  dims <- x@dimensions
+  rank <- nrow(dims)
+  sizes <- dims$size
+  start <- slab_argument(start, rank, 1, "start")
+  if (any(start < 1) || any(start > sizes)) {
+    stop("`start` must be within the array: counting from 1, up to ",
+         paste(sizes, collapse = " by "), call. = FALSE)
+  }
+  count <- slab_argument(count, rank, sizes - start + 1, "count")
+  if (any(count < 1) || any(start + count - 1 > sizes)) {
+    stop("`count` must be at least 1 and stay within the array",
+         call. = FALSE)
+  }
+  GDAL7_mdarray_advise_read(x@.ptr, start - 1, count, advise_options(options))
+  invisible(x)
 }
 
 # One of `start`, `count`, `step`: absent, one value for every dimension, or

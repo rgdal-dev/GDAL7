@@ -706,6 +706,20 @@ extern "C" SEXP _GDAL7_GDAL7_mdarray_read(SEXP xp, SEXP start, SEXP count, SEXP 
   END_CPP11
 }
 // GDAL7_multidim.cpp
+cpp11::doubles GDAL7_mdarray_get_block_size(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_block_size(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_block_size(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+bool GDAL7_mdarray_advise_read(SEXP xp, cpp11::doubles start, cpp11::doubles count, cpp11::strings options);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_advise_read(SEXP xp, SEXP start, SEXP count, SEXP options) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_advise_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(start), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(count), cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(options)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
 SEXP GDAL7_mdarray_get_view(SEXP xp, std::string expr);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_view(SEXP xp, SEXP expr) {
   BEGIN_CPP11
@@ -819,6 +833,20 @@ cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles wi
 extern "C" SEXP _GDAL7_GDAL7_dataset_read(SEXP xp, SEXP bands, SEXP window, SEXP out_size, SEXP resample, SEXP type) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_dataset_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample), cpp11::as_cpp<cpp11::decay_t<std::string>>(type)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+bool GDAL7_band_advise_read(SEXP xp, cpp11::doubles window, cpp11::integers out_size, cpp11::strings options);
+extern "C" SEXP _GDAL7_GDAL7_band_advise_read(SEXP xp, SEXP window, SEXP out_size, SEXP options) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_band_advise_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(options)));
+  END_CPP11
+}
+// GDAL7_rasterio.cpp
+bool GDAL7_dataset_advise_read(SEXP xp, cpp11::integers bands, cpp11::doubles window, cpp11::integers out_size, cpp11::strings options);
+extern "C" SEXP _GDAL7_GDAL7_dataset_advise_read(SEXP xp, SEXP bands, SEXP window, SEXP out_size, SEXP options) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_advise_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(window), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(out_size), cpp11::as_cpp<cpp11::decay_t<cpp11::strings>>(options)));
   END_CPP11
 }
 // GDAL7_rasterio.cpp
@@ -1216,6 +1244,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_algorithm_run",                        (DL_FUNC) &_GDAL7_GDAL7_algorithm_run,                        3},
     {"_GDAL7_GDAL7_algorithms_available",                 (DL_FUNC) &_GDAL7_GDAL7_algorithms_available,                 0},
     {"_GDAL7_GDAL7_apply_geotransform",                   (DL_FUNC) &_GDAL7_GDAL7_apply_geotransform,                   3},
+    {"_GDAL7_GDAL7_band_advise_read",                     (DL_FUNC) &_GDAL7_GDAL7_band_advise_read,                     4},
     {"_GDAL7_GDAL7_band_get_band_number",                 (DL_FUNC) &_GDAL7_GDAL7_band_get_band_number,                 1},
     {"_GDAL7_GDAL7_band_get_block_size",                  (DL_FUNC) &_GDAL7_GDAL7_band_get_block_size,                  1},
     {"_GDAL7_GDAL7_band_get_color_interpretation",        (DL_FUNC) &_GDAL7_GDAL7_band_get_color_interpretation,        1},
@@ -1250,6 +1279,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_data_types",                           (DL_FUNC) &_GDAL7_GDAL7_data_types,                           0},
     {"_GDAL7_GDAL7_dataset_abort_sql",                    (DL_FUNC) &_GDAL7_GDAL7_dataset_abort_sql,                    1},
     {"_GDAL7_GDAL7_dataset_add_band",                     (DL_FUNC) &_GDAL7_GDAL7_dataset_add_band,                     3},
+    {"_GDAL7_GDAL7_dataset_advise_read",                  (DL_FUNC) &_GDAL7_GDAL7_dataset_advise_read,                  5},
     {"_GDAL7_GDAL7_dataset_as_mdarray",                   (DL_FUNC) &_GDAL7_GDAL7_dataset_as_mdarray,                   2},
     {"_GDAL7_GDAL7_dataset_clear_statistics",             (DL_FUNC) &_GDAL7_GDAL7_dataset_clear_statistics,             1},
     {"_GDAL7_GDAL7_dataset_commit_transaction",           (DL_FUNC) &_GDAL7_GDAL7_dataset_commit_transaction,           1},
@@ -1347,9 +1377,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_majorobject_set_metadata",             (DL_FUNC) &_GDAL7_GDAL7_majorobject_set_metadata,             3},
     {"_GDAL7_GDAL7_majorobject_set_metadata_2",           (DL_FUNC) &_GDAL7_GDAL7_majorobject_set_metadata_2,           3},
     {"_GDAL7_GDAL7_majorobject_set_metadata_item",        (DL_FUNC) &_GDAL7_GDAL7_majorobject_set_metadata_item,        4},
+    {"_GDAL7_GDAL7_mdarray_advise_read",                  (DL_FUNC) &_GDAL7_GDAL7_mdarray_advise_read,                  4},
     {"_GDAL7_GDAL7_mdarray_as_classic_dataset",           (DL_FUNC) &_GDAL7_GDAL7_mdarray_as_classic_dataset,           3},
     {"_GDAL7_GDAL7_mdarray_crs",                          (DL_FUNC) &_GDAL7_GDAL7_mdarray_crs,                          1},
     {"_GDAL7_GDAL7_mdarray_get_attributes",               (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_attributes,               1},
+    {"_GDAL7_GDAL7_mdarray_get_block_size",               (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_block_size,               1},
     {"_GDAL7_GDAL7_mdarray_get_coordinate_variables",     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_coordinate_variables,     1},
     {"_GDAL7_GDAL7_mdarray_get_data_type_name",           (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_data_type_name,           1},
     {"_GDAL7_GDAL7_mdarray_get_dimension_count",          (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_dimension_count,          1},

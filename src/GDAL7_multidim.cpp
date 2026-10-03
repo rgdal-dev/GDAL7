@@ -514,6 +514,45 @@ cpp11::doubles GDAL7_mdarray_read(SEXP xp, cpp11::doubles start, cpp11::doubles 
     return out;
 }
 
+// The array's own storage chunking, in GDAL's dimension order. A dimension
+// the format does not chunk along reads as 0, which is GDAL's answer too.
+[[cpp11::register]]
+cpp11::doubles GDAL7_mdarray_get_block_size(SEXP xp) {
+    size_t count = 0;
+    GUInt64* sizes = GDALMDArrayGetBlockSize(mdarray(xp), &count);
+    cpp11::writable::doubles out(static_cast<R_xlen_t>(count));
+    for (size_t i = 0; i < count; i++) {
+        out[static_cast<R_xlen_t>(i)] = static_cast<double>(sizes[i]);
+    }
+    CPLFree(sizes);
+    return out;
+}
+
+// Tell the driver a hyperslab is about to be read. What it does with that is
+// the driver's business: Zarr decodes every chunk the hyperslab touches on
+// GDAL_NUM_THREADS threads and keeps them for the reads that follow, netCDF
+// reads the hyperslab into memory in one call, and a driver with nothing to
+// prepare does nothing and reports success.
+[[cpp11::register]]
+bool GDAL7_mdarray_advise_read(SEXP xp, cpp11::doubles start, cpp11::doubles count,
+                               cpp11::strings options) {
+    GDALMDArrayH h = mdarray(xp);
+
+    const size_t rank = GDALMDArrayGetDimensionCount(h);
+    std::vector<GUInt64> offsets = index_vector<GUInt64>(start, rank, "start");
+    std::vector<size_t> counts = index_vector<size_t>(count, rank, "count");
+    CPLStringList opts = gdal7::to_csl(options);
+
+    gdal7::ErrorScope err;
+    const int ok = GDALMDArrayAdviseReadEx(h, offsets.data(), counts.data(),
+                                           opts.List());
+    if (!ok) {
+        err.stop("Could not advise a read of that slice of the array");
+    }
+    err.flush();
+    return true;
+}
+
 // ============================================================================
 // Views and the bridge back to classic raster
 // ============================================================================

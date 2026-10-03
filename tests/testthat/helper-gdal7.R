@@ -75,3 +75,41 @@ test_gpkg_copy <- function() {
   file.copy(test_gpkg(), path, overwrite = TRUE)
   path
 }
+
+# A Zarr V2 store written byte by byte, so a test can choose a shape and a
+# chunking that span several chunks along every dimension without any writer.
+# The array is (time, y, x) in GDAL's order and holds 1, 2, 3, ... in reading
+# order, so the R array it should read as is `array(seq_len(n), rev(shape))`.
+# Uncompressed, C order, with edge chunks padded as Zarr requires.
+write_chunked_zarr <- function(shape = c(3, 7, 10), chunks = c(1, 3, 4)) {
+  root <- tempfile(fileext = ".zarr")
+  dir.create(file.path(root, "v"), recursive = TRUE)
+  writeLines('{"zarr_format": 2}', file.path(root, ".zgroup"))
+  json_ints <- function(x) paste0("[", paste(x, collapse = ", "), "]")
+  writeLines(paste0(
+    '{"zarr_format": 2, "shape": ', json_ints(shape),
+    ', "chunks": ', json_ints(chunks),
+    ', "dtype": "<f8", "compressor": null, "fill_value": null,',
+    ' "order": "C", "filters": null}'
+  ), file.path(root, "v", ".zarray"))
+  writeLines('{"_ARRAY_DIMENSIONS": ["time", "y", "x"]}',
+             file.path(root, "v", ".zattrs"))
+
+  r_dim <- rev(shape)
+  r_chunk <- rev(chunks)
+  values <- array(as.double(seq_len(prod(shape))), r_dim)
+  grid <- expand.grid(lapply(ceiling(shape / chunks), function(n) seq_len(n) - 1))
+  for (g in seq_len(nrow(grid))) {
+    cc <- rev(unlist(grid[g, ]))            # chunk coordinate, R order
+    first <- cc * r_chunk
+    n <- pmin(r_chunk, r_dim - first)
+    piece <- array(0, r_chunk)              # padded to a whole chunk
+    index <- lapply(seq_along(n), function(k) first[k] + seq_len(n[k]))
+    fill <- lapply(n, seq_len)
+    piece <- do.call(`[<-`, c(list(piece), fill,
+                              list(value = do.call(`[`, c(list(values), index)))))
+    writeBin(as.vector(piece), file.path(root, "v", paste(rev(cc), collapse = ".")),
+             size = 8, endian = "little")
+  }
+  list(path = root, values = values)
+}

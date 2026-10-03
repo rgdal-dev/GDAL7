@@ -61,6 +61,7 @@ reference:
     Overviews are reached explicitly when a band's own pyramid is wanted.
   contents:
   - read_raster
+  - advise_read
   - get_raster_band
   - get_overview
   - flush_cache
@@ -102,6 +103,7 @@ reference:
   - open_group
   - open_mdarray
   - read_mdarray
+  - as_altarr
   - mdarray_info
   - get_view
   - as_classic_dataset
