@@ -108,11 +108,18 @@ test_that("a lazy array from a path survives saveRDS into a new session", {
   x <- as_altarr(z$path, array = "v")
   f <- tempfile(fileext = ".rds")
   saveRDS(x, f)
-  # A new session is a new stamp; dropping this one stands in for it.
-  rm("stamp", envir = GDAL7:::gdal7_session)
+  # Read it back in a fresh R process, which has none of this session's
+  # open arrays and has to reopen the source from the recipe.
+  rscript <- file.path(R.home("bin"), "Rscript")
+  out <- system2(rscript, c("-e", shQuote(sprintf(
+    "x <- readRDS('%s'); cat(x[cbind(3, 4, 2)])", normalizePath(f, winslash = "/")
+  ))), stdout = TRUE)
+  expect_equal(as.numeric(tail(out, 1)), z$values[3, 4, 2])
+  # And here, after forgetting the open array.
+  rm(list = ls(GDAL7:::open_arrays), envir = GDAL7:::open_arrays)
   y <- readRDS(f)
   expect_equal(y[cbind(3, 4, 2)], z$values[3, 4, 2])
-  expect_lt(file.size(f), 20000)
+  expect_lt(file.size(f), 5000)
 })
 
 test_that("a band is a lazy [x, y] array in read_raster's order", {

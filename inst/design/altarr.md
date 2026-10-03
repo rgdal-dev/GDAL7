@@ -69,11 +69,15 @@ block cache. altarr batches 64 chunks for whole-array passes by default
 (`altarr.batch_chunks`), which keeps the slice small; a user raising that
 option on a big-chunk store may need `GDAL_CACHEMAX` raised too.
 
-Saving: given a path, the fetch holds the path, array name and open options
-and opens the dataset on first use, and again when a session stamp says the
-handle came from a different session. `saveRDS()` writes a recipe of a few
-kilobytes and `readRDS()` works in a fresh R. That is the first item on
-altarr's own list ("a recipe pattern for fetches that close over external
+Saving: given a path, the fetch holds the path, array name, open options and
+a key into the session's table of open arrays, and opens the dataset on first
+use. A new session has an empty table, so the first read there reopens the
+source. `saveRDS()` writes a recipe of about a kilobyte and `readRDS()` works
+in a fresh R (the test checks this in a separate R process). The fetch
+closures are built with plain values in their environments and no source
+references: with `R_KEEP_PKG_SOURCE=yes`, as CI sets it, ordinary closures
+carried their promises and the whole source file, and the recipe was 57 KB.
+That is the first item on altarr's own list ("a recipe pattern for fetches that close over external
 handles") done for GDAL; given a handle, the array is session-bound, as
 documented.
 

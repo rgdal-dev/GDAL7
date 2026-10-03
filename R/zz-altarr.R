@@ -47,7 +47,7 @@
 #' @section Saving:
 #' Given a path, the array keeps the path, the array's name and the options,
 #' and opens the dataset on its first read, and again on the first read in
-#' a new session. So `saveRDS()` writes a recipe of a few kilobytes and
+#' a new session. So `saveRDS()` writes a recipe of about a kilobyte and
 #' `readRDS()` gives back a working array anywhere the path still opens.
 #' Given an open [GDALMDArray] or [GDALRasterBand], the array reads from that
 #' handle and works only while it is open and only in this session.
@@ -74,8 +74,8 @@ as_altarr <- S7::new_generic("as_altarr", "x")
 S7::method(as_altarr, GDALMDArray) <- function(x, ..., chunk = NULL,
                                                nodata_as_na = TRUE,
                                                density = 4) {
-  open_array <- function() x
-  mdarray_altarr(open_array, x, chunk, nodata_as_na, density)
+  read_box <- handle_reader(x, isTRUE(nodata_as_na))
+  mdarray_altarr(x, read_box, chunk, density)
 }
 
 S7::method(as_altarr, S7::class_character) <- function(x, ..., array,
@@ -90,8 +90,11 @@ S7::method(as_altarr, S7::class_character) <- function(x, ..., array,
       is.na(array)) {
     stop("`array` must name one array in the source", call. = FALSE)
   }
-  open_array <- reopening_array(x, array, options)
-  mdarray_altarr(open_array, open_array(), chunk, nodata_as_na, density)
+  key <- paste0("a", sample.int(.Machine$integer.max, 1L), "_",
+                format(Sys.time(), "%OS6"))
+  arr <- cached_array(key, x, array, options)
+  read_box <- path_reader(key, x, array, options, isTRUE(nodata_as_na))
+  mdarray_altarr(arr, read_box, chunk, density)
 }
 
 S7::method(as_altarr, GDALRasterBand) <- function(x, ..., chunk = NULL,
@@ -118,10 +121,10 @@ S7::method(as_altarr, GDALRasterBand) <- function(x, ..., chunk = NULL,
                  dimnames = list(x = NULL, y = NULL), type = "double")
 }
 
-# The array version of the above, given a function that hands back an open
-# array: the same one every time for a handle, or one that reopens when the
-# handle has not survived into this session.
-mdarray_altarr <- function(open_array, arr, chunk, nodata_as_na, density) {
+# The array version of the above. `read_box` is built by one of the two
+# readers below; only it and the chunk grid go into the fetch, so a saved
+# recipe carries no GDAL handle and no S7 object.
+mdarray_altarr <- function(arr, read_box, chunk, density) {
   need_altarr()
   gdal_dims <- arr@dimensions
   if (nrow(gdal_dims) < 1L) {
@@ -132,19 +135,95 @@ mdarray_altarr <- function(open_array, arr, chunk, nodata_as_na, density) {
     chunk <- rev(arr@block_size)
   }
   chunk <- altarr_chunk(chunk, dims)
-  nodata_as_na <- isTRUE(nodata_as_na)
-
-  read_box <- function(lo, count) {
-    a <- open_array()
-    start <- rev(lo) + 1
-    advise_read(a, start = start, count = rev(count))
-    read_mdarray(a, start = start, count = rev(count),
-                 nodata_as_na = nodata_as_na)
-  }
   dimnames <- vector("list", length(dims))
   names(dimnames) <- rev(gdal_dims$name)
   altarr::altarr(dims, chunk, chunk_fetch(read_box, dims, chunk, density),
                  dimnames = dimnames, type = "double")
+}
+
+# Read a slice given in R's order: 0-based `lo` and `count`, both reversed
+# into GDAL's order, advised first.
+read_mdarray_box <- function(arr, lo, count, nodata_as_na) {
+  start <- rev(lo) + 1
+  advise_read(arr, start = start, count = rev(count))
+  read_mdarray(arr, start = start, count = rev(count),
+               nodata_as_na = nodata_as_na)
+}
+
+# A reader over an open array, valid while it is open, in this session.
+handle_reader <- function(arr, nodata_as_na) {
+  recipe_function(function(lo, count) {
+    read_mdarray_box(arr, lo, count, nodata_as_na)
+  }, arr = arr, nodata_as_na = nodata_as_na)
+}
+
+# A reader over a path. It holds the path, the array's name, the options and
+# a key into this session's table of open arrays, and nothing else. In a new
+# session the table is empty, so the first read reopens the source.
+path_reader <- function(key, path, array, options, nodata_as_na) {
+  recipe_function(function(lo, count) {
+    arr <- cached_array(key, path, array, options)
+    read_mdarray_box(arr, lo, count, nodata_as_na)
+  }, key = key, path = path, array = array, options = options,
+  nodata_as_na = nodata_as_na)
+}
+
+# Arrays opened from a path, by key, for this session only.
+open_arrays <- new.env(parent = emptyenv())
+
+cached_array <- function(key, path, array, options) {
+  arr <- open_arrays[[key]]
+  if (is.null(arr)) {
+    ds <- gdal_open(path, multidim = TRUE, options = options)
+    root <- get_root_group(ds)
+    if (is.null(root)) {
+      stop("`", path, "` did not open as a multidimensional source",
+           call. = FALSE)
+    }
+    arr <- open_mdarray(root, array)
+    if (is.null(arr)) {
+      stop("No array called `", array, "` in `", path, "`", call. = FALSE)
+    }
+    assign(key, arr, envir = open_arrays)
+  }
+  arr
+}
+
+# A function whose environment holds exactly the values given, as plain
+# values, over the package namespace, and no source references. A closure
+# made the ordinary way keeps its arguments as promises, and a saved
+# promise can drag the frames it was forwarded through into the recipe.
+recipe_function <- function(f, ...) {
+  environment(f) <- list2env(list(...), parent = topenv())
+  strip_source(f)
+}
+
+# A function without its source references. A package installed with its
+# source kept attaches the whole source file to every function it makes,
+# which a saved recipe would then carry.
+strip_source <- function(f) {
+  attr(f, "srcref") <- NULL
+  body(f) <- strip_source_lang(body(f))
+  f
+}
+
+strip_source_lang <- function(x) {
+  if (is.call(x)) {
+    attr(x, "srcref") <- NULL
+    attr(x, "srcfile") <- NULL
+    attr(x, "wholeSrcref") <- NULL
+    # A function written inside a function keeps its source reference as
+    # the fourth element of its `function` call.
+    if (identical(x[[1]], as.name("function")) && length(x) == 4L) {
+      x[[4]] <- NULL
+    }
+    for (i in seq_along(x)) {
+      if (!is.null(x[[i]]) && !identical(x[[i]], quote(expr = ))) {
+        x[[i]] <- strip_source_lang(x[[i]])
+      }
+    }
+  }
+  x
 }
 
 # altarr's fetch contract: an integer matrix of 0-based chunk coordinates in,
@@ -154,11 +233,7 @@ mdarray_altarr <- function(open_array, arr, chunk, nodata_as_na, density) {
 # R's order. Built in a small function so that a saved recipe carries these
 # few values and nothing from the caller.
 chunk_fetch <- function(read_box, dims, chunk, density) {
-  force(read_box)
-  force(dims)
-  force(chunk)
-  force(density)
-  function(chunks) {
+  recipe_function(function(chunks) {
     chunks <- matrix(as.double(chunks), ncol = length(dims))
     n <- nrow(chunks)
     first <- chunks * rep(chunk, each = n)
@@ -182,7 +257,7 @@ chunk_fetch <- function(read_box, dims, chunk, density) {
       })
       as.vector(do.call(`[`, c(list(box), index, list(drop = FALSE))))
     })
-  }
+  }, read_box = read_box, dims = dims, chunk = chunk, density = density)
 }
 
 # The chunk shape altarr is given: the source's own, with a dimension the
@@ -205,45 +280,6 @@ altarr_chunk <- function(chunk, dims) {
     stop("A chunk longer than an R integer is not supported", call. = FALSE)
   }
   pmin(chunk, dims)
-}
-
-# An array opened from a path on first use, and again in a new session. The
-# handle lives in an environment the recipe carries; the session stamp says
-# whether it was opened in this session, since an external pointer read back
-# from disk points at nothing.
-reopening_array <- function(path, array, options) {
-  force(path)
-  force(array)
-  force(options)
-  state <- new.env(parent = emptyenv())
-  function() {
-    if (!identical(state$session, gdal7_session_stamp())) {
-      ds <- gdal_open(path, multidim = TRUE, options = options)
-      root <- get_root_group(ds)
-      if (is.null(root)) {
-        stop("`", path, "` did not open as a multidimensional source",
-             call. = FALSE)
-      }
-      arr <- open_mdarray(root, array)
-      if (is.null(arr)) {
-        stop("No array called `", array, "` in `", path, "`", call. = FALSE)
-      }
-      state$array <- arr
-      state$session <- gdal7_session_stamp()
-    }
-    state$array
-  }
-}
-
-# One value per R session, made on first use.
-gdal7_session <- new.env(parent = emptyenv())
-
-gdal7_session_stamp <- function() {
-  if (is.null(gdal7_session$stamp)) {
-    gdal7_session$stamp <- paste(Sys.getpid(), format(Sys.time(), "%OS6"),
-                                 sample.int(.Machine$integer.max, 1L))
-  }
-  gdal7_session$stamp
 }
 
 need_altarr <- function() {

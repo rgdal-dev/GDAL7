@@ -63,7 +63,7 @@ from the root, as for \code{\link[=open_mdarray]{open_mdarray()}}, and open opti
 
 Given a path, the array keeps the path, the array's name and the options,
 and opens the dataset on its first read, and again on the first read in
-a new session. So \code{saveRDS()} writes a recipe of a few kilobytes and
+a new session. So \code{saveRDS()} writes a recipe of about a kilobyte and
 \code{readRDS()} gives back a working array anywhere the path still opens.
 Given an open \link{GDALMDArray} or \link{GDALRasterBand}, the array reads from that
 handle and works only while it is open and only in this session.
