@@ -18,5 +18,8 @@ LinkingTo:
     cpp11
 SystemRequirements: GDAL (>= 3.10.0)
 Suggests: 
+    altarr,
     testthat (>= 3.0.0)
+Remotes:
+    hypertidy/altarr
 Config/testthat/edition: 3

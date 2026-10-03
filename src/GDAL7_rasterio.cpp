@@ -405,6 +405,52 @@ cpp11::list GDAL7_dataset_read(SEXP xp, cpp11::integers bands, cpp11::doubles wi
     return out;
 }
 
+// Tell the driver a window is about to be read, at an output size, so it can
+// fetch or decode ahead. As with the multidimensional advice, a driver that
+// has nothing to prepare does nothing.
+[[cpp11::register]]
+bool GDAL7_band_advise_read(SEXP xp, cpp11::doubles window, cpp11::integers out_size,
+                            cpp11::strings options) {
+    GDALRasterBandH h = band(xp);
+    Window w = make_window(window, out_size, "nearest");
+    CPLStringList opts = gdal7::to_csl(options);
+
+    gdal7::ErrorScope err;
+    const CPLErr status = GDALRasterAdviseRead(
+        h, w.off_x, w.off_y, w.size_x, w.size_y, w.out_x, w.out_y,
+        GDALGetRasterDataType(h), opts.List());
+    if (status != CE_None) {
+        err.stop("Could not advise a read of the raster window");
+    }
+    err.flush();
+    return true;
+}
+
+[[cpp11::register]]
+bool GDAL7_dataset_advise_read(SEXP xp, cpp11::integers bands, cpp11::doubles window,
+                               cpp11::integers out_size, cpp11::strings options) {
+    GDALDatasetH h = dataset(xp);
+    Window w = make_window(window, out_size, "nearest");
+    const std::vector<int> bands_to_read = band_list(h, bands);
+    CPLStringList opts = gdal7::to_csl(options);
+
+    // The advice carries one type for every band; the first band's is as good
+    // a guess as any, since the read that follows says what it really wants.
+    const GDALDataType type =
+        GDALGetRasterDataType(GDALGetRasterBand(h, bands_to_read[0]));
+
+    gdal7::ErrorScope err;
+    const CPLErr status = GDALDatasetAdviseRead(
+        h, w.off_x, w.off_y, w.size_x, w.size_y, w.out_x, w.out_y, type,
+        static_cast<int>(bands_to_read.size()),
+        const_cast<int*>(bands_to_read.data()), opts.List());
+    if (status != CE_None) {
+        err.stop("Could not advise a read of the raster window");
+    }
+    err.flush();
+    return true;
+}
+
 // ============================================================================
 // Writing
 // ============================================================================

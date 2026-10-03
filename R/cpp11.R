@@ -396,6 +396,14 @@ GDAL7_mdarray_read <- function(xp, start, count, step) {
   .Call(`_GDAL7_GDAL7_mdarray_read`, xp, start, count, step)
 }
 
+GDAL7_mdarray_get_block_size <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_block_size`, xp)
+}
+
+GDAL7_mdarray_advise_read <- function(xp, start, count, options) {
+  .Call(`_GDAL7_GDAL7_mdarray_advise_read`, xp, start, count, options)
+}
+
 GDAL7_mdarray_get_view <- function(xp, expr) {
   .Call(`_GDAL7_GDAL7_mdarray_get_view`, xp, expr)
 }
@@ -458,6 +466,14 @@ GDAL7_band_read <- function(xp, window, out_size, resample, type) {
 
 GDAL7_dataset_read <- function(xp, bands, window, out_size, resample, type) {
   .Call(`_GDAL7_GDAL7_dataset_read`, xp, bands, window, out_size, resample, type)
+}
+
+GDAL7_band_advise_read <- function(xp, window, out_size, options) {
+  .Call(`_GDAL7_GDAL7_band_advise_read`, xp, window, out_size, options)
+}
+
+GDAL7_dataset_advise_read <- function(xp, bands, window, out_size, options) {
+  .Call(`_GDAL7_GDAL7_dataset_advise_read`, xp, bands, window, out_size, options)
 }
 
 GDAL7_band_write <- function(xp, values, window, out_size, resample) {

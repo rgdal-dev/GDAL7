@@ -36,5 +36,10 @@ the array's own dimension order. For a gridded array this is the time,
 latitude and longitude the values are placed at, and it is the shorter
 road than \code{coordinate_variables}. A dimension with no coordinate variable
 is NULL.
+\item \code{block_size}, how the format stores the array: the chunk shape, one value
+per dimension in GDAL's order and named like \code{dimensions}. A dimension
+the format does not chunk along is 0, as a contiguous netCDF variable is
+along every dimension. Reading whole chunks is what a store is fastest
+at, so this is the grid a chunked reader such as \code{\link[=as_altarr]{as_altarr()}} plans on.
 }
 }

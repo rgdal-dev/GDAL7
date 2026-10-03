@@ -248,6 +248,98 @@ resolve_out_size <- function(out_size, window) {
 }
 
 # ============================================================================
+# Read advice
+# ============================================================================
+
+#' Tell GDAL what is about to be read
+#'
+#' Advice reads nothing into R. It tells the driver which part of a source the
+#' next reads will cover, so the driver can fetch or decode ahead, all at
+#' once, rather than one piece per read. What that buys depends on the
+#' driver:
+#'
+#' * Zarr decodes every chunk the slice touches on `GDAL_NUM_THREADS` threads
+#'   (all cores unless that is set, or `NUM_THREADS` is given in `options`),
+#'   and the reads that follow are served from those decoded chunks. Without
+#'   the advice a Zarr read decodes its chunks one after another.
+#' * netCDF reads the slice into memory in one call.
+#' * Raster drivers that read from a server (WMS, ECW and JP2 streams) can
+#'   start the transfer.
+#' * A driver with nothing to prepare does nothing and still succeeds, so
+#'   advising is never wrong, only sometimes idle. GeoTIFF is one: it already
+#'   gathers the byte ranges for a whole window inside each read.
+#'
+#' Each call replaces the last: a Zarr array keeps the chunks of the most
+#' recent advice only.
+#'
+#' @section Arguments:
+#' For a [GDALMDArray]:
+#' \describe{
+#'   \item{`start`, `count`}{The slice, as for [read_mdarray()]: in the
+#'     array's own dimension order, `start` counting from 1. They default to
+#'     the whole array.}
+#' }
+#' For a [GDALRasterBand] or a [GDALDataset]:
+#' \describe{
+#'   \item{`window`, `out_size`}{As for [read_raster()]. A smaller
+#'     `out_size` lets GDAL plan on an overview.}
+#'   \item{`bands`}{For a dataset, which bands, one-based. Defaults to all.}
+#' }
+#' For all of them, `options` is a character vector of `KEY=VALUE` driver
+#' options, or `NULL`. Zarr reads `NUM_THREADS` and `CACHE_SIZE` (bytes;
+#' half of GDAL's free block cache by default, and the advice fails if the
+#' slice's chunks will not fit in it).
+#'
+#' @param x A [GDALMDArray], [GDALRasterBand] or [GDALDataset].
+#' @param ... The slice or window; see the Arguments section.
+#' @return `x`, invisibly.
+#' @export
+#' @examples
+#' path <- system.file("extdata/multidim.zarr", package = "GDAL7")
+#' ds <- gdal_open(path, multidim = TRUE)
+#' arr <- open_mdarray(get_root_group(ds), "temperature")
+#'
+#' # Decode the chunks of the first time step together, then read it.
+#' advise_read(arr, start = c(1, 1, 1), count = c(1, 4, 5))
+#' read_mdarray(arr, start = c(1, 1, 1), count = c(1, 4, 5))
+#'
+#' gdal_close(ds)
+advise_read <- S7::new_generic("advise_read", "x")
+
+S7::method(advise_read, GDALRasterBand) <- function(x, ..., window = NULL,
+                                                    out_size = NULL,
+                                                    options = NULL) {
+  window <- resolve_window(window, x@xsize, x@ysize)
+  GDAL7_band_advise_read(x@.ptr, window, resolve_out_size(out_size, window),
+                         advise_options(options))
+  invisible(x)
+}
+
+S7::method(advise_read, GDALDataset) <- function(x, ..., window = NULL,
+                                                 out_size = NULL, bands = NULL,
+                                                 options = NULL) {
+  if (is.null(bands)) {
+    bands <- seq_len(x@raster_count)
+  }
+  window <- resolve_window(window, x@raster_xsize, x@raster_ysize)
+  GDAL7_dataset_advise_read(x@.ptr, as.integer(bands), window,
+                            resolve_out_size(out_size, window),
+                            advise_options(options))
+  invisible(x)
+}
+
+advise_options <- function(options) {
+  if (is.null(options)) {
+    return(character())
+  }
+  if (!is.character(options) || anyNA(options)) {
+    stop("`options` must be a character vector of KEY=VALUE strings",
+         call. = FALSE)
+  }
+  options
+}
+
+# ============================================================================
 # Writing
 # ============================================================================
 
