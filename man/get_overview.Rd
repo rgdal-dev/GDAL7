@@ -4,20 +4,24 @@
 \alias{get_overview}
 \title{Get one overview of a band}
 \usage{
-get_overview(x, index)
+get_overview(x, level)
 }
 \arguments{
 \item{x}{A GDALRasterBand object}
 
-\item{index}{Zero-based overview index, as GDAL numbers them. How many
-there are is \code{x@overview_count}, and their sizes are \code{x@overview_sizes};
-which level a read will actually touch follows from those sizes and the
-output size asked for.}
+\item{level}{Overview level, from 0 (the band itself) to
+\code{x@overview_count}. Which level a read will actually touch follows from
+\code{x@overview_sizes} and the output size asked for.}
 }
 \value{
 A GDALRasterBand object for the overview, which belongs to the same
-dataset as \code{x}.
+dataset as \code{x}. Level 0 returns \code{x}.
 }
 \description{
-Get one overview of a band
+Overview levels are numbered from 1, the largest reduced level, so \code{level}
+is the row of \code{x@overview_sizes} that describes it. Level 0 is the band
+itself at full resolution, which is what GDAL numbers -1 where it has a
+number for it. Underneath, \code{level} is GDAL's zero-based overview index plus
+one. A string passed through to GDAL unchanged, such as the open option
+\code{OVERVIEW_LEVEL}, keeps GDAL's own numbering.
 }

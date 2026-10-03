@@ -83,21 +83,39 @@ band_overview_sizes <- function(x) {
 
 #' Get one overview of a band
 #'
+#' Overview levels are numbered from 1, the largest reduced level, so `level`
+#' is the row of `x@overview_sizes` that describes it. Level 0 is the band
+#' itself at full resolution, which is what GDAL numbers -1 where it has a
+#' number for it. Underneath, `level` is GDAL's zero-based overview index plus
+#' one. A string passed through to GDAL unchanged, such as the open option
+#' `OVERVIEW_LEVEL`, keeps GDAL's own numbering.
+#'
 #' @param x A GDALRasterBand object
-#' @param index Zero-based overview index, as GDAL numbers them. How many
-#'   there are is `x@overview_count`, and their sizes are `x@overview_sizes`;
-#'   which level a read will actually touch follows from those sizes and the
-#'   output size asked for.
+#' @param level Overview level, from 0 (the band itself) to
+#'   `x@overview_count`. Which level a read will actually touch follows from
+#'   `x@overview_sizes` and the output size asked for.
 #' @return A GDALRasterBand object for the overview, which belongs to the same
-#'   dataset as `x`.
+#'   dataset as `x`. Level 0 returns `x`.
 #' @export
 get_overview <- S7::new_generic(
   "get_overview", "x",
-  function(x, index) S7::S7_dispatch()
+  function(x, level) S7::S7_dispatch()
 )
 
-S7::method(get_overview, GDALRasterBand) <- function(x, index) {
-  GDALRasterBand(.ptr = GDAL7_band_get_overview(x@.ptr, as.integer(index)))
+S7::method(get_overview, GDALRasterBand) <- function(x, level) {
+  if (!is.numeric(level) || length(level) != 1L || is.na(level) ||
+      level != round(level)) {
+    stop("`level` must be a single whole number", call. = FALSE)
+  }
+  count <- x@overview_count
+  if (level < 0 || level > count) {
+    valid <- if (count == 0L) "only 0, the band itself" else
+      sprintf("1 to %d, or 0 for the band itself", count)
+    stop(sprintf("Overview level %d is out of range; this band's levels are %s",
+                 as.integer(level), valid), call. = FALSE)
+  }
+  if (level == 0) return(x)
+  GDALRasterBand(.ptr = GDAL7_band_get_overview(x@.ptr, as.integer(level) - 1L))
 }
 
 # ============================================================================
