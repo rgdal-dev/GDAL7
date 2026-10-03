@@ -322,8 +322,9 @@ Caveat worth checking against the target GDAL: the C API landed in 3.11, and the
 package floor is 3.10, so this needs version guards (see 7.4). It has them: the
 whole of `src/GDAL7_algorithm.cpp` compiles out below 3.11 and the bindings stay
 registered, so `gdal_run()` exists either way and says which release it would
-need. Both halves are tested, by building the package against GDAL 3.12.4 and
-against 3.8.4 and running the suite on each.
+need. The half below 3.11 was tested by building against GDAL 3.8.4 past
+the floor check; `configure` refuses that build as shipped, and nothing in CI
+is below 3.11, so only the 3.11-and-later half runs there.
 
 ### 7.3 Use the `%extend` bodies, and emit the constants
 
@@ -350,10 +351,11 @@ Unblocked is not the same as done. Each still needs a C API mapping, which is
 section 2's problem, so un-skipping them belongs to Stage 3 rather than being a
 quick win now. What the floor removes is the *reason* they were excluded. Guards
 remain worth having only for things above the floor, which today means the GDAL
-3.12 algorithm registry in 7.2.
+3.11 algorithm registry in 7.2.
 
 There is also no `gdal_version()` / `GDALVersionInfo()` binding at all, which every
-binding needs and which the capability story depends on.
+binding needs and which the capability story depends on. *Status: done in
+Stage 3, and renamed `gdal_release()` in Stage 8.*
 
 ### 7.5 Vendor the API model and diff it in CI
 
@@ -559,10 +561,12 @@ which would have reached the binding as a number where it wanted strings.
 Version guards are per binding rather than per package. `GDAL7_dataset.cpp`
 wraps a binding whose C function is newer than the oldest release the symbol
 table covers in `#if GDAL_VERSION_NUM >= ...`, and the `#else` branch raises an
-R error naming the release it needs. So the source tree compiles against GDAL
-3.8 through 3.14 and says honestly what it cannot do, rather than failing to
+R error naming the release it needs. So the source tree compiles against any GDAL
+the symbol table covers and says honestly what it cannot do, rather than failing to
 link. `gdal7_capabilities()` reports the same thing at run time, and
-`gdal_version()` says what GDAL7 is running against.
+`gdal_version()` (now `gdal_release()`) says what GDAL7 is running against.
+`configure` refuses anything below the declared floor of 3.10, so in practice
+the range is 3.10 up; the guards matter for bindings above that.
 
 The versions themselves are read, not remembered: `data-raw/refresh_symbol_versions.R`
 fetches GDAL's public headers at each release tag and records the first release
@@ -761,8 +765,9 @@ clash and splitting the pair to avoid one mask would cost more than the mask
 does.
 
 *Exit:* met. 141 exports down to 93, no export shares a name with gdalraster,
-and the whole suite is green on GDAL 3.12, on a 3.12 built with its algorithms
-off, and on 3.8.
+and the whole suite was green on GDAL 3.12, on a 3.12 built with its algorithms
+off, and on 3.8 (built past the floor check; `configure` refuses 3.8 as
+shipped).
 
 ---
 

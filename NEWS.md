@@ -1,5 +1,8 @@
 # GDAL7 0.1.0
 
+Functions and properties are named here as they are now. Stage 8 lists
+the names they replaced.
+
 ## Chunked reads and lazy arrays
 
 * A multidimensional array has a `block_size` property: the format's own
@@ -145,8 +148,8 @@ GDAL7, each of which it needs and none of which it can add for itself.
   `gdal_flush()` pushes what is written down to the file.
 
 * What a written raster needs is now settable rather than only readable:
-  `set_crs()`, `set_nodata_value()`, `set_scale()`, `set_offset()`,
-  `set_unit_type()` and `set_color_interpretation()`.
+  `ds@crs`, `band@nodata_value`, `band@scale`, `band@offset`,
+  `band@unit_type` and `band@color_interpretation`, each by assignment.
 
 * Creation options are a table rather than a string of XML. `driver_options()`
   reports every option a driver takes with its type, default, range and the
@@ -164,9 +167,9 @@ GDAL7, each of which it needs and none of which it can add for itself.
   I/O capabilities and the extensions each driver claims, in one pass over the
   driver manager rather than a call per driver per capability.
 
-* GDAL's virtual file systems are bound directly: `vsi_list()`, `vsi_stat()`,
-  `vsi_exists()`, `vsi_unlink()`, `vsi_mkdir()`, `vsi_rmdir()`, `vsi_rename()`,
-  `vsi_copy()`, `vsi_read_file()` and `vsi_write_file()`. A dataset can be built
+* GDAL's virtual file systems are bound directly: `vfs_list()`, `vfs_stat()`,
+  `vfs_exists()`, `vfs_unlink()`, `vfs_mkdir()`, `vfs_rmdir()`, `vfs_rename()`,
+  `vfs_copy()`, `vfs_read_file()` and `vfs_write_file()`. A dataset can be built
   at a `/vsimem/` path and its bytes read back without ever reaching the disk.
 
 * `gdal_config()`, `gdal_config_options()` and `with_gdal_config()` read, set
@@ -175,7 +178,7 @@ GDAL7, each of which it needs and none of which it can add for itself.
 
 * `get_thread_safe_dataset()` hands back a view of a raster several threads may
   read at once, and `is_thread_safe()` says whether a dataset already is one.
-  Both need GDAL 3.10; `gdal7_capabilities()` says whether this build has them.
+  Both need GDAL 3.10, which is the package's floor.
 
 * `crs_to_wkt()` exports a CRS as WKT2 by default, with `format` and `multiline`
   for the rest. GDAL's plain export is WKT1, which loses the projection's name.
@@ -231,26 +234,26 @@ GDAL7, each of which it needs and none of which it can add for itself.
   the order the values already arrive in, so nothing is rearranged to produce
   it. The array's nodata value becomes `NA` unless `nodata_as_na = FALSE`.
 
-* `get_dimension_values()` reads the coordinate variable of every dimension at
+* `arr@dimension_values` reads the coordinate variable of every dimension at
   once: the times, latitudes and longitudes the values are placed at.
-  `get_coordinate_variables()` gives the arrays a format names as coordinates,
+  `arr@coordinate_variables` gives the arrays a format names as coordinates,
   which is the different question a swath answers.
 
-* `get_attributes()` returns a group's or an array's own annotations as a named
-  list, all in one call. `get_scale()`, `get_offset()`, `get_unit_type()` and
-  `get_projection()` now work on an array, and `mdarray_info()` fetches the
+* `@attributes` returns a group's or an array's own annotations as a named
+  list, all in one call. An array has `scale`, `offset`, `unit_type` and
+  `crs` too, and `mdarray_info()` fetches the
   whole description in one go.
 
 * `get_view()` takes a slice, a transpose or a reordering in GDAL's own view
   syntax, evaluated lazily, and `as_classic_dataset()` presents a
   two-dimensional array as an ordinary GDAL raster, which is the bridge back to
-  `read_raster()` and the band accessors. It picks the X and Y dimensions from
+  `read_raster()` and the band properties. It picks the X and Y dimensions from
   the ones the format declares as horizontal.
 
 * `open_mdarray()` now accepts a path from the root of the dataset, such as
   `"/weather/temperature"`, as well as a name within one group.
 
-* `get_dimensions()` gained `type`, `direction` and `indexed` columns.
+* `arr@dimensions` has `type`, `direction` and `indexed` columns.
 
 * The Zarr test fixture is replaced by `inst/extdata/multidim.zarr`, a 3 by 4 by
   5 array over time, latitude and longitude with a nodata cell, a scale and
@@ -279,7 +282,7 @@ GDAL7, each of which it needs and none of which it can add for itself.
   `release_arrow_stream()` gives one back, and `read_vector()` does that for
   you.
 
-* `gdal_layers()` lists a dataset's layers with their geometry type, feature
+* `ds@layers` lists a dataset's layers with their geometry type, feature
   count, and whether the driver has a native Arrow fast path
   (`OLCFastGetArrowStream`).
 
@@ -321,8 +324,9 @@ GDAL7, each of which it needs and none of which it can add for itself.
   `reset_reading()`, `abort_sql()`, `start_transaction()`,
   `commit_transaction()`, `rollback_transaction()`, `clear_statistics()`,
   `get_field_domain_names()`, `delete_field_domain()`,
-  `get_relationship_names()`, `delete_relationship()`, `set_projection()`,
-  `add_band()` and `create_mask_band()`.
+  `get_relationship_names()`, `delete_relationship()`, `add_band()` and
+  `create_mask_band()`, and `SetProjection`, which is now the settable
+  `ds@projection`.
 
 * `gdal_constants()` and `gdal_string_constants()` return GDAL's own
   enumerators and metadata keys, which the package had none of: `GDT_*`, `GA_*`,
@@ -332,17 +336,16 @@ GDAL7, each of which it needs and none of which it can add for itself.
 * A binding whose GDAL function is newer than the GDAL in use still exists and
   still dispatches; calling it raises an error naming the release it needs.
   `gdal7_capabilities()` says which bindings those are and whether this build
-  has them, and `gdal_version()` reports the GDAL being run against. One source
-  tree now builds against GDAL 3.8 through 3.14.
+  has them, and `gdal_release()` reports the GDAL being run against. One source
+  tree builds against every GDAL from the 3.10 floor up.
 
 * A dataset's dimensions are S7 properties: `ds@raster_xsize`,
   `ds@raster_ysize`, `ds@raster_count`. GDAL declares them with `%immutable`,
-  and the generator now reads that. `get_raster_xsize()` and its two companions
-  still work and read the same properties.
+  and the generator now reads that.
 
 * `get_spatial_ref()` is removed. It could not have worked: GDAL's SWIG body
   clones the reference rather than making a single call, and the generated R
-  returned an S7 class the package does not define. `get_projection()` gives
+  returned an S7 class the package does not define. `ds@crs` gives
   the WKT.
 
 * The API model extracted from GDAL's SWIG files is vendored at
@@ -375,12 +378,12 @@ GDAL7, each of which it needs and none of which it can add for itself.
   row per band. The same summary reached one accessor at a time is seven calls
   per band plus a handful for the dataset.
 
-* Geotransforms in both directions: `get_geotransform()`,
-  `set_geotransform()`, and `apply_geotransform()` / `inv_geotransform()`,
-  which are vectorised over whole coordinate vectors. A dataset with no
+* Geotransforms in both directions: `ds@geotransform`, read and set, and
+  `pixel_to_xy()` / `xy_to_pixel()`, which are vectorised over whole
+  coordinate vectors. A dataset with no
   geotransform returns NULL rather than the identity GDAL reports for it.
 
-* Overview introspection: `get_overview_count()`, `get_overview_sizes()` and
+* Overview introspection: `band@overview_count`, `band@overview_sizes` and
   `get_overview()`. An overview band belongs to the same dataset as the band it
   came from and keeps it open.
 
@@ -388,7 +391,7 @@ GDAL7, each of which it needs and none of which it can add for itself.
   `GCI_*` codes as named integer vectors, read out of the running GDAL rather
   than hard coded.
 
-* Fixed `get_data_type_name()` on a multidimensional array, which returned an
+* Fixed `data_type_name` on a multidimensional array, which returned an
   empty string for every plain numeric array.
 
 * The README example now runs against fixtures that ship with the package, so
@@ -425,7 +428,7 @@ GDAL7, each of which it needs and none of which it can add for itself.
 
 * Using an object after the dataset it belongs to has been closed is now an R
   error rather than a read of freed memory. Before this, `gdal_close(ds)`
-  followed by `get_xsize(band)` was undefined behaviour.
+  followed by `band@xsize` was undefined behaviour.
 
 * Datasets are now actually closed. There was no finalizer calling
   `GDALClose()`, so every dataset opened in a session stayed open until R
@@ -453,7 +456,7 @@ GDAL7, each of which it needs and none of which it can add for itself.
 * `get_metadata_dict()` returns a named character vector, split on `=`.
   It and `get_metadata_list()` were byte-identical implementations.
 
-* `get_dimensions()` no longer returns a malformed list. The C level result had
+* `arr@dimensions` no longer comes from a malformed list. The C level result had
   `n` leading NULLs in front of its two columns.
 
 * String list conversions use `CPLStringList`, which frees itself if the
