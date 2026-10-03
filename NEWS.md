@@ -518,11 +518,11 @@ GDAL7, each of which it needs and none of which it can add for itself.
 * Added driver info and multidim. 
 
 
-## GDAL7 0.0.1 (2026-01-30)
+# GDAL7 0.0.1 (2026-01-30)
 
 Initial proof-of-concept release. This package provides S7 bindings to the GDAL C API, generated from GDAL's SWIG interface files.
 
-### Features
+## Features
 
 **Code Generation Pipeline**
 
@@ -564,7 +564,7 @@ Initial proof-of-concept release. This package provides S7 bindings to the GDAL 
 * `get_driver()` - Returns GDALDriver (errors until class implemented)
 * `get_raster_band(n)` - Returns GDALRasterBand (errors until class implemented)
 
-### Known Limitations
+## Known Limitations
 
 * GDALDriver, GDALRasterBand, OGRSpatialReference classes not yet implemented
 * Methods returning these types (`get_driver`, `get_raster_band`, `get_spatial_ref`) will error
@@ -572,7 +572,7 @@ Initial proof-of-concept release. This package provides S7 bindings to the GDAL 
 * Vector layer methods not yet supported
 * No automatic memory management / destructor support
 
-### Technical Notes
+## Technical Notes
 
 * Requires GDAL installed with development headers
 * Uses cpp11 for C++ bindings and S7 for R class system

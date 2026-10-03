@@ -5,6 +5,13 @@ code at commit `6297d1b`, plus the opportunities the original design did not tak
 
 References below are `file:line` against that commit.
 
+*Status:* stages 0 through 8 are done, each with a status note under its
+heading. Those notes use the names functions had at the time; Stage 8 renamed
+several and moved most accessors to properties, so `NEWS.md` is the record of
+the current names. Work after Stage 8 (the engine gaps a downstream reader
+needed, and lazy arrays through altarr) is recorded in `NEWS.md` and
+`inst/design/altarr.md` rather than here.
+
 ---
 
 ## 1. Where the package actually is
