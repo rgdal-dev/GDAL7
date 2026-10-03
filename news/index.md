@@ -2,6 +2,30 @@
 
 ## GDAL7 0.1.0
 
+### Chunked reads and lazy arrays
+
+- A multidimensional array has a `block_size` property: the format’s own
+  chunk shape, in GDAL’s dimension order and named like `dimensions`,
+  with 0 for a dimension the format does not chunk along.
+
+- [`advise_read()`](https://rgdal-dev.github.io/GDAL7/reference/advise_read.md)
+  tells the driver what the next reads will cover, for an array
+  (`start`, `count`), a band or a dataset (`window`, `out_size`,
+  `bands`). Zarr then decodes every chunk of the slice on
+  `GDAL_NUM_THREADS` threads at once instead of one after another;
+  netCDF reads the slice in one call; a driver with nothing to prepare
+  does nothing. `options` passes `NUM_THREADS` and `CACHE_SIZE` through.
+
+- [`as_altarr()`](https://rgdal-dev.github.io/GDAL7/reference/as_altarr.md)
+  makes a lazy R array from an array, a path and an array name, or a
+  band, through the altarr package (in Suggests, from
+  `hypertidy/altarr`). The result is a plain double array with a `dim`
+  and no class; base R’s indexing and reductions read it a batch of
+  chunks at a time, and each batch is one advised GDAL read. Built from
+  a path, it saves with
+  [`saveRDS()`](https://rdrr.io/r/base/readRDS.html) as a recipe and
+  reopens its source in a new session.
+
 ### Engine gaps for a downstream reader
 
 Additions asked for by the lazy IO package being designed on top of

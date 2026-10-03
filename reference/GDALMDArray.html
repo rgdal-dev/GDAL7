@@ -77,6 +77,11 @@ the array's own dimension order. For a gridded array this is the time,
 latitude and longitude the values are placed at, and it is the shorter
 road than <code>coordinate_variables</code>. A dimension with no coordinate variable
 is NULL.</p></li>
+<li><p><code>block_size</code>, how the format stores the array: the chunk shape, one value
+per dimension in GDAL's order and named like <code>dimensions</code>. A dimension
+the format does not chunk along is 0, as a contiguous netCDF variable is
+along every dimension. Reading whole chunks is what a store is fastest
+at, so this is the grid a chunked reader such as <code><a href="as_altarr.html">as_altarr()</a></code> plans on.</p></li>
 </ul></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

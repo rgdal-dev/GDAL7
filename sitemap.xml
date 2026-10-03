@@ -16,7 +16,9 @@
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/GDALRasterBand.html</loc></url>
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/abort_sql.html</loc></url>
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/add_band.html</loc></url>
+<url><loc>https://rgdal-dev.github.io/GDAL7/reference/advise_read.html</loc></url>
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/arrow_stream.html</loc></url>
+<url><loc>https://rgdal-dev.github.io/GDAL7/reference/as_altarr.html</loc></url>
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/as_classic_dataset.html</loc></url>
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/as_mdarray.html</loc></url>
 <url><loc>https://rgdal-dev.github.io/GDAL7/reference/clear_statistics.html</loc></url>

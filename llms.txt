@@ -714,6 +714,8 @@ pyramid is wanted.
 
 - [`read_raster()`](https://rgdal-dev.github.io/GDAL7/reference/read_raster.md)
   : Read a window of raster data
+- [`advise_read()`](https://rgdal-dev.github.io/GDAL7/reference/advise_read.md)
+  : Tell GDAL what is about to be read
 - [`get_raster_band()`](https://rgdal-dev.github.io/GDAL7/reference/get_raster_band.md)
   : Get a raster band from a dataset
 - [`get_overview()`](https://rgdal-dev.github.io/GDAL7/reference/get_overview.md)
@@ -780,6 +782,8 @@ order; the array’s dimensions property still reports GDAL’s.
   : Open an array from a group
 - [`read_mdarray()`](https://rgdal-dev.github.io/GDAL7/reference/read_mdarray.md)
   : Read from a multidimensional array
+- [`as_altarr()`](https://rgdal-dev.github.io/GDAL7/reference/as_altarr.md)
+  : A GDAL array or band as a lazy R array
 - [`mdarray_info()`](https://rgdal-dev.github.io/GDAL7/reference/mdarray_info.md)
   : Everything about an array in one call
 - [`get_view()`](https://rgdal-dev.github.io/GDAL7/reference/get_view.md)
