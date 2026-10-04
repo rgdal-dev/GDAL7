@@ -53,16 +53,23 @@ test_that("overviews are reported and can be opened", {
   expect_equal(sizes$xsize, c(256L, 128L))
   expect_equal(sizes$ysize, c(128L, 64L))
 
-  ov <- get_overview(band, 0)
+  # Levels are one-based, so a level is its row in overview_sizes.
+  ov <- get_overview(band, 1)
   expect_equal(ov@xsize, 256L)
   expect_equal(ov@ysize, 128L)
+  expect_equal(get_overview(band, 2)@xsize, sizes$xsize[2])
 
-  expect_error(get_overview(band, 5), "out of range")
+  # Level 0 is the band itself, GDAL's -1.
+  expect_identical(get_overview(band, 0), band)
+
+  expect_error(get_overview(band, 3), "out of range")
+  expect_error(get_overview(band, -1), "out of range")
+  expect_error(get_overview(band, 1.5), "whole number")
 })
 
 test_that("an overview outlives the band but not the dataset", {
   ds <- gdal_open(test_cog())
-  ov <- get_overview(get_raster_band(ds, 1), 0)
+  ov <- get_overview(get_raster_band(ds, 1), 1)
 
   gc()
   expect_equal(ov@xsize, 256L)
