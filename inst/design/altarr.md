@@ -111,10 +111,14 @@ and `offset`. One rule for both readers, then `as_altarr()` inherits it.
 - `as_altarr(band)` from a path, using the same reopening recipe.
 - `as_altarr(dataset)` as `[x, y, band]`, one `GDALDatasetRasterIO` per batch
   over the bands asked for.
-- Overviews: `as_altarr(band, overview = k)`, and a list of them for a
-  pyramid. The list's shape (arrays plus scale factors) is altarr's
-  `altarr_overviews()` convention to define; GDAL7 should fill it, not invent
-  it.
+- Overviews need no argument of their own: an overview is a band, so
+  `as_altarr(get_overview(band, k))` is already a lazy array over that level.
+  From a path, the same level is the open option `OVERVIEW_LEVEL`, in GDAL's
+  own zero-based numbering, which the recipe already carries through
+  `options`, so the band-from-path item above covers it. What is left is a
+  list of levels for a pyramid. The list's shape (arrays plus scale factors)
+  is altarr's `altarr_overviews()` convention to define; GDAL7 should fill it,
+  not invent it.
 
 ## Stage D: scattered batches
 

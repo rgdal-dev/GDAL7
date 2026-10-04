@@ -37,7 +37,7 @@ Run the whole thing with:
 
 ```sh
 Rscript data-raw/orchestrate.R
-R CMD INSTALL --no-staged-install .
+R CMD INSTALL .
 ```
 
 That needs no GDAL checkout, because the API model is vendored. It is also what
