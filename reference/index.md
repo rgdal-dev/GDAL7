@@ -10,7 +10,7 @@
 
 Every GDAL handle reaches R as one of these S7 classes. Their accessors
 are properties rather than get\_/set\_ functions, so a dataset’s size,
-projection and geotransform are read with \$ and set the same way where
+projection and geotransform are read with @ and set the same way where
 GDAL allows it.
 
 - [`GDALMajorObject()`](https://rgdal-dev.github.io/GDAL7/reference/GDALMajorObject.md)

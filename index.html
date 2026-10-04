@@ -50,7 +50,7 @@
 </h1></div>
 <!-- badges: start -->
 <!-- badges: end -->
-<p>The goal of GDAL7 is to model the GDAL api in R via SWIG.</p>
+<p>The goal of GDAL7 is to model the GDAL API in R, generated from GDAL’s own SWIG interface definitions and bound with cpp11 and S7.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -58,9 +58,8 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"rgdal-dev/GDAL7"</span><span class="op">)</span></span></code></pre></div>
 <p>Or from a clone:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># git clone https://github.com/rgdal-dev/GDAL7 &amp;&amp; cd GDAL7</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/system.html" class="external-link">system</a></span><span class="op">(</span><span class="st">"R CMD INSTALL --no-staged-install ."</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/rgdal-dev/GDAL7</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">R</span> CMD INSTALL GDAL7</span></code></pre></div>
 <p>The cpp11 registration files (<code>src/cpp11.cpp</code>, <code>R/cpp11.R</code>) are committed, so no generation step is needed to install. You only need <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code> after adding or changing a <code>[[cpp11::register]]</code> function; <code>data-raw/orchestrate.R</code> does that as part of regenerating the bindings.</p>
 </div>
 <div class="section level2">
@@ -135,7 +134,8 @@
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span>
 <span><span class="va">band</span><span class="op">@</span><span class="va">xsize</span></span>
-<span><span class="co">#&gt; Error: This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed</span></span></code></pre></div>
+<span><span class="co">#&gt; Error:</span></span>
+<span><span class="co">#&gt; ! This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="reading-pixels">Reading pixels<a class="anchor" aria-label="anchor" href="#reading-pixels"></a>
 </h3>
@@ -270,10 +270,35 @@
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="lazy-arrays">Lazy arrays<a class="anchor" aria-label="anchor" href="#lazy-arrays"></a>
+</h3>
+<p>With the <a href="https://github.com/hypertidy/altarr" class="external-link">altarr</a> package installed, <code><a href="reference/as_altarr.html">as_altarr()</a></code> turns an array, a path and an array name, or a band into an ordinary R array whose values stay in the source until something reads them. Base R indexing and reductions read it a batch of chunks at a time, and each batch is one GDAL read, announced first with <code><a href="reference/advise_read.html">advise_read()</a></code> so that Zarr decodes the batch’s chunks on GDAL’s threads at once. The chunks are the source’s own, which an array reports as <code>block_size</code>:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">zarr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/multidim.zarr"</span>, package <span class="op">=</span> <span class="st">"GDAL7"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_open.html">gdal_open</a></span><span class="op">(</span><span class="va">zarr</span>, multidim <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/open_mdarray.html">open_mdarray</a></span><span class="op">(</span><span class="fu"><a href="reference/get_root_group.html">get_root_group</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span>, <span class="st">"temperature"</span><span class="op">)</span><span class="op">@</span><span class="va">block_size</span></span>
+<span><span class="co">#&gt; time  lat  lon </span></span>
+<span><span class="co">#&gt;    1    4    5</span></span>
+<span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/as_altarr.html">as_altarr</a></span><span class="op">(</span><span class="va">zarr</span>, array <span class="op">=</span> <span class="st">"temperature"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 5 4 3</span></span>
+<span></span>
+<span><span class="va">x</span><span class="op">[</span><span class="fl">2</span>, <span class="fl">3</span>, <span class="op">]</span>               <span class="co"># one cell, every time step</span></span>
+<span><span class="co">#&gt; [1] 12 32 52</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1822</span></span>
+<span><span class="fu">altarr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/altarr/man/altarr_stats.html" class="external-link">altarr_stats</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">[[</span><span class="st">"fetch_calls"</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] 3</span></span></code></pre></div>
+<p>Built from a path, the array saves with <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> as a recipe of about a kilobyte, and reopens its source when it is first read in a new session. A band works the same way, and an overview is a band, so <code>as_altarr(get_overview(band, 1))</code> is a lazy view of a reduced level.</p>
+</div>
+<div class="section level3">
 <h3 id="vector-data">Vector data<a class="anchor" aria-label="anchor" href="#vector-data"></a>
 </h3>
 <p>A whole layer arrives as a data frame in one call, through the column-oriented Arrow path GDAL added in 3.6, so there is no per-feature work in R at all. Geometry comes back as WKB, in a list column of raw vectors:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gpkg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/test.gpkg"</span>, package <span class="op">=</span> <span class="st">"GDAL7"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_open.html">gdal_open</a></span><span class="op">(</span><span class="va">gpkg</span><span class="op">)</span></span>
@@ -292,7 +317,7 @@
 <span></span>
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span></code></pre></div>
 <p>Filters are set on the layer and apply to everything read afterwards. A spatial filter is what makes a large layer cheap, because a driver with a spatial index uses it rather than reading every feature:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_open.html">gdal_open</a></span><span class="op">(</span><span class="va">gpkg</span><span class="op">)</span></span>
 <span><span class="va">layer</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_layer.html">get_layer</a></span><span class="op">(</span><span class="va">ds</span>, <span class="st">"places"</span><span class="op">)</span></span>
 <span></span>
@@ -306,7 +331,7 @@
 <span><span class="co">#&gt; 2       2 Hobart</span></span>
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span></code></pre></div>
 <p>The same path runs the other way, so a data frame with a WKB column writes back out as a layer:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".gpkg"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/write_vector.html">write_vector</a></span><span class="op">(</span><span class="va">places</span>, <span class="va">path</span>, layer <span class="op">=</span> <span class="st">"places"</span>, crs <span class="op">=</span> <span class="st">"EPSG:4326"</span>,</span>
 <span>             geometry_type <span class="op">=</span> <span class="st">"Point"</span><span class="op">)</span></span>
@@ -319,7 +344,7 @@
 <h3 id="creating-and-writing">Creating and writing<a class="anchor" aria-label="anchor" href="#creating-and-writing"></a>
 </h3>
 <p>A dataset is made with a size, a band count and a type, written into, and closed. Closing is what finishes the file.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".tif"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_create.html">gdal_create</a></span><span class="op">(</span><span class="va">path</span>, <span class="fl">64</span>, <span class="fl">48</span>, bands <span class="op">=</span> <span class="fl">1</span>, type <span class="op">=</span> <span class="st">"Float32"</span><span class="op">)</span></span>
@@ -339,19 +364,19 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">projection</span>, <span class="fl">1</span>, <span class="fl">30</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "GEOGCS[\"WGS 84\",DATUM[\"WGS_198"</span></span></code></pre></div>
 <p>Creation options are a table, read out of the driver’s own metadata, rather than a string of XML to parse or a list of names to remember:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">options</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/driver_options.html">driver_options</a></span><span class="op">(</span><span class="st">"GTiff"</span><span class="op">)</span></span>
 <span><span class="va">options</span><span class="op">[</span><span class="va">options</span><span class="op">$</span><span class="va">name</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"COMPRESS"</span>, <span class="st">"TILED"</span>, <span class="st">"BLOCKXSIZE"</span><span class="op">)</span>,</span>
 <span>        <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"type"</span>, <span class="st">"default"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;          name          type default</span></span>
 <span><span class="co">#&gt; 1    COMPRESS string-select    &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 16      TILED       boolean      NO</span></span>
-<span><span class="co">#&gt; 20 BLOCKXSIZE           int     256</span></span>
+<span><span class="co">#&gt; 20      TILED       boolean      NO</span></span>
+<span><span class="co">#&gt; 24 BLOCKXSIZE           int     256</span></span>
 <span></span>
 <span><span class="va">options</span><span class="op">$</span><span class="va">choices</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="va">options</span><span class="op">$</span><span class="va">name</span> <span class="op">==</span> <span class="st">"COMPRESS"</span><span class="op">)</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">]</span></span>
 <span><span class="co">#&gt; [1] "NONE"      "LZW"       "PACKBITS"  "JPEG"      "CCITTRLE"  "CCITTFAX3"</span></span></code></pre></div>
 <p>They are asked about before anything is made, so a name the driver does not have, or a value it will not take, is an error rather than a file left behind:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/validate_creation_options.html">validate_creation_options</a></span><span class="op">(</span><span class="st">"GTiff"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>COMPRESS <span class="op">=</span> <span class="st">"DEFLATE"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
 <span><span class="fu"><a href="reference/validate_creation_options.html">validate_creation_options</a></span><span class="op">(</span><span class="st">"GTiff"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>COMPRES <span class="op">=</span> <span class="st">"DEFLATE"</span><span class="op">)</span><span class="op">)</span></span>
@@ -359,9 +384,10 @@
 <span></span>
 <span><span class="fu"><a href="reference/gdal_create.html">gdal_create</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".tif"</span><span class="op">)</span>, <span class="fl">4</span>, <span class="fl">4</span>,</span>
 <span>            options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>COMPRESS <span class="op">=</span> <span class="st">"NOT_A_CODEC"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error: The GTiff driver does not take these creation options: 'NOT_A_CODEC' is an unexpected value for COMPRESS creation option of type string-select.</span></span></code></pre></div>
+<span><span class="co">#&gt; Error:</span></span>
+<span><span class="co">#&gt; ! The GTiff driver does not take these creation options: 'NOT_A_CODEC' is an unexpected value for COMPRESS creation option of type string-select.</span></span></code></pre></div>
 <p><code><a href="reference/gdal_create_copy.html">gdal_create_copy()</a></code> puts an existing dataset through a driver, which is how a COG gets made: the driver builds the overviews and lays the file out itself.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cog_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".tif"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">cog</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_create_copy.html">gdal_create_copy</a></span><span class="op">(</span><span class="va">path</span>, <span class="va">cog_path</span>, driver <span class="op">=</span> <span class="st">"COG"</span>,</span>
@@ -378,25 +404,25 @@
 <span><span class="co">#&gt; 128 128</span></span>
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">reopened</span><span class="op">)</span></span></code></pre></div>
 <p><code><a href="reference/gdal_drivers.html">gdal_drivers()</a></code> says which drivers can do which of those things, in one pass over the driver manager:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Raster drivers that can make a dataset from nothing, rather than only copy</span></span>
 <span><span class="co"># an existing one.</span></span>
 <span><span class="va">drivers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_drivers.html">gdal_drivers</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DCAP_RASTER"</span>, <span class="st">"DCAP_CREATE"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">drivers</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 5</span></span>
+<span><span class="co">#&gt; [1] 36</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">drivers</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"short_name"</span>, <span class="st">"copy"</span>, <span class="st">"vsi"</span>, <span class="st">"extensions"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">5</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   short_name  copy   vsi    extensions</span></span>
-<span><span class="co">#&gt; 1      GTiff  TRUE  TRUE      tif tiff</span></span>
-<span><span class="co">#&gt; 2        VRT  TRUE  TRUE           vrt</span></span>
-<span><span class="co">#&gt; 3        MEM FALSE FALSE          &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 4       GPKG  TRUE  TRUE gpkg gpkg.zip</span></span>
-<span><span class="co">#&gt; 5       Zarr  TRUE  TRUE          zarr</span></span></code></pre></div>
+<span><span class="co">#&gt;   short_name  copy   vsi extensions</span></span>
+<span><span class="co">#&gt; 1      GTiff  TRUE  TRUE   tif tiff</span></span>
+<span><span class="co">#&gt; 2        VRT  TRUE  TRUE        vrt</span></span>
+<span><span class="co">#&gt; 3       NITF  TRUE  TRUE        ntf</span></span>
+<span><span class="co">#&gt; 4        HFA  TRUE  TRUE        img</span></span>
+<span><span class="co">#&gt; 5        MEM FALSE FALSE       &lt;NA&gt;</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="virtual-file-systems">Virtual file systems<a class="anchor" aria-label="anchor" href="#virtual-file-systems"></a>
 </h3>
 <p>Every GDAL path works, not only files on disk, and they compose. A dataset built at a <code>/vsimem/</code> path never reaches the disk, and its bytes come back as raw:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_create.html">gdal_create</a></span><span class="op">(</span><span class="st">"/vsimem/small.tif"</span>, <span class="fl">4</span>, <span class="fl">4</span>, bands <span class="op">=</span> <span class="fl">1</span>, type <span class="op">=</span> <span class="st">"Byte"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/write_raster.html">write_raster</a></span><span class="op">(</span><span class="va">ds</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/double.html" class="external-link">as.double</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fl">16</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span>
@@ -409,7 +435,7 @@
 <span></span>
 <span><span class="fu"><a href="reference/vfs_unlink.html">vfs_unlink</a></span><span class="op">(</span><span class="st">"/vsimem/small.tif"</span><span class="op">)</span></span></code></pre></div>
 <p>GDAL reads its configuration options at the moment it needs them, so setting one changes how the next call behaves. <code><a href="reference/gdal_config.html">with_gdal_config()</a></code> sets them for one expression and puts back exactly what was there:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/gdal_config.html">with_gdal_config</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>GDAL_CACHEMAX <span class="op">=</span> <span class="st">"16"</span><span class="op">)</span>, <span class="fu"><a href="reference/gdal_config.html">gdal_config</a></span><span class="op">(</span><span class="st">"GDAL_CACHEMAX"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "16"</span></span>
 <span><span class="fu"><a href="reference/gdal_config.html">gdal_config</a></span><span class="op">(</span><span class="st">"GDAL_CACHEMAX"</span><span class="op">)</span></span>
@@ -420,7 +446,7 @@
 </h3>
 <p>GDAL 3.11 added a registry of the algorithms its own command line is built from. GDAL7 binds the registry rather than each utility, so what <code>gdal</code> can do arrives with GDAL rather than with a GDAL7 release.</p>
 <p><code><a href="reference/gdal_has_algorithms.html">gdal_has_algorithms()</a></code> says whether this build has any. Having the API is not the same as having the algorithms: a GDAL can be built with them turned off, and before 3.12 they registered themselves as a side effect of being loaded, which a static link leaves out. The Windows build here links GDAL statically, and answers FALSE today; Linux and macOS have the algorithms.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/gdal_algorithms.html">gdal_algorithms</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "convert"  "dataset"  "info"     "mdim"     "pipeline" "raster"   "vector"  </span></span>
 <span><span class="co">#&gt; [8] "vsi"</span></span>
@@ -430,7 +456,7 @@
 <span><span class="co">#&gt;  [6] "clip"         "color-map"    "compare"      "contour"      "convert"     </span></span>
 <span><span class="co">#&gt; [11] "create"       "edit"</span></span></code></pre></div>
 <p>Every algorithm describes itself, so there is no table of arguments in this package to fall out of date.</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">info</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_algorithm_info.html">gdal_algorithm_info</a></span><span class="op">(</span><span class="st">"raster reproject"</span><span class="op">)</span></span>
 <span><span class="va">info</span><span class="op">$</span><span class="va">description</span></span>
 <span><span class="co">#&gt; [1] "Reproject a raster dataset."</span></span>
@@ -446,7 +472,7 @@
 <span><span class="co">#&gt; 7        input dataset_list     TRUE</span></span>
 <span><span class="co">#&gt; 8        quiet      boolean    FALSE</span></span></code></pre></div>
 <p>Arguments go in by name. An algorithm told to write to memory hands back a dataset and touches no disk; one given a file name writes it, closes it and hands back the path.</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_open.html">gdal_open</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/test.tif"</span>, package <span class="op">=</span> <span class="st">"GDAL7"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">reprojected</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_run.html">gdal_run</a></span><span class="op">(</span><span class="st">"raster reproject"</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -466,7 +492,7 @@
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">reprojected</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span></code></pre></div>
 <p>Pipelines work the same way, with the steps written as GDAL writes them:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">piped</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_run.html">gdal_run</a></span><span class="op">(</span><span class="st">"raster pipeline"</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  pipeline <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"read"</span>, <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/overviews.tif"</span>, package <span class="op">=</span> <span class="st">"GDAL7"</span><span class="op">)</span>,</span>
@@ -486,7 +512,7 @@
 <h3 id="constants-and-capabilities">Constants and capabilities<a class="anchor" aria-label="anchor" href="#constants-and-capabilities"></a>
 </h3>
 <p>The enumerators and metadata keys that GDAL declares come through as two named vectors, rather than two hundred exported names:</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/gdal_constants.html">gdal_constants</a></span><span class="op">(</span><span class="st">"GDT_"</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">]</span></span>
 <span><span class="co">#&gt; GDT_Unknown    GDT_Byte    GDT_Int8  GDT_UInt16   GDT_Int16  GDT_UInt32 </span></span>
 <span><span class="co">#&gt;           0           1          14           2           3           4</span></span>
@@ -495,12 +521,6 @@
 <span><span class="co">#&gt;                    "DCAP_OPEN"                  "DCAP_CREATE" </span></span>
 <span><span class="co">#&gt;   DCAP_CREATE_MULTIDIMENSIONAL </span></span>
 <span><span class="co">#&gt; "DCAP_CREATE_MULTIDIMENSIONAL"</span></span></code></pre></div>
-<p>The dimensions of a dataset are S7 properties, read from GDAL each time rather than copied when the object was made:</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gdal_open.html">gdal_open</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata/test.tif"</span>, package <span class="op">=</span> <span class="st">"GDAL7"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">ds</span><span class="op">@</span><span class="va">raster_xsize</span>, <span class="va">ds</span><span class="op">@</span><span class="va">raster_ysize</span>, <span class="va">ds</span><span class="op">@</span><span class="va">raster_count</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 20 10  2</span></span>
-<span><span class="fu"><a href="reference/gdal_close.html">gdal_close</a></span><span class="op">(</span><span class="va">ds</span><span class="op">)</span></span></code></pre></div>
 <p>A few bindings call GDAL functions newer than the minimum GDAL7 requires. They always exist and always dispatch; calling one that the GDAL in use is too old for raises an error naming the release it needs. <code><a href="reference/gdal7_capabilities.html">gdal7_capabilities()</a></code> is how to ask first:</p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/gdal_release.html">gdal_release</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"release"</span><span class="op">]</span><span class="op">]</span></span>

@@ -1,6 +1,7 @@
 # GDAL7
 
-The goal of GDAL7 is to model the GDAL api in R via SWIG.
+The goal of GDAL7 is to model the GDAL API in R, generated from GDAL’s
+own SWIG interface definitions and bound with cpp11 and S7.
 
 ## Installation
 
@@ -14,10 +15,9 @@ remotes::install_github("rgdal-dev/GDAL7")
 
 Or from a clone:
 
-``` r
-
-# git clone https://github.com/rgdal-dev/GDAL7 && cd GDAL7
-system("R CMD INSTALL --no-staged-install .")
+``` sh
+git clone https://github.com/rgdal-dev/GDAL7
+R CMD INSTALL GDAL7
 ```
 
 The cpp11 registration files (`src/cpp11.cpp`, `R/cpp11.R`) are
@@ -109,7 +109,8 @@ with it. Reaching for one afterwards is an error rather than a crash:
 
 gdal_close(ds)
 band@xsize
-#> Error: This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed
+#> Error:
+#> ! This GDALRasterBand cannot be used: the GDALDataset it belongs to has been closed
 ```
 
 ### Reading pixels
@@ -279,6 +280,47 @@ c(raster@raster_xsize, raster@raster_ysize)
 gdal_close(ds)
 ```
 
+### Lazy arrays
+
+With the [altarr](https://github.com/hypertidy/altarr) package
+installed,
+[`as_altarr()`](https://rgdal-dev.github.io/GDAL7/reference/as_altarr.md)
+turns an array, a path and an array name, or a band into an ordinary R
+array whose values stay in the source until something reads them. Base R
+indexing and reductions read it a batch of chunks at a time, and each
+batch is one GDAL read, announced first with
+[`advise_read()`](https://rgdal-dev.github.io/GDAL7/reference/advise_read.md)
+so that Zarr decodes the batch’s chunks on GDAL’s threads at once. The
+chunks are the source’s own, which an array reports as `block_size`:
+
+``` r
+
+zarr <- system.file("extdata/multidim.zarr", package = "GDAL7")
+
+ds <- gdal_open(zarr, multidim = TRUE)
+open_mdarray(get_root_group(ds), "temperature")@block_size
+#> time  lat  lon 
+#>    1    4    5
+gdal_close(ds)
+
+x <- as_altarr(zarr, array = "temperature")
+dim(x)
+#> [1] 5 4 3
+
+x[2, 3, ]               # one cell, every time step
+#> [1] 12 32 52
+sum(x, na.rm = TRUE)
+#> [1] 1822
+altarr::altarr_stats(x)[["fetch_calls"]]
+#> [1] 3
+```
+
+Built from a path, the array saves with
+[`saveRDS()`](https://rdrr.io/r/base/readRDS.html) as a recipe of about
+a kilobyte, and reopens its source when it is first read in a new
+session. A band works the same way, and an overview is a band, so
+`as_altarr(get_overview(band, 1))` is a lazy view of a reduced level.
+
 ### Vector data
 
 A whole layer arrives as a data frame in one call, through the
@@ -378,8 +420,8 @@ options[options$name %in% c("COMPRESS", "TILED", "BLOCKXSIZE"),
         c("name", "type", "default")]
 #>          name          type default
 #> 1    COMPRESS string-select    <NA>
-#> 16      TILED       boolean      NO
-#> 20 BLOCKXSIZE           int     256
+#> 20      TILED       boolean      NO
+#> 24 BLOCKXSIZE           int     256
 
 options$choices[[which(options$name == "COMPRESS")]][1:6]
 #> [1] "NONE"      "LZW"       "PACKBITS"  "JPEG"      "CCITTRLE"  "CCITTFAX3"
@@ -398,7 +440,8 @@ validate_creation_options("GTiff", c(COMPRES = "DEFLATE"))
 
 gdal_create(tempfile(fileext = ".tif"), 4, 4,
             options = c(COMPRESS = "NOT_A_CODEC"))
-#> Error: The GTiff driver does not take these creation options: 'NOT_A_CODEC' is an unexpected value for COMPRESS creation option of type string-select.
+#> Error:
+#> ! The GTiff driver does not take these creation options: 'NOT_A_CODEC' is an unexpected value for COMPRESS creation option of type string-select.
 ```
 
 [`gdal_create_copy()`](https://rgdal-dev.github.io/GDAL7/reference/gdal_create_copy.md)
@@ -434,14 +477,14 @@ driver manager:
 # an existing one.
 drivers <- gdal_drivers(c("DCAP_RASTER", "DCAP_CREATE"))
 nrow(drivers)
-#> [1] 5
+#> [1] 36
 head(drivers[c("short_name", "copy", "vsi", "extensions")], 5)
-#>   short_name  copy   vsi    extensions
-#> 1      GTiff  TRUE  TRUE      tif tiff
-#> 2        VRT  TRUE  TRUE           vrt
-#> 3        MEM FALSE FALSE          <NA>
-#> 4       GPKG  TRUE  TRUE gpkg gpkg.zip
-#> 5       Zarr  TRUE  TRUE          zarr
+#>   short_name  copy   vsi extensions
+#> 1      GTiff  TRUE  TRUE   tif tiff
+#> 2        VRT  TRUE  TRUE        vrt
+#> 3       NITF  TRUE  TRUE        ntf
+#> 4        HFA  TRUE  TRUE        img
+#> 5        MEM FALSE FALSE       <NA>
 ```
 
 ### Virtual file systems
@@ -587,17 +630,6 @@ gdal_string_constants("DCAP_")[1:3]
 #>                    "DCAP_OPEN"                  "DCAP_CREATE" 
 #>   DCAP_CREATE_MULTIDIMENSIONAL 
 #> "DCAP_CREATE_MULTIDIMENSIONAL"
-```
-
-The dimensions of a dataset are S7 properties, read from GDAL each time
-rather than copied when the object was made:
-
-``` r
-
-ds <- gdal_open(system.file("extdata/test.tif", package = "GDAL7"))
-c(ds@raster_xsize, ds@raster_ysize, ds@raster_count)
-#> [1] 20 10  2
-gdal_close(ds)
 ```
 
 A few bindings call GDAL functions newer than the minimum GDAL7
