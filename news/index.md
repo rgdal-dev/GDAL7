@@ -2,6 +2,14 @@
 
 ## GDAL7 0.1.0
 
+### Overview levels count from 1
+
+- `get_overview(band, level)` numbers levels from 1, so a level is its
+  row in `band@overview_sizes`, and level 0 is the band itself at full
+  resolution (GDAL’s -1). The argument was `index` and zero-based.
+  GDAL’s own strings, such as the `OVERVIEW_LEVEL` open option, keep
+  GDAL’s numbering.
+
 ### Chunked reads and lazy arrays
 
 - A multidimensional array has a `block_size` property: the format’s own

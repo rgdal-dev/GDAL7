@@ -35,6 +35,11 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="gdal7-010">GDAL7 0.1.0<a class="anchor" aria-label="anchor" href="#gdal7-010"></a></h2>
 <div class="section level3">
+<h3 id="overview-levels-count-from-0-1-0">Overview levels count from 1<a class="anchor" aria-label="anchor" href="#overview-levels-count-from-0-1-0"></a></h3>
+<ul><li>
+<code>get_overview(band, level)</code> numbers levels from 1, so a level is its row in <code>band@overview_sizes</code>, and level 0 is the band itself at full resolution (GDAL’s -1). The argument was <code>index</code> and zero-based. GDAL’s own strings, such as the <code>OVERVIEW_LEVEL</code> open option, keep GDAL’s numbering.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="chunked-reads-and-lazy-arrays-0-1-0">Chunked reads and lazy arrays<a class="anchor" aria-label="anchor" href="#chunked-reads-and-lazy-arrays-0-1-0"></a></h3>
 <ul><li><p>A multidimensional array has a <code>block_size</code> property: the format’s own chunk shape, in GDAL’s dimension order and named like <code>dimensions</code>, with 0 for a dimension the format does not chunk along.</p></li>
 <li><p><code><a href="../reference/advise_read.html">advise_read()</a></code> tells the driver what the next reads will cover, for an array (<code>start</code>, <code>count</code>), a band or a dataset (<code>window</code>, <code>out_size</code>, <code>bands</code>). Zarr then decodes every chunk of the slice on <code>GDAL_NUM_THREADS</code> threads at once instead of one after another; netCDF reads the slice in one call; a driver with nothing to prepare does nothing. <code>options</code> passes <code>NUM_THREADS</code> and <code>CACHE_SIZE</code> through.</p></li>
