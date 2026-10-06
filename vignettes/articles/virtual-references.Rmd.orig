@@ -1,0 +1,238 @@
+---
+title: "One array, two virtualisations: mosaic VRT and virtual references"
+output:
+  rmarkdown::html_document:
+    # -smart keeps pandoc from turning ASCII quotes and dashes into their
+    # typographic forms.
+    md_extensions: -smart
+---
+
+<!--
+virtual-references.Rmd is generated from virtual-references.Rmd.orig by
+data-raw/knit-virtual-references-article.R. Edit the .orig file, then knit it
+with network access to thredds.nci.org.au and raw.githubusercontent.com,
+against a GDAL with the netCDF, Zarr and Parquet drivers.
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.path = "virtual-references-", fig.width = 8,
+                      fig.height = 4, dpi = 120)
+```
+
+A model run is usually published as many files: one per month, each holding
+that month's days of a four-dimensional array. To analyse the run, those files
+have to be seen as the one array they were cut from. There are two ways to do
+that without copying any data, and GDAL reads both:
+
+* a **mosaic**: a multidimensional VRT, written by `gdal mdim mosaic`, that
+  says which file holds which part of the array and leaves GDAL to open the
+  files and read them with the netCDF driver;
+* **virtual references**: a Zarr store whose chunks are not stored but
+  pointed at, each as a URL, an offset and a length into one of the original
+  files. The pointers come from reading the files' internal chunk index once,
+  and GDAL reads them with the Zarr driver.
+
+Both end with a `GDALMDArray`, and the values are the same bytes. This article
+builds both for the same array and compares them. It follows the
+[virtualized](https://github.com/mdsumner/virtualized) repository, which holds
+virtual references for the Bluelink reanalysis.
+
+## The data
+
+[BRAN2023](https://research.csiro.au/bluelink/global/reanalysis/) is CSIRO's
+Bluelink ocean reanalysis: a global 0.1 degree ocean model run, daily. Its
+potential temperature is published on NCI's THREDDS server as one netCDF-4 file
+per month, each `(Time, st_ocean, yt_ocean, xt_ocean)` with the days of the
+month, 51 depths, 1500 latitudes and 3600 longitudes, stored as packed 16-bit
+integers in chunks of one day, one depth and 300 by 300 cells.
+
+THREDDS serves each file over plain HTTP with range requests, so
+`/vsicurl/` reads just the parts of a file it needs:
+
+```{r data}
+library(GDAL7)
+
+thredds <- "https://thredds.nci.org.au/thredds/fileServer/gb6/BRAN/BRAN2023/daily"
+month_url <- function(year, month) {
+  sprintf("/vsicurl/%s/ocean_temp_%d_%02d.nc", thredds, year, month)
+}
+```
+
+Two settings keep GDAL from asking the server for things that are not there: a
+directory listing of THREDDS's file area, and the sidecar files (`.aux.xml`,
+`.aux` and the rest, in several cases) that GDAL looks for beside any file it
+opens and would otherwise ask THREDDS for, one request each.
+
+```{r config}
+gdal_config("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+gdal_config("GDAL_PAM_ENABLED", "NO")
+```
+
+## Route one: a mosaic VRT
+
+`gdal mdim mosaic` opens each input, checks that they hold the same array with
+the same dimensions, and works out where each one goes from its coordinate
+variables. Two months are enough to show it:
+
+```{r mosaic}
+inputs <- c(month_url(2024, 11), month_url(2024, 12))
+vrt <- file.path(tempdir(), "bran-temp.vrt")
+gdal_run("mdim mosaic", list(input = inputs, output = vrt, array = "temp"),
+         progress = FALSE)
+file.size(vrt)
+```
+
+The VRT is a few kilobytes of XML. It describes the array and says which file
+holds which days; there are no values in it:
+
+```{r mosaic-xml}
+xml <- readLines(vrt)
+trimws(grep("SourceFilename|DestSlab", xml, value = TRUE))
+```
+
+It opens like any other multidimensional dataset:
+
+```{r mosaic-open}
+mosaic_ds <- gdal_open(vrt, multidim = TRUE)
+mosaic <- open_mdarray(get_root_group(mosaic_ds), "temp")
+mosaic@dimensions
+mosaic@block_size
+```
+
+The mosaic needed every file opened once to be built: a range request or two
+per file for its header, which for the whole run is 180 files. After that, a
+read opens only the files it touches.
+
+## Route two: virtual references
+
+The virtualized repository holds a
+[kerchunk Parquet](https://fsspec.github.io/kerchunk/spec.html#parquet-references)
+reference store for the same variable, built with VirtualiZarr on NCI from the
+files in place, and then pointed at the THREDDS URLs. It covers the whole run,
+not two months. GDAL's Zarr driver reads a kerchunk Parquet store directly (it
+needs GDAL's Parquet driver to read the references), and GitHub serves the
+store's files over HTTP like any other:
+
+```{r refs-open}
+refs_store <- paste0("https://raw.githubusercontent.com/mdsumner/virtualized/",
+                     "refs/heads/main/remote/ocean_temp_2023.parq")
+refs_ds <- gdal_open(sprintf('ZARR:"/vsicurl/%s"', refs_store), multidim = TRUE)
+refs_root <- get_root_group(refs_ds)
+refs_root@mdarray_names
+
+refs <- open_mdarray(refs_root, "temp")
+refs@dimensions
+refs@block_size
+```
+
+The chunk shape is the netCDF files' own, because each Zarr chunk is one of
+their chunks. Opening read the store's metadata from GitHub and nothing from
+THREDDS.
+
+## The same bytes
+
+Pick a day, a depth and a latitude, and read every longitude, from each route.
+The two arrays cover different stretches of time, so the day is found by its
+value rather than its position. Time is in days since 1979-01-01, at noon:
+
+```{r day}
+day <- as.numeric(as.Date("2024-12-01") - as.Date("1979-01-01")) + 0.5
+mosaic_t <- match(day, mosaic@dimension_values$Time)
+refs_t <- match(day, refs@dimension_values$Time)
+c(mosaic = mosaic_t, refs = refs_t)
+```
+
+Depth 11 and latitude 101, counting from 1, are the `st_ocean = 10` and
+`yt_ocean = 100` of the xarray example in the virtualized README:
+
+```{r same-bytes}
+from_mosaic <- read_mdarray(mosaic, start = c(mosaic_t, 11, 101, 1),
+                            count = c(1, 1, 1, 3600))
+from_refs <- read_mdarray(refs, start = c(refs_t, 11, 101, 1),
+                          count = c(1, 1, 1, 3600))
+identical(as.vector(from_mosaic), as.vector(from_refs))
+```
+
+Identical, as they must be: both read the same compressed chunks of the same
+file, one through the netCDF library and one by byte range. The values are the
+stored 16-bit integers; the scale and offset turn them into degrees:
+
+```{r unpack}
+c(scale = refs@scale, offset = refs@offset)
+celsius <- as.vector(from_refs) * refs@scale + refs@offset
+head(celsius)
+```
+
+The README's xarray read of the same cells gives `-1.54072672, -1.5329445,
+-1.52516228, ...`.
+
+## What differs
+
+The values do not, and neither does the chunk shape. The rest does.
+
+**What reading costs.** A read through the mosaic opens the netCDF files it
+needs, which means reading each one's HDF5 header and chunk index over HTTP,
+and then reads the chunks. A read through the references looks the chunks up
+in the Parquet table and asks for their byte ranges directly; the HDF5 index
+was read once, when the references were made.
+
+**What building costs.** The mosaic needs only GDAL and the files, and its
+build reads every file's header. The references need a tool that understands
+the file format's internals (VirtualiZarr or kerchunk in Python, or rhdf5 and
+GDAL as in the repository's `zarr/` stores) and a pass over every file.
+
+**Size.** The VRT grows by a few lines per file. The references are one row per
+chunk: for this variable that is 5479 days by 51 depths by 60 tiles, about 17
+million rows, which is why they are stored as Parquet rather than JSON.
+
+**Metadata.** The mosaic carries the netCDF driver's reading of each file, so
+its dimensions have types; the reference store has what was written into its
+Zarr metadata:
+
+```{r types}
+data.frame(name = mosaic@dimensions$name,
+           mosaic = mosaic@dimensions$type,
+           refs = refs@dimensions$type)
+```
+
+## As a map
+
+Either array is a `GDALMDArray`, so the rest of GDAL7 applies. A view takes one
+day at one depth, `advise_read()` fetches its 60 chunks on GDAL's threads, and
+`as_classic_dataset()` gives the slice a geotransform from its coordinates:
+
+```{r map}
+surface <- get_view(refs, sprintf("[%d,0,:,:]", refs_t - 1))
+advise_read(surface, start = c(1, 1), count = c(1500, 3600))
+sst <- read_mdarray(surface) * refs@scale + refs@offset
+dim(sst)
+
+grid <- as_classic_dataset(surface)
+grid@geotransform
+
+lon <- refs@dimension_values$xt_ocean
+lat <- refs@dimension_values$yt_ocean
+image(lon, lat, sst, asp = 1, useRaster = TRUE,
+      col = hcl.colors(64, "Spectral", rev = TRUE), xlab = "", ylab = "")
+title("BRAN2023 sea surface temperature, 2024-12-01")
+```
+
+Latitude in BRAN runs from south to north, so the first row of this raster is
+the southernmost and its pixel height is positive; `image()` takes the
+coordinates as they come.
+
+```{r close, include = FALSE}
+gdal_close(grid)
+gdal_close(mosaic_ds)
+gdal_close(refs_ds)
+```
+
+## Next
+
+The virtualized repository plans Icechunk stores for the same references.
+Icechunk keeps virtual chunk references natively, as a URL, an offset and a
+length per chunk, and adds versioning; GDAL reads them through its Icechunk
+driver, which turns the URLs into `/vsicurl/` and `/vsis3/` paths the same way.
+See [Icechunk](icechunk.html), and [Multidimensional arrays](multidim.html) for
+the functions used here.
