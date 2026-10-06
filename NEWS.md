@@ -3,6 +3,23 @@
 Functions and properties are named here as they are now. Stage 8 lists
 the names they replaced.
 
+## Icechunk
+
+* A new article, "Icechunk: versioned Zarr through GDAL", reads Icechunk
+  repositories with GDAL's Icechunk driver (GDAL 3.14 and later): branches and
+  tags in the connection string, `/vsiicechunk/`, and the AIFS and ERA5
+  repositories on S3. It is knitted ahead of time by
+  `data-raw/knit-icechunk-article.R`, since no CI GDAL has the driver yet.
+
+* `inst/extdata/temperature.icechunk` is a small Icechunk repository with two
+  commits on `main`, a tag and a branch, built by
+  `data-raw/make_icechunk_fixture.py`. Its tests skip where the driver is
+  missing.
+
+* `gdal_run()` returns the text of an algorithm whose result is a report
+  rather than a dataset, such as `"raster info"` or
+  `"driver icechunk list-branches"`. It returned NULL for these before.
+
 ## Overview levels count from 1
 
 * `get_overview(band, level)` numbers levels from 1, so a level is its row in

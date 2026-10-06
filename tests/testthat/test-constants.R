@@ -59,8 +59,11 @@ test_that("the capability table says what this build reaches", {
   expect_type(capabilities$available, "logical")
   expect_true(all(grepl("^[0-9]+\\.[0-9]+\\.[0-9]+$", capabilities$gdal)))
 
-  # Availability is not a guess: it is whether this GDAL is new enough.
-  running <- package_version(gdal_release()[["release"]])
+  # Availability is not a guess: it is whether this GDAL is new enough. A
+  # development build reports a release such as "3.14.0dev-af70584", which is
+  # compared on its leading number.
+  running <- package_version(sub("^([0-9.]*[0-9]).*$", "\\1",
+                                 gdal_release()[["release"]]))
   expect_identical(capabilities$available,
                    package_version(capabilities$gdal) <= running)
 })
