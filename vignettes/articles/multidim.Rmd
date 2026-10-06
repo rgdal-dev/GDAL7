@@ -1,0 +1,289 @@
+---
+title: "Multidimensional arrays"
+output:
+  rmarkdown::html_document:
+    # -smart keeps pandoc from turning ASCII quotes and dashes into their
+    # typographic forms.
+    md_extensions: -smart
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+GDAL has two models of a raster. The classic one is a stack of
+two-dimensional bands, and a netCDF or Zarr variable with a time or depth axis
+reaches it as hundreds of subdatasets or bands, with the axes flattened into
+names. The multidimensional model, added in GDAL 3.1, keeps the source's own
+shape: groups that hold arrays, arrays that have named dimensions, dimensions
+that have coordinate variables, and attributes everywhere.
+
+GDAL7 binds the multidimensional model directly, as S7 classes with properties,
+in the same way as the classic one. Nothing is translated through the classic
+model on the way, and nothing is read until it is asked for. This article walks
+through it with a small Zarr store that ships with the package, so every line
+below runs as written.
+
+```{r open}
+library(GDAL7)
+path <- system.file("extdata/multidim.zarr", package = "GDAL7")
+```
+
+## Opening: the same file, two models
+
+Opened the classic way, the Zarr store is a dataset whose array has become
+bands:
+
+```{r classic}
+classic <- gdal_open(path)
+classic@raster_count
+gdal_close(classic)
+```
+
+Opened with `multidim = TRUE`, it is a tree. The root group is the way in:
+
+```{r multidim}
+ds <- gdal_open(path, multidim = TRUE)
+root <- get_root_group(ds)
+root
+root@mdarray_names
+root@group_names
+```
+
+A group's arrays are opened by name, and a deeper one by its full path from the
+root, such as `"/ocean/temperature"`. Subgroups are opened with `open_group()`.
+
+```{r array}
+temperature <- open_mdarray(root, "temperature")
+temperature
+```
+
+## What an array knows about itself
+
+Everything an array says about itself is a property, read from GDAL when it is
+asked for. `mdarray_info()` collects the lot in one call:
+
+```{r info}
+str(mdarray_info(temperature))
+```
+
+The dimensions are a data frame, in GDAL's order, slowest varying first. That
+is the order the format declares them in and the order `gdal mdim info` prints:
+
+```{r dimensions}
+temperature@dimensions
+```
+
+`type` and `direction` are what the format says about each dimension, and they
+are how GDAL picks the X and Y of a raster later on. `indexed` says whether the
+dimension has a coordinate variable, and `dimension_values` reads them all:
+
+```{r dimension-values}
+temperature@dimension_values
+```
+
+`coordinate_variables` is the related, more general question: which arrays the
+format names as this one's coordinates. For a regular grid the answer is the
+same arrays; for a swath it is two-dimensional latitude and longitude arrays
+that index no dimension.
+
+```{r coordinate-variables}
+vapply(temperature@coordinate_variables, function(x) x@name, "")
+```
+
+The array's own annotations are in `attributes`, and the ones GDAL interprets
+have properties of their own:
+
+```{r attributes}
+temperature@attributes
+temperature@unit_type
+temperature@nodata_value
+c(scale = temperature@scale, offset = temperature@offset)
+```
+
+## Reading
+
+`read_mdarray()` with no arguments reads the whole array:
+
+```{r read-all}
+values <- read_mdarray(temperature)
+dim(values)
+values[, , 1]
+```
+
+The result's `dim` is the reverse of the array's dimension order, so a
+`(time, lat, lon)` array reads into `[lon, lat, time]`. That is the order ncdf4
+and RNetCDF give, and it is the order the values arrive in from GDAL, so the
+buffer becomes the R array with nothing moved. The names on `dim` say which is
+which.
+
+The nodata value, here -999, has become `NA`; `nodata_as_na = FALSE` keeps it.
+The scale and offset are **not** applied: the values are the stored ones, and
+the physical ones are a step away:
+
+```{r scale}
+range(values * temperature@scale + temperature@offset, na.rm = TRUE)
+```
+
+A read can be a hyperslab: an origin, a count along each dimension, and a step.
+All three are in GDAL's dimension order, with the origin counting from 1 as R
+does. The second time step, every second longitude:
+
+```{r slab}
+read_mdarray(temperature, start = c(2, 1, 1), count = c(1, 4, 3),
+             step = c(1, 1, 2))
+```
+
+A negative step reads backwards. Latitude in this array runs from -40 to -43;
+reading it the other way round puts the south first:
+
+```{r backwards}
+read_mdarray(temperature, start = c(1, 4, 1), count = c(1, 4, 5),
+             step = c(1, -1, 1))
+```
+
+## Views
+
+A view is a slice, a reordering or a transposition in GDAL's own syntax,
+modelled on numpy's. It reads nothing; it is another `GDALMDArray`, with the
+same properties, that reads through to the original. Indices in a view count
+from 0, as they do in GDAL:
+
+```{r views}
+first <- get_view(temperature, "[0,:,:]")
+first@dimensions
+
+flipped <- get_view(temperature, "[:,::-1,:]")
+flipped@dimensions$name
+flipped@dimension_values[[2]]
+```
+
+A sliced dimension is renamed to say what was done to it, as above, and its
+coordinate variable is sliced with it.
+
+A view can be taken of a view, and a dimension is dropped by indexing it with a
+single number, as `[0,:,:]` does to time. A range is `start:stop:step`, with
+`stop` excluded as in Python, so `"[:,0:2,1:5:2]"` is the first two latitudes
+and every second longitude from the second.
+
+## Back to a classic raster
+
+A two-dimensional array is a raster, and `as_classic_dataset()` turns one into
+a `GDALDataset`, so the rest of the package applies to it. The geotransform is
+worked out from the coordinate variables:
+
+```{r classic-dataset}
+slice <- as_classic_dataset(first)
+slice@geotransform
+c(slice@raster_xsize, slice@raster_ysize)
+matrix(read_raster(slice)[[1]], slice@raster_xsize)
+```
+
+`read_raster()` gives the band's stored values, nodata included, in the order
+`read_mdarray()` would: X fastest.
+
+X and Y are chosen from the dimensions' `type`, falling back to the last two
+dimensions; `x_dim` and `y_dim` say otherwise. The reverse direction is
+`as_mdarray()`, which presents a classic band as a two-dimensional array.
+
+## Chunks
+
+A chunked store is fastest read a whole chunk at a time, and `block_size` is the
+chunk shape, in GDAL's order. This store has one time step per chunk:
+
+```{r block-size}
+temperature@block_size
+```
+
+`advise_read()` tells the driver what is about to be read. For Zarr that means
+every chunk in the slice is fetched and decoded on GDAL's threads at once,
+rather than one after the other as the read reaches it. It matters most for a
+remote store, where each chunk is a request:
+
+```{r advise}
+advise_read(temperature, start = c(1, 1, 1), count = c(3, 4, 5))
+dim(read_mdarray(temperature, start = c(1, 1, 1), count = c(3, 4, 5)))
+```
+
+With the altarr package installed, `as_altarr()` makes a lazy R array that reads
+chunks only when they are indexed, in batches, with each batch advised first.
+Built from a path, it keeps the path and opens the dataset on its first read,
+in this session or a later one:
+
+```{r altarr, eval = requireNamespace("altarr", quietly = TRUE)}
+lazy <- as_altarr(path, array = "temperature")
+dim(lazy)
+lazy[, , 3]
+```
+
+```{r close, include = FALSE}
+gdal_close(slice)
+```
+
+## GDAL's multidimensional programs
+
+`gdal mdim info`, `convert`, `mosaic` and the rest are algorithms in GDAL's
+registry, and `gdal_run()` runs them; `gdal_algorithms("mdim")` lists what this
+GDAL has. They need GDAL 3.11 for the registry and 3.12 for `mosaic`, so the
+code here asks first:
+
+```{r has-mosaic}
+has_mosaic <- gdal_has_algorithms() && "mosaic" %in% gdal_algorithms("mdim")
+has_mosaic
+```
+
+```{r mdim-info, eval = has_mosaic}
+report <- gdal_run("mdim info", list(input = path), progress = FALSE)
+cat(substr(report, 1, 300), "...\n")
+```
+
+A mosaic puts back together an array that was split into files, which is how a
+long model run is usually published: one file per month, or per day. To show it
+here the store is first split into one Zarr per time step with
+`gdal mdim convert`:
+
+```{r split, eval = has_mosaic}
+dir <- tempfile()
+dir.create(dir)
+pieces <- character(0)
+for (t in 0:2) {
+  piece <- file.path(dir, sprintf("step%d.zarr", t))
+  gdal_run("mdim convert", list(
+    input = path, output = piece, "output-format" = "Zarr",
+    subset = sprintf("time(%d,%d)", t, t)
+  ), progress = FALSE)
+  pieces <- c(pieces, piece)
+}
+basename(pieces)
+```
+
+`gdal mdim mosaic` then writes a multidimensional VRT that stitches them back
+together along `time`. The VRT is a small XML file that holds no values, only
+where each piece goes:
+
+```{r mosaic, eval = has_mosaic}
+vrt <- file.path(dir, "mosaic.vrt")
+gdal_run("mdim mosaic", list(input = pieces, output = vrt), progress = FALSE)
+
+mosaic <- gdal_open(vrt, multidim = TRUE)
+stitched <- open_mdarray(get_root_group(mosaic), "temperature")
+stitched@dimensions
+identical(read_mdarray(stitched), values)
+```
+
+The same values, read from three files through one array, and the files were
+not copied: the VRT points at them. The same can be done with files on a web
+server or object storage through `/vsicurl/` or `/vsis3/` paths, which is how a
+model run published one file per month becomes one array.
+
+```{r cleanup, include = FALSE}
+gdal_close(ds)
+if (exists("mosaic")) gdal_close(mosaic)
+```
+
+## Further
+
+* [Icechunk](icechunk.html): versioned Zarr repositories, with branches and
+  tags, through GDAL's Icechunk driver.
+* GDAL's own documentation of the model:
+  <https://gdal.org/en/latest/user/multidim_raster_data_model.html>.
