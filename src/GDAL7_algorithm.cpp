@@ -557,6 +557,29 @@ SEXP GDAL7_algorithm_run(cpp11::strings path, cpp11::list args, bool progress) {
                              /* by_reference = */ true);
     }
 
+    // An algorithm whose result is text rather than a dataset (an info report,
+    // a driver's list of branches) leaves it in its output-string argument.
+    // Looked up by walking the names, because asking GDAL for an argument it
+    // does not have raises an error.
+    std::string text;
+    bool has_text = false;
+    for (R_xlen_t i = 0; i < arg_names.size() && !found_output; i++) {
+        const std::string name = cpp11::r_string(arg_names[i]);
+        if (name != "output-string") {
+            continue;
+        }
+        Arg arg(GDALAlgorithmGetArg(h, name.c_str()));
+        if (arg && GDALAlgorithmArgGetType(arg.get()) == GAAT_STRING &&
+            GDALAlgorithmArgIsOutput(arg.get())) {
+            const char* value = GDALAlgorithmArgGetAsString(arg.get());
+            if (value != nullptr && value[0] != '\0') {
+                text = value;
+                has_text = true;
+            }
+        }
+        break;
+    }
+
     PROTECT(result);
     const bool finalized = GDALAlgorithmFinalize(h);
     if (!finalized) {
@@ -564,6 +587,12 @@ SEXP GDAL7_algorithm_run(cpp11::strings path, cpp11::list args, bool progress) {
         err.stop("The algorithm ran but could not finish writing its result");
     }
     UNPROTECT(1);
+
+    if (has_text) {
+        cpp11::strings out = gdal7::chr(text.c_str());
+        err.flush();
+        return out;
+    }
 
     if (result == R_NilValue && !output_name.empty()) {
         cpp11::strings out = gdal7::chr(output_name.c_str());

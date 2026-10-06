@@ -1,0 +1,307 @@
+---
+title: "Icechunk: versioned Zarr through GDAL"
+output:
+  rmarkdown::html_document:
+    # -smart keeps pandoc from turning ASCII quotes and dashes into their
+    # typographic forms.
+    md_extensions: -smart
+---
+
+<!--
+icechunk.Rmd is generated from icechunk.Rmd.orig by
+data-raw/knit-icechunk-article.R. Edit the .orig file, then knit it against a
+GDAL that has the Icechunk driver (3.14 and later) with network access.
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.path = "icechunk-", fig.width = 8, fig.height = 4.5,
+                      dpi = 120)
+```
+
+[Icechunk](https://icechunk.io) is a transactional storage engine for Zarr.
+A Zarr store is a tree of JSON documents and chunk files; an Icechunk
+repository holds the same tree, but every change to it is a commit, and the
+repository keeps branches and tags that point at commits the way git does. A
+reader always sees one complete snapshot, never a half-finished write, and a
+tag or a commit is a permanent name for the data as it was.
+
+GDAL reads Icechunk from version 3.14, with a driver that needs nothing beyond
+the Zarr driver and libzstd: no Rust and no Python. The background, and the
+same stores read from Python, terra, sf and gdalraster, are in the post
+[Icechunk is coming](https://www.hypertidy.org/posts/2026-06-26_icechunk-is-coming/).
+This article is the GDAL7 side of it.
+
+## Does this GDAL have the driver?
+
+A driver is there or not depending on how GDAL was built, so ask the library
+rather than the version number:
+
+```{r has-driver}
+library(GDAL7)
+drivers <- gdal_drivers()
+drivers[drivers$short_name %in% c("Zarr", "Icechunk"), ]
+```
+
+Everything below needs the driver. Code that has to run anywhere can make the
+same test and step around it:
+
+```{r gate, eval = FALSE}
+has_icechunk <- "Icechunk" %in% gdal_drivers()$short_name
+```
+
+To Icechunk, GDAL is a multidimensional driver like Zarr or netCDF, so a
+repository is opened with `multidim = TRUE` and read with the functions in the
+[Multidimensional](../reference/index.html#multidimensional) section of the
+reference.
+
+## A repository with some history
+
+GDAL7 ships a small repository, built by `data-raw/make_icechunk_fixture.py`
+with the icechunk Python library (GDAL reads Icechunk but does not write it).
+It holds one array, `temperature`, over 3 time steps on a 10 degree global
+grid, and it has a history:
+
+* on `main`, a first commit, tagged `v1`, and a second commit that raises the
+  second time step by 100;
+* a branch `experiment`, which starts from `v1` and lowers every value by 50.
+
+The repository is a directory, and that is all GDAL needs to be given:
+
+```{r open-local}
+repo <- system.file("extdata/temperature.icechunk", package = "GDAL7")
+
+ds <- gdal_open(repo, multidim = TRUE)
+root <- get_root_group(ds)
+root@mdarray_names
+
+temperature <- open_mdarray(root, "temperature")
+temperature@dimensions
+temperature@block_size
+temperature@unit_type
+```
+
+`dimensions` and `block_size` are in GDAL's order, slowest varying first.
+`read_mdarray()` gives `dim` the other way round, the order ncdf4 and RNetCDF
+use, which is also the order the values arrive in:
+
+```{r read-local}
+values <- read_mdarray(temperature)
+dim(values)
+temperature@dimension_values$lat
+```
+
+## Branches, tags and time travel
+
+What GDAL opens by default is the head of `main`. The branches and tags are
+listed by the driver's own algorithms, `gdal driver icechunk list-branches` and
+`list-tags` on the command line. `gdal_run()` runs them (it needs GDAL's
+algorithm API, which Icechunk-capable builds have) and gives back their JSON:
+
+```{r refs}
+branches <- gdal_run("driver icechunk list-branches", list(input = repo))
+jsonlite::fromJSON(branches)[, c("name", "commit_message")]
+
+tags <- gdal_run("driver icechunk list-tags", list(input = repo))
+jsonlite::fromJSON(tags)[, c("name", "commit_message")]
+```
+
+Another branch or a tag is chosen in the connection string: prefix the path
+with `ICECHUNK:` and add `?branch=` or `?tag=`. A small helper keeps the
+reads short:
+
+```{r refs-read}
+read_temperature <- function(dsn) {
+  ds <- gdal_open(dsn, multidim = TRUE)
+  on.exit(gdal_close(ds))
+  read_mdarray(open_mdarray(get_root_group(ds), "temperature"))
+}
+
+v1 <- read_temperature(paste0("ICECHUNK:", repo, "?tag=v1"))
+experiment <- read_temperature(paste0("ICECHUNK:", repo, "?branch=experiment"))
+```
+
+`main` differs from `v1` in the second time step only, and `experiment`
+differs from it everywhere:
+
+```{r refs-diff}
+apply(values - v1, 3, function(d) round(range(d), 4))
+apply(experiment - v1, 3, function(d) round(range(d), 4))
+```
+
+A tag never moves, and that makes it the right thing to build anything
+long-lived on. `as_altarr()` (with the altarr package installed) makes a lazy
+array that keeps the path and reopens it in a new session; altarr asks that the
+source not change underneath it, and an Icechunk tag is a promise that it will
+not:
+
+```{r altarr, eval = requireNamespace("altarr", quietly = TRUE)}
+lazy <- as_altarr(paste0("ICECHUNK:", repo, "?tag=v1"), array = "temperature")
+dim(lazy)
+mean(lazy[, , 2])
+```
+
+A branch is the opposite: the same string names whatever its head is when it is
+opened.
+
+## As an ordinary raster
+
+A two-dimensional slice is a raster, and `as_classic_dataset()` turns it into a
+`GDALDataset` with a geotransform worked out from the coordinate variables, so
+the rest of GDAL7 applies:
+
+```{r classic}
+second <- as_classic_dataset(get_view(temperature, "[1,:,:]"))
+second@geotransform
+c(second@raster_xsize, second@raster_ysize)
+```
+
+## Underneath: /vsiicechunk/
+
+The repository on disk is not a Zarr store. It has a `repo` file, and
+directories of snapshots, manifests, transactions and chunks whose names are
+identifiers rather than array paths:
+
+```{r on-disk}
+setdiff(vfs_list(repo), c(".", ".."))
+```
+
+The driver works by presenting the Zarr store a snapshot describes as a
+virtual file system, `/vsiicechunk/`, and handing that to the Zarr driver. The
+same file system can be listed and read directly, which is the low-level way to
+see what a repository holds. Braces mark where the repository's own path ends:
+
+```{r vsiicechunk}
+logical <- sprintf("/vsiicechunk/{%s}", repo)
+vfs_list(logical)
+
+meta <- jsonlite::fromJSON(rawToChar(
+  vfs_read_file(paste0(logical, "/temperature/zarr.json"))
+))
+meta$shape
+meta$codecs$name
+```
+
+`vfs_read_file()` gives raw bytes, so the JSON is turned into text first.
+
+## A forecast in the cloud
+
+The repositories worth reading are on object storage. dynamical.org publishes
+ECMWF's AIFS forecasts as an Icechunk repository on S3, open to anonymous
+reads. GDAL's S3 settings are configuration options; `with_gdal_config()` sets
+them for one block and puts them back afterwards, while `gdal_config()` sets
+them for the session, which is what is done here:
+
+```{r remote-config}
+gdal_config("AWS_NO_SIGN_REQUEST", "YES")
+gdal_config("AWS_REGION", "us-west-2")
+
+aifs <- "/vsis3/dynamical-ecmwf-aifs-single/ecmwf-aifs-single-forecast/v0.1.0.icechunk"
+```
+
+The repository has one branch, and its last commit says when it was updated:
+
+```{r remote-branches}
+jsonlite::fromJSON(gdal_run("driver icechunk list-branches", list(input = aifs)))
+```
+
+Opening it reads the repository file, a snapshot and the array metadata, not
+the data:
+
+```{r remote-open}
+ds <- gdal_open(aifs, multidim = TRUE)
+root <- get_root_group(ds)
+root@mdarray_names
+
+t2m <- open_mdarray(root, "temperature_2m")
+t2m@dimensions
+t2m@block_size
+```
+
+A chunk is one forecast run, all 61 lead times, on a 241 by 240 tile, so a
+whole globe at one lead time touches 18 chunks. `init_time` is in seconds since
+1970:
+
+```{r remote-times}
+init <- t2m@dimension_values$init_time
+latest <- length(init)
+run <- format(as.POSIXct(init[latest], origin = "1970-01-01", tz = "UTC"),
+              "%Y-%m-%d %H:%M UTC")
+run
+```
+
+`advise_read()` tells the Zarr driver what is coming, so it fetches and decodes
+those chunks on GDAL's threads at once, and the read that follows is served
+from them:
+
+```{r remote-read}
+start <- c(latest, 1, 1, 1)
+count <- c(1, 1, 721, 1440)
+advise_read(t2m, start = start, count = count)
+analysis <- read_mdarray(t2m, start = start, count = count)
+dim(analysis)
+range(analysis)
+```
+
+The values are `[longitude, latitude]`, with latitude running from north to
+south as it is stored, so `image()` needs it reversed:
+
+```{r remote-plot}
+lon <- t2m@dimension_values$longitude
+lat <- t2m@dimension_values$latitude
+grid <- analysis[, , 1, 1]
+image(lon, rev(lat), grid[, rev(seq_along(lat))], asp = 1,
+      col = hcl.colors(64, "Spectral", rev = TRUE),
+      xlab = "", ylab = "", useRaster = TRUE)
+title(paste(t2m@attributes$long_name, run))
+```
+
+```{r remote-close, include = FALSE}
+gdal_close(ds)
+```
+
+## Codecs are a build question
+
+Not every repository opens on every build. Earthmover's ERA5 repository (the
+example in [this gist](https://gist.github.com/mdsumner/2aa9ba53a9272c82de72b62f6f19ce1c))
+is in another region, still anonymous, and it opens and lists fine:
+
+```{r era5}
+era5 <- "/vsis3/earthmover-icechunk-era5/icechunkV2"
+with_gdal_config(c(AWS_REGION = "us-east-1"), {
+  print(vfs_list(sprintf("/vsiicechunk/{%s}/pressure/spatial", era5)))
+  era5_ds <- gdal_open(era5, multidim = TRUE)
+  t_era5 <- open_mdarray(get_root_group(era5_ds), "/pressure/spatial/t")
+})
+is.null(t_era5)
+```
+
+but its arrays are compressed with pcodec, which GDAL supports only when it is
+built with `-DGDAL_USE_PCODEC=ON` and a Rust toolchain. The warning says so; the
+answer is a GDAL built with it, not anything in R. The array's codecs are in
+its `zarr.json` for anyone who wants to check before opening:
+
+```{r era5-codecs}
+with_gdal_config(c(AWS_REGION = "us-east-1"), {
+  meta <- vfs_read_file(sprintf("/vsiicechunk/{%s}/pressure/spatial/t/zarr.json", era5))
+})
+jsonlite::fromJSON(rawToChar(meta))$codecs$name
+```
+
+## Credentials, branches and other options
+
+* A private bucket needs credentials instead of `AWS_NO_SIGN_REQUEST`:
+  `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or a profile with
+  `AWS_PROFILE`, and `AWS_S3_ENDPOINT` for storage that is not AWS. These are
+  all GDAL configuration options, set with `gdal_config()` or
+  `with_gdal_config()`; GDAL also reads them from the environment.
+* `ICECHUNK:<path>?branch=<name>` and `ICECHUNK:<path>?tag=<name>` choose what
+  is read. Adding `&ignore-timestamp-etag=yes` skips the check that a chunk
+  file has not changed since it was referenced.
+* Virtual chunk references, which point into netCDF or HDF5 files elsewhere
+  rather than holding the bytes, are followed through GDAL's own file systems
+  (`https://` becomes `/vsicurl/https://`, `s3://` becomes `/vsis3/`), so the
+  same configuration options apply to them.
+
+The driver's documentation is at
+<https://gdal.org/en/latest/drivers/raster/icechunk.html>.

@@ -145,6 +145,18 @@ test_that("an output file is written, closed and readable straight away", {
   expect_match(ds@projection, "Pseudo-Mercator")
 })
 
+test_that("a report comes back as its text", {
+  skip_if_no_algorithms()
+
+  report <- gdal_run("raster info", list(
+    input = test_tif(), "output-format" = "json"
+  ), progress = FALSE)
+
+  expect_type(report, "character")
+  expect_length(report, 1L)
+  expect_match(report, '"size":')
+})
+
 test_that("a pipeline runs, step by step, into memory", {
   skip_if_no_algorithms()
 
