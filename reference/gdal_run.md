@@ -30,9 +30,9 @@ gdal_run(path, args = list(), progress = interactive())
 ## Value
 
 Invisibly: the output GDALDataset for an in-memory result, the path for
-one written to a file, or NULL for an algorithm that produces no dataset
-at all. A file has been written and closed by the time this returns, so
-it can be opened straight away.
+one written to a file, the text of a report, or NULL for an algorithm
+that produces neither. A file has been written and closed by the time
+this returns, so it can be opened straight away.
 
 ## Details
 
@@ -40,7 +40,10 @@ What comes back depends on where the algorithm was told to put its
 result. Given an output format of `"MEM"` and an empty output name it
 works in memory and hands back the GDALDataset, with nothing touching
 disk. Given a file name it writes the file, closes it properly, and
-hands back the path.
+hands back the path. An algorithm whose result is a report rather than a
+dataset (`"raster info"`, `"mdim info"`, a driver's own
+`"driver icechunk list-branches"`) hands back its text, which for a JSON
+report is ready for a JSON parser.
 
 A long algorithm draws a progress bar and can be interrupted with
 Ctrl-C. The interrupt is passed to GDAL, which stops at the next step it

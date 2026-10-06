@@ -937,3 +937,9 @@ them for one expression and restores them afterwards.
 - [`gdal_string_constants()`](https://rgdal-dev.github.io/GDAL7/reference/gdal_string_constants.md)
   : GDAL's string constants
 
+# Articles
+
+### All vignettes
+
+- [Icechunk: versioned Zarr through
+  GDAL](https://rgdal-dev.github.io/GDAL7/articles/icechunk.md):

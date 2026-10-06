@@ -22,6 +22,10 @@ string for GDAL to open."></head><body>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/icechunk.html">Icechunk: versioned Zarr through GDAL</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -71,8 +75,8 @@ default.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Invisibly: the output GDALDataset for an in-memory result, the path
-for one written to a file, or NULL for an algorithm that produces no
-dataset at all. A file has been written and closed by the time this
+for one written to a file, the text of a report, or NULL for an algorithm
+that produces neither. A file has been written and closed by the time this
 returns, so it can be opened straight away.</p>
     </div>
     <div class="section level2">
@@ -80,7 +84,9 @@ returns, so it can be opened straight away.</p>
     <p>What comes back depends on where the algorithm was told to put its result.
 Given an output format of <code>"MEM"</code> and an empty output name it works in
 memory and hands back the GDALDataset, with nothing touching disk. Given a
-file name it writes the file, closes it properly, and hands back the path.</p>
+file name it writes the file, closes it properly, and hands back the path.
+An algorithm whose result is a report rather than a dataset (<code>"raster info"</code>, <code>"mdim info"</code>, a driver's own <code>"driver icechunk list-branches"</code>)
+hands back its text, which for a JSON report is ready for a JSON parser.</p>
 <p>A long algorithm draws a progress bar and can be interrupted with Ctrl-C.
 The interrupt is passed to GDAL, which stops at the next step it checks, so
 it takes effect at the algorithm's own granularity rather than instantly.</p>

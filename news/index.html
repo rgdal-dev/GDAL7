@@ -16,6 +16,10 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/icechunk.html">Icechunk: versioned Zarr through GDAL</a></li>
+  </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -35,6 +39,12 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="gdal7-010">GDAL7 0.1.0<a class="anchor" aria-label="anchor" href="#gdal7-010"></a></h2>
 <p>Functions and properties are named here as they are now. Stage 8 lists the names they replaced.</p>
+<div class="section level3">
+<h3 id="icechunk-0-1-0">Icechunk<a class="anchor" aria-label="anchor" href="#icechunk-0-1-0"></a></h3>
+<ul><li><p>A new article, “Icechunk: versioned Zarr through GDAL”, reads Icechunk repositories with GDAL’s Icechunk driver (GDAL 3.14 and later): branches and tags in the connection string, <code>/vsiicechunk/</code>, and the AIFS and ERA5 repositories on S3. It is knitted ahead of time by <code>data-raw/knit-icechunk-article.R</code>, since no CI GDAL has the driver yet.</p></li>
+<li><p><code>inst/extdata/temperature.icechunk</code> is a small Icechunk repository with two commits on <code>main</code>, a tag and a branch, built by <code>data-raw/make_icechunk_fixture.py</code>. Its tests skip where the driver is missing.</p></li>
+<li><p><code><a href="../reference/gdal_run.html">gdal_run()</a></code> returns the text of an algorithm whose result is a report rather than a dataset, such as <code>"raster info"</code> or <code>"driver icechunk list-branches"</code>. It returned NULL for these before.</p></li>
+</ul></div>
 <div class="section level3">
 <h3 id="overview-levels-count-from-0-1-0">Overview levels count from 1<a class="anchor" aria-label="anchor" href="#overview-levels-count-from-0-1-0"></a></h3>
 <ul><li>
