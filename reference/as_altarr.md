@@ -6,7 +6,7 @@ yet. Base R indexing, [`sum()`](https://rdrr.io/r/base/sum.html),
 from GDAL as they need them, a batch of chunks at a time, and keep
 recent chunks in a cache. The object is made by the altarr package
 (`hypertidy/altarr`), which has to be installed; see
-[`altarr::altarr_contract`](https://rdrr.io/pkg/altarr/man/altarr_contract.html)
+[`altarr::altarr_contract`](https://hypertidy.github.io/altarr/reference/altarr_contract.html)
 for what base R reads lazily and what it materialises.
 
 ## Usage

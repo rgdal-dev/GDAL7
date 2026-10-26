@@ -35,6 +35,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/icechunk.html">Icechunk: versioned Zarr through GDAL</a></li>
+    <li><a class="dropdown-item" href="articles/multidim.html">Multidimensional arrays</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -296,7 +297,7 @@
 <span><span class="co">#&gt; [1] 12 32 52</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 1822</span></span>
-<span><span class="fu">altarr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/altarr/man/altarr_stats.html" class="external-link">altarr_stats</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">[[</span><span class="st">"fetch_calls"</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="fu">altarr</span><span class="fu">::</span><span class="fu"><a href="https://hypertidy.github.io/altarr/reference/altarr_stats.html" class="external-link">altarr_stats</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">[[</span><span class="st">"fetch_calls"</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="co">#&gt; [1] 3</span></span></code></pre></div>
 <p>Built from a path, the array saves with <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> as a recipe of about a kilobyte, and reopens its source when it is first read in a new session. A band works the same way, and an overview is a band, so <code>as_altarr(get_overview(band, 1))</code> is a lazy view of a reduced level.</p>
 </div>
