@@ -10,7 +10,8 @@ output:
 <!--
 virtual-references.Rmd is generated from virtual-references.Rmd.orig by
 data-raw/knit-virtual-references-article.R. Edit the .orig file, then knit it
-with network access to thredds.nci.org.au and raw.githubusercontent.com,
+with network access to thredds.nci.org.au and raw.githubusercontent.com, or
+at NCI with BRAN_DAILY and BRAN_REFS set (see the knit script),
 against a GDAL with the netCDF, Zarr and Parquet drivers.
 -->
 
@@ -47,22 +48,30 @@ per month, each `(Time, st_ocean, yt_ocean, xt_ocean)` with the days of the
 month, 51 depths, 1500 latitudes and 3600 longitudes, stored as packed 16-bit
 integers in chunks of one day, one depth and 300 by 300 cells.
 
-THREDDS serves each file over plain HTTP with range requests, so
-`/vsicurl/` reads just the parts of a file it needs:
+THREDDS serves each file over plain HTTP with range requests, so `/vsicurl/`
+reads just the parts of a file it needs. At NCI the same files are on disk
+under `/g/data/gb6/BRAN/BRAN2023/daily`, and nothing below changes but the
+directory, so it is read from the `BRAN_DAILY` environment variable with
+THREDDS as the default. It says where this article was built:
 
 ```{r data}
 library(GDAL7)
 
-thredds <- "https://thredds.nci.org.au/thredds/fileServer/gb6/BRAN/BRAN2023/daily"
-month_url <- function(year, month) {
-  sprintf("/vsicurl/%s/ocean_temp_%d_%02d.nc", thredds, year, month)
+bran <- Sys.getenv(
+  "BRAN_DAILY",
+  "/vsicurl/https://thredds.nci.org.au/thredds/fileServer/gb6/BRAN/BRAN2023/daily"
+)
+month_file <- function(year, month) {
+  sprintf("%s/ocean_temp_%d_%02d.nc", bran, year, month)
 }
+bran
 ```
 
-Two settings keep GDAL from asking the server for things that are not there: a
-directory listing of THREDDS's file area, and the sidecar files (`.aux.xml`,
-`.aux` and the rest, in several cases) that GDAL looks for beside any file it
-opens and would otherwise ask THREDDS for, one request each.
+Over THREDDS, two settings keep GDAL from asking the server for things that
+are not there: a directory listing of THREDDS's file area, and the sidecar
+files (`.aux.xml`, `.aux` and the rest, in several cases) that GDAL looks for
+beside any file it opens and would otherwise ask THREDDS for, one request each.
+On disk they cost nothing either way.
 
 ```{r config}
 gdal_config("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
@@ -76,7 +85,7 @@ the same dimensions, and works out where each one goes from its coordinate
 variables. Two months are enough to show it:
 
 ```{r mosaic}
-inputs <- c(month_url(2024, 11), month_url(2024, 12))
+inputs <- c(month_file(2024, 11), month_file(2024, 12))
 vrt <- file.path(tempdir(), "bran-temp.vrt")
 gdal_run("mdim mosaic", list(input = inputs, output = vrt, array = "temp"),
          progress = FALSE)
@@ -100,8 +109,8 @@ mosaic@dimensions
 mosaic@block_size
 ```
 
-The mosaic needed every file opened once to be built: a range request or two
-per file for its header, which for the whole run is 180 files. After that, a
+The mosaic needed every file opened once to be built: over THREDDS a range
+request or two per file for its header, which for the whole run is 180 files. After that, a
 read opens only the files it touches.
 
 ## Route two: virtual references
@@ -112,12 +121,17 @@ reference store for the same variable, built with VirtualiZarr on NCI from the
 files in place, and then pointed at the THREDDS URLs. It covers the whole run,
 not two months. GDAL's Zarr driver reads a kerchunk Parquet store directly (it
 needs GDAL's Parquet driver to read the references), and GitHub serves the
-store's files over HTTP like any other:
+store's files over HTTP like any other. At NCI, `BRAN_REFS` names a store whose
+references point at the files on disk instead, as the store was before its
+paths were renamed:
 
 ```{r refs-open}
-refs_store <- paste0("https://raw.githubusercontent.com/mdsumner/virtualized/",
-                     "refs/heads/main/remote/ocean_temp_2023.parq")
-refs_ds <- gdal_open(sprintf('ZARR:"/vsicurl/%s"', refs_store), multidim = TRUE)
+refs_store <- Sys.getenv(
+  "BRAN_REFS",
+  paste0("/vsicurl/https://raw.githubusercontent.com/mdsumner/virtualized/",
+         "refs/heads/main/remote/ocean_temp_2023.parq")
+)
+refs_ds <- gdal_open(sprintf('ZARR:"%s"', refs_store), multidim = TRUE)
 refs_root <- get_root_group(refs_ds)
 refs_root@mdarray_names
 
@@ -127,8 +141,7 @@ refs@block_size
 ```
 
 The chunk shape is the netCDF files' own, because each Zarr chunk is one of
-their chunks. Opening read the store's metadata from GitHub and nothing from
-THREDDS.
+their chunks. Opening read the store's metadata and none of the netCDF files.
 
 ## The same bytes
 
