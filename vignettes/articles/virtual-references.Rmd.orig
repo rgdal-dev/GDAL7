@@ -191,6 +191,13 @@ Zarr `fill_value` on the other:
 c(mosaic = mosaic@nodata_value, refs = refs@nodata_value)
 ```
 
+They differ by one. The netCDF files say their fill value is -32768, and the
+reference store, written by another tool, says -32767. Only one can be what
+the land cells hold, and the map below shows which. With `nodata_as_na = TRUE`,
+the default, the two routes would give different answers for the same bytes:
+one would turn the land into `NA` and the other would read it as a temperature
+of about -10 degrees.
+
 The values are the stored 16-bit integers; the scale and offset turn them into
 degrees:
 
@@ -223,8 +230,8 @@ chunk: for this variable that is 5479 days by 51 depths by 60 tiles, about 17
 million rows, which is why they are stored as Parquet rather than JSON.
 
 **Metadata.** The mosaic carries the netCDF driver's reading of each file, so
-its dimensions have types; the reference store has what was written into its
-Zarr metadata:
+its dimensions have types and its fill value is the files' own; the reference
+store has what was written into its Zarr metadata, and no more:
 
 ```{r types}
 data.frame(name = mosaic@dimensions$name,
@@ -236,12 +243,19 @@ data.frame(name = mosaic@dimensions$name,
 
 Either array is a `GDALMDArray`, so the rest of GDAL7 applies. A view takes one
 day at one depth, `advise_read()` fetches its 60 chunks on GDAL's threads, and
-`as_classic_dataset()` gives the slice a geotransform from its coordinates:
+`as_classic_dataset()` gives the slice a geotransform from its coordinates.
+The slice is read as stored, and counting the cells that hold each fill value
+settles which one is real:
 
 ```{r map}
 surface <- get_view(refs, sprintf("[%d,0,:,:]", refs_t - 1))
 advise_read(surface, start = c(1, 1), count = c(1500, 3600))
-sst <- read_mdarray(surface) * refs@scale + refs@offset
+stored <- read_mdarray(surface, nodata_as_na = FALSE)
+c(netcdf = sum(stored == mosaic@nodata_value),
+  zarr = sum(stored == refs@nodata_value))
+
+stored[stored == mosaic@nodata_value] <- NA
+sst <- stored * refs@scale + refs@offset
 dim(sst)
 
 grid <- as_classic_dataset(surface)
@@ -257,9 +271,19 @@ title("BRAN2023 sea surface temperature, 2024-12-01")
 
 The cell centres come from the geotransform rather than from the coordinate
 variables: those are stored as 32-bit floats, so their spacing is not exactly
-regular, and `image()` draws a raster only from a grid that is. Latitude in
+regular, and `image()` draws a raster only from a grid that is. The land is
+blank because it was masked with the netCDF fill value. Latitude in
 BRAN runs from south to north, so the first row of this raster is the
 southernmost and its pixel height is positive.
+
+```{r fill-check, include = FALSE}
+# The prose says the land holds the netCDF fill value; stop if it does not.
+if (!anyNA(sst)) {
+  stop("No cell of the surface holds the netCDF fill value ",
+       mosaic@nodata_value, "; the fill value prose needs another look.",
+       call. = FALSE)
+}
+```
 
 ```{r close, include = FALSE}
 gdal_close(grid)
