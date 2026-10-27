@@ -190,16 +190,30 @@ Depth 11 and latitude 101, counting from 1, are the `st_ocean = 10` and
 
 ``` r
 from_mosaic <- read_mdarray(mosaic, start = c(mosaic_t, 11, 101, 1),
-                            count = c(1, 1, 1, 3600))
+                            count = c(1, 1, 1, 3600), nodata_as_na = FALSE)
 from_refs <- read_mdarray(refs, start = c(refs_t, 11, 101, 1),
-                          count = c(1, 1, 1, 3600))
+                          count = c(1, 1, 1, 3600), nodata_as_na = FALSE)
 identical(as.vector(from_mosaic), as.vector(from_refs))
-#> [1] FALSE
+#> [1] TRUE
 ```
 
+
+
 Identical, as they must be: both read the same compressed chunks of the same
-file, one through the netCDF library and one by byte range. The values are the
-stored 16-bit integers; the scale and offset turn them into degrees:
+file, one through the netCDF library and one by byte range. `nodata_as_na =
+FALSE` keeps the comparison to the bytes themselves; what each route treats as
+nodata comes from its metadata, the netCDF `_FillValue` on one side and the
+Zarr `fill_value` on the other:
+
+
+``` r
+c(mosaic = mosaic@nodata_value, refs = refs@nodata_value)
+#> mosaic   refs 
+#> -32768 -32767
+```
+
+The values are the stored 16-bit integers; the scale and offset turn them into
+degrees:
 
 
 ``` r
@@ -271,20 +285,21 @@ grid@geotransform
 #>    pixel_height 
 #>    1.000000e-01
 
-lon <- refs@dimension_values$xt_ocean
-lat <- refs@dimension_values$yt_ocean
+gt <- grid@geotransform
+lon <- gt[["origin_x"]] + (seq_len(dim(sst)[1]) - 0.5) * gt[["pixel_width"]]
+lat <- gt[["origin_y"]] + (seq_len(dim(sst)[2]) - 0.5) * gt[["pixel_height"]]
 image(lon, lat, sst, asp = 1, useRaster = TRUE,
       col = hcl.colors(64, "Spectral", rev = TRUE), xlab = "", ylab = "")
-#> Error in `image.default()`:
-#> ! 'useRaster = TRUE' can only be used with a regular grid
 title("BRAN2023 sea surface temperature, 2024-12-01")
 ```
 
 ![plot of chunk map](virtual-references-map-1.png)
 
-Latitude in BRAN runs from south to north, so the first row of this raster is
-the southernmost and its pixel height is positive; `image()` takes the
-coordinates as they come.
+The cell centres come from the geotransform rather than from the coordinate
+variables: those are stored as 32-bit floats, so their spacing is not exactly
+regular, and `image()` draws a raster only from a grid that is. Latitude in
+BRAN runs from south to north, so the first row of this raster is the
+southernmost and its pixel height is positive.
 
 
 
