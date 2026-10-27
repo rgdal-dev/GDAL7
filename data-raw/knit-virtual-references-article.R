@@ -47,7 +47,17 @@ on.exit(setwd(old), add = TRUE)
 unlink(Sys.glob("virtual-references-*.png"))
 knitr::knit("virtual-references.Rmd.orig", "virtual-references.Rmd")
 
-bad <- grep("[^ -~\t]", readLines("virtual-references.Rmd"), value = TRUE)
+knitted <- readLines("virtual-references.Rmd")
+errors <- grep("^#> (Error|Warning)", knitted, value = TRUE)
+if (length(errors) > 0) {
+  stop("The knitted article shows errors or warnings:\n",
+       paste(errors, collapse = "\n"), call. = FALSE)
+}
+if (!file.exists("virtual-references-map-1.png")) {
+  stop("The knit made no map.", call. = FALSE)
+}
+
+bad <- grep("[^ -~\t]", knitted, value = TRUE)
 if (length(bad) > 0) {
   warning("Non-ASCII characters in virtual-references.Rmd:\n",
           paste(bad, collapse = "\n"), call. = FALSE)
