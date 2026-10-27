@@ -178,17 +178,35 @@ Depth 11 and latitude 101, counting from 1, are the `st_ocean = 10` and
 ``` r
 
 from_mosaic <- read_mdarray(mosaic, start = c(mosaic_t, 11, 101, 1),
-                            count = c(1, 1, 1, 3600))
+                            count = c(1, 1, 1, 3600), nodata_as_na = FALSE)
 from_refs <- read_mdarray(refs, start = c(refs_t, 11, 101, 1),
-                          count = c(1, 1, 1, 3600))
+                          count = c(1, 1, 1, 3600), nodata_as_na = FALSE)
 identical(as.vector(from_mosaic), as.vector(from_refs))
-#> [1] FALSE
+#> [1] TRUE
 ```
 
 Identical, as they must be: both read the same compressed chunks of the
-same file, one through the netCDF library and one by byte range. The
-values are the stored 16-bit integers; the scale and offset turn them
-into degrees:
+same file, one through the netCDF library and one by byte range.
+`nodata_as_na = FALSE` keeps the comparison to the bytes themselves;
+what each route treats as nodata comes from its metadata, the netCDF
+`_FillValue` on one side and the Zarr `fill_value` on the other:
+
+``` r
+
+c(mosaic = mosaic@nodata_value, refs = refs@nodata_value)
+#> mosaic   refs 
+#> -32768 -32767
+```
+
+They differ by one. The netCDF files say their fill value is -32768, and
+the reference store, written by another tool, says -32767. Only one can
+be what the land cells hold, and the map below shows which. With
+`nodata_as_na = TRUE`, the default, the two routes would give different
+answers for the same bytes: one would turn the land into `NA` and the
+other would read it as a temperature of about -10 degrees.
+
+The values are the stored 16-bit integers; the scale and offset turn
+them into degrees:
 
 ``` r
 
@@ -225,8 +243,9 @@ tiles, about 17 million rows, which is why they are stored as Parquet
 rather than JSON.
 
 **Metadata.** The mosaic carries the netCDF driver’s reading of each
-file, so its dimensions have types; the reference store has what was
-written into its Zarr metadata:
+file, so its dimensions have types and its fill value is the files’ own;
+the reference store has what was written into its Zarr metadata, and no
+more:
 
 ``` r
 
@@ -247,13 +266,22 @@ takes one day at one depth,
 [`advise_read()`](https://rgdal-dev.github.io/GDAL7/reference/advise_read.md)
 fetches its 60 chunks on GDAL’s threads, and
 [`as_classic_dataset()`](https://rgdal-dev.github.io/GDAL7/reference/as_classic_dataset.md)
-gives the slice a geotransform from its coordinates:
+gives the slice a geotransform from its coordinates. The slice is read
+as stored, and counting the cells that hold each fill value settles
+which one is real:
 
 ``` r
 
 surface <- get_view(refs, sprintf("[%d,0,:,:]", refs_t - 1))
 advise_read(surface, start = c(1, 1), count = c(1500, 3600))
-sst <- read_mdarray(surface) * refs@scale + refs@offset
+stored <- read_mdarray(surface, nodata_as_na = FALSE)
+c(netcdf = sum(stored == mosaic@nodata_value),
+  zarr = sum(stored == refs@nodata_value))
+#>  netcdf    zarr 
+#> 1674736       0
+
+stored[stored == mosaic@nodata_value] <- NA
+sst <- stored * refs@scale + refs@offset
 dim(sst)
 #> xt_ocean yt_ocean 
 #>     3600     1500
@@ -265,12 +293,11 @@ grid@geotransform
 #>    pixel_height 
 #>    1.000000e-01
 
-lon <- refs@dimension_values$xt_ocean
-lat <- refs@dimension_values$yt_ocean
+gt <- grid@geotransform
+lon <- gt[["origin_x"]] + (seq_len(dim(sst)[1]) - 0.5) * gt[["pixel_width"]]
+lat <- gt[["origin_y"]] + (seq_len(dim(sst)[2]) - 0.5) * gt[["pixel_height"]]
 image(lon, lat, sst, asp = 1, useRaster = TRUE,
       col = hcl.colors(64, "Spectral", rev = TRUE), xlab = "", ylab = "")
-#> Error in `image.default()`:
-#> ! 'useRaster = TRUE' can only be used with a regular grid
 title("BRAN2023 sea surface temperature, 2024-12-01")
 ```
 
@@ -278,10 +305,14 @@ title("BRAN2023 sea surface temperature, 2024-12-01")
 
 plot of chunk map
 
-Latitude in BRAN runs from south to north, so the first row of this
-raster is the southernmost and its pixel height is positive;
-[`image()`](https://rdrr.io/r/graphics/image.html) takes the coordinates
-as they come.
+The cell centres come from the geotransform rather than from the
+coordinate variables: those are stored as 32-bit floats, so their
+spacing is not exactly regular, and
+[`image()`](https://rdrr.io/r/graphics/image.html) draws a raster only
+from a grid that is. The land is blank because it was masked with the
+netCDF fill value. Latitude in BRAN runs from south to north, so the
+first row of this raster is the southernmost and its pixel height is
+positive.
 
 ## Next
 

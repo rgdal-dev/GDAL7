@@ -233,16 +233,31 @@ is found by its value rather than its position. Time is in days since
 example in the virtualized README:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">from_mosaic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/read_mdarray.html">read_mdarray</a></span><span class="op">(</span><span class="va">mosaic</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">mosaic_t</span>, <span class="fl">11</span>, <span class="fl">101</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>                            count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">3600</span><span class="op">)</span><span class="op">)</span></span>
+<span>                            count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">3600</span><span class="op">)</span>, nodata_as_na <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">from_refs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/read_mdarray.html">read_mdarray</a></span><span class="op">(</span><span class="va">refs</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">refs_t</span>, <span class="fl">11</span>, <span class="fl">101</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>                          count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">3600</span><span class="op">)</span><span class="op">)</span></span>
+<span>                          count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">3600</span><span class="op">)</span>, nodata_as_na <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">from_mosaic</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">from_refs</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 <p>Identical, as they must be: both read the same compressed chunks of
-the same file, one through the netCDF library and one by byte range. The
-values are the stored 16-bit integers; the scale and offset turn them
-into degrees:</p>
+the same file, one through the netCDF library and one by byte range.
+<code>nodata_as_na = FALSE</code> keeps the comparison to the bytes
+themselves; what each route treats as nodata comes from its metadata,
+the netCDF <code>_FillValue</code> on one side and the Zarr
+<code>fill_value</code> on the other:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mosaic <span class="op">=</span> <span class="va">mosaic</span><span class="op">@</span><span class="va">nodata_value</span>, refs <span class="op">=</span> <span class="va">refs</span><span class="op">@</span><span class="va">nodata_value</span><span class="op">)</span></span>
+<span><span class="co">#&gt; mosaic   refs </span></span>
+<span><span class="co">#&gt; -32768 -32767</span></span></code></pre></div>
+<p>They differ by one. The netCDF files say their fill value is -32768,
+and the reference store, written by another tool, says -32767. Only one
+can be what the land cells hold, and the map below shows which. With
+<code>nodata_as_na = TRUE</code>, the default, the two routes would give
+different answers for the same bytes: one would turn the land into
+<code>NA</code> and the other would read it as a temperature of about
+-10 degrees.</p>
+<p>The values are the stored 16-bit integers; the scale and offset turn
+them into degrees:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>scale <span class="op">=</span> <span class="va">refs</span><span class="op">@</span><span class="va">scale</span>, offset <span class="op">=</span> <span class="va">refs</span><span class="op">@</span><span class="va">offset</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       scale      offset </span></span>
 <span><span class="co">#&gt; 7.78222e-03 2.45000e+02</span></span>
@@ -273,9 +288,10 @@ references are one row per chunk: for this variable that is 5479 days by
 51 depths by 60 tiles, about 17 million rows, which is why they are
 stored as Parquet rather than JSON.</p>
 <p><strong>Metadata.</strong> The mosaic carries the netCDF driver’s
-reading of each file, so its dimensions have types; the reference store
-has what was written into its Zarr metadata:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+reading of each file, so its dimensions have types and its fill value is
+the files’ own; the reference store has what was written into its Zarr
+metadata, and no more:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="va">mosaic</span><span class="op">@</span><span class="va">dimensions</span><span class="op">$</span><span class="va">name</span>,</span>
 <span>           mosaic <span class="op">=</span> <span class="va">mosaic</span><span class="op">@</span><span class="va">dimensions</span><span class="op">$</span><span class="va">type</span>,</span>
 <span>           refs <span class="op">=</span> <span class="va">refs</span><span class="op">@</span><span class="va">dimensions</span><span class="op">$</span><span class="va">type</span><span class="op">)</span></span>
@@ -292,11 +308,19 @@ has what was written into its Zarr metadata:</p>
 applies. A view takes one day at one depth, <code><a href="../reference/advise_read.html">advise_read()</a></code>
 fetches its 60 chunks on GDAL’s threads, and
 <code><a href="../reference/as_classic_dataset.html">as_classic_dataset()</a></code> gives the slice a geotransform from
-its coordinates:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+its coordinates. The slice is read as stored, and counting the cells
+that hold each fill value settles which one is real:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">surface</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_view.html">get_view</a></span><span class="op">(</span><span class="va">refs</span>, <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"[%d,0,:,:]"</span>, <span class="va">refs_t</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/advise_read.html">advise_read</a></span><span class="op">(</span><span class="va">surface</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1500</span>, <span class="fl">3600</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">sst</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/read_mdarray.html">read_mdarray</a></span><span class="op">(</span><span class="va">surface</span><span class="op">)</span> <span class="op">*</span> <span class="va">refs</span><span class="op">@</span><span class="va">scale</span> <span class="op">+</span> <span class="va">refs</span><span class="op">@</span><span class="va">offset</span></span>
+<span><span class="va">stored</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/read_mdarray.html">read_mdarray</a></span><span class="op">(</span><span class="va">surface</span>, nodata_as_na <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>netcdf <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">stored</span> <span class="op">==</span> <span class="va">mosaic</span><span class="op">@</span><span class="va">nodata_value</span><span class="op">)</span>,</span>
+<span>  zarr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">stored</span> <span class="op">==</span> <span class="va">refs</span><span class="op">@</span><span class="va">nodata_value</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  netcdf    zarr </span></span>
+<span><span class="co">#&gt; 1674736       0</span></span>
+<span></span>
+<span><span class="va">stored</span><span class="op">[</span><span class="va">stored</span> <span class="op">==</span> <span class="va">mosaic</span><span class="op">@</span><span class="va">nodata_value</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span><span class="va">sst</span> <span class="op">&lt;-</span> <span class="va">stored</span> <span class="op">*</span> <span class="va">refs</span><span class="op">@</span><span class="va">scale</span> <span class="op">+</span> <span class="va">refs</span><span class="op">@</span><span class="va">offset</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">sst</span><span class="op">)</span></span>
 <span><span class="co">#&gt; xt_ocean yt_ocean </span></span>
 <span><span class="co">#&gt;     3600     1500</span></span>
@@ -308,19 +332,22 @@ its coordinates:</p>
 <span><span class="co">#&gt;    pixel_height </span></span>
 <span><span class="co">#&gt;    1.000000e-01</span></span>
 <span></span>
-<span><span class="va">lon</span> <span class="op">&lt;-</span> <span class="va">refs</span><span class="op">@</span><span class="va">dimension_values</span><span class="op">$</span><span class="va">xt_ocean</span></span>
-<span><span class="va">lat</span> <span class="op">&lt;-</span> <span class="va">refs</span><span class="op">@</span><span class="va">dimension_values</span><span class="op">$</span><span class="va">yt_ocean</span></span>
+<span><span class="va">gt</span> <span class="op">&lt;-</span> <span class="va">grid</span><span class="op">@</span><span class="va">geotransform</span></span>
+<span><span class="va">lon</span> <span class="op">&lt;-</span> <span class="va">gt</span><span class="op">[[</span><span class="st">"origin_x"</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">sst</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span> <span class="op">-</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">*</span> <span class="va">gt</span><span class="op">[[</span><span class="st">"pixel_width"</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">lat</span> <span class="op">&lt;-</span> <span class="va">gt</span><span class="op">[[</span><span class="st">"origin_y"</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">sst</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span> <span class="op">-</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">*</span> <span class="va">gt</span><span class="op">[[</span><span class="st">"pixel_height"</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/image.html" class="external-link">image</a></span><span class="op">(</span><span class="va">lon</span>, <span class="va">lat</span>, <span class="va">sst</span>, asp <span class="op">=</span> <span class="fl">1</span>, useRaster <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>      col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/palettes.html" class="external-link">hcl.colors</a></span><span class="op">(</span><span class="fl">64</span>, <span class="st">"Spectral"</span>, rev <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, xlab <span class="op">=</span> <span class="st">""</span>, ylab <span class="op">=</span> <span class="st">""</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error in `image.default()`:</span></span>
-<span><span class="co">#&gt; ! 'useRaster = TRUE' can only be used with a regular grid</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/title.html" class="external-link">title</a></span><span class="op">(</span><span class="st">"BRAN2023 sea surface temperature, 2024-12-01"</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
 <img src="virtual-references-map-1.png" alt="plot of chunk map"><div class="figcaption">plot of chunk map</div>
 </div>
-<p>Latitude in BRAN runs from south to north, so the first row of this
-raster is the southernmost and its pixel height is positive;
-<code><a href="https://rdrr.io/r/graphics/image.html" class="external-link">image()</a></code> takes the coordinates as they come.</p>
+<p>The cell centres come from the geotransform rather than from the
+coordinate variables: those are stored as 32-bit floats, so their
+spacing is not exactly regular, and <code><a href="https://rdrr.io/r/graphics/image.html" class="external-link">image()</a></code> draws a raster
+only from a grid that is. The land is blank because it was masked with
+the netCDF fill value. Latitude in BRAN runs from south to north, so the
+first row of this raster is the southernmost and its pixel height is
+positive.</p>
 </div>
 <div class="section level2">
 <h2 id="next">Next<a class="anchor" aria-label="anchor" href="#next"></a>
