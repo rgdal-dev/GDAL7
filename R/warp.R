@@ -13,9 +13,9 @@
 #' exposed). Source nodata is honoured and carried to the destination, as
 #' gdalwarp does.
 #'
-#' With `nara = TRUE` the result is a `nativeRaster` and the warp writes into
-#' it directly: its four bytes per pixel are the destination's four bands, so
-#' nothing is copied or packed afterwards. That needs Byte bands: one (grey)
+#' With `nara = TRUE` the result is a `nativeRaster`: the warp writes four
+#' Byte bands and one GDAL read interleaves them into its four bytes per
+#' pixel, so nothing is packed in R. That needs Byte bands: one (grey)
 #' or three (RGB), plus an optional alpha band. The alpha byte is the
 #' destination alpha GDAL computes, 0 where no source pixel contributes.
 #'

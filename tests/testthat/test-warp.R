@@ -42,7 +42,7 @@ test_that("warp_raster matches gdal raster reproject on the same grid and kernel
                      resample = k)
     ref <- suppressWarnings(gdal_run("raster reproject", list(
       input = test_tif(), output = "", "output-format" = "MEM",
-      "output-crs" = "EPSG:3857", bbox = c(-1.5e7, -1e7, 1.5e7, 1e7),
+      "dst-crs" = "EPSG:3857", bbox = c(-1.5e7, -1e7, 1.5e7, 1e7),
       size = c(30L, 20L), resampling = if (k == "nearest") "near" else k), progress = FALSE))
     expect_equal(v, read_raster(ref), tolerance = 0, label = k)
     gdal_close(ref)

@@ -226,12 +226,16 @@ cpp11::list GDAL7_dataset_warp(SEXP xp, std::string crs, cpp11::doubles geotrans
     return out;
 }
 
-// Warp Byte bands straight into a nativeRaster: one R integer per pixel,
-// R | G << 8 | B << 16 | A << 24 (little-endian), row-major. The MEM dataset's
-// four Byte bands are views into that vector (PIXELOFFSET=4, a byte apart), so
-// nothing is copied after the warp. One band is grey (warped into R, G and B),
+// Warp Byte bands into a nativeRaster: one R integer per pixel,
+// R | G << 8 | B << 16 | A << 24 (little-endian), row-major. The warp writes a
+// four-band MEM dataset; one GDALDatasetRasterIO with a pixel spacing of 4 and
+// a band spacing of 1 then interleaves it into the vector, so the packing is
+// GDAL's, with nothing done in R. One band is grey (warped into R, G and B),
 // three are RGB, and a source alpha band masks; the alpha byte is the
 // destination alpha GDAL computes (0 where no source pixel contributes).
+//
+// (MEM bands created over the vector with DATAPOINTER, to skip that one copy,
+// crashed on GDAL 3.12 in CI; the spaced read is the documented way.)
 [[cpp11::register]]
 SEXP GDAL7_dataset_warp_nara(SEXP xp, std::string crs, cpp11::doubles geotransform,
                              cpp11::integers size, std::string resample,
@@ -277,23 +281,20 @@ SEXP GDAL7_dataset_warp_nara(SEXP xp, std::string crs, cpp11::doubles geotransfo
     GByte* base = reinterpret_cast<GByte*>(INTEGER(out));
 
     Warp w;
-    w.dst = GDALCreate(GDALGetDriverByName("MEM"), "", nx, ny, 0, GDT_Byte, nullptr);
+    w.dst = GDALCreate(GDALGetDriverByName("MEM"), "", nx, ny, 4, GDT_Byte, nullptr);
     if (!w.dst) err.stop("Could not create the destination");
-    for (int i = 0; i < 4; i++) {
-        char ptr[64];
-        CPLPrintPointer(ptr, base + i, sizeof(ptr));
-        std::string dp = std::string("DATAPOINTER=") + ptr;
-        std::string lo = "LINEOFFSET=" + std::to_string(static_cast<long long>(nx) * 4);
-        const char* opts[] = {dp.c_str(), "PIXELOFFSET=4", lo.c_str(), nullptr};
-        if (GDALAddBand(w.dst, GDT_Byte, const_cast<char**>(opts)) != CE_None) {
-            err.stop("Could not view the nativeRaster as bands");
-        }
-    }
     GDALSetGeoTransform(w.dst, gt);
     GDALSetProjection(w.dst, wkt.c_str());
     // no destination nodata: the alpha byte (band 4) says where there is data
     setup(w, src, wkt, gt, resample, error_threshold, src_bands, dst_bands, alpha, 4, false, err);
     run(w, nx, ny, err);
+
+    // interleave the four bands into the nativeRaster's bytes
+    int band_map[4] = {1, 2, 3, 4};
+    if (GDALDatasetRasterIO(w.dst, GF_Read, 0, 0, nx, ny, base, nx, ny, GDT_Byte, 4, band_map,
+                            4, static_cast<GSpacing>(nx) * 4, 1) != CE_None) {
+        err.stop("Could not read the warped bands into the nativeRaster");
+    }
     err.flush();
 
     cpp11::writable::integers dim({ny, nx});

@@ -15,9 +15,10 @@ carried over, and a source alpha band masks, found as gdalwarp finds it or
 given as `alpha_band` (needed for WMS and WMTS datasets opened at an
 overview, whose bands report no colour interpretation).
 
-With `nara = TRUE` the warp writes straight into a `nativeRaster`: the MEM
-dataset's four Byte bands are views into the R integer vector
-(`PIXELOFFSET=4`, a byte apart), so nothing is packed or copied afterwards.
+With `nara = TRUE` the result is a `nativeRaster`: the warp writes four
+Byte bands and one `GDALDatasetRasterIO` with a pixel spacing of 4 and a
+band spacing of 1 interleaves them into the R integer vector, so nothing is
+packed in R.
 Grey (1 band) or RGB (3), with an optional alpha band; the alpha byte is the
 destination alpha GDAL computes.
 
