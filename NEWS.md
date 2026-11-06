@@ -3,6 +3,24 @@
 Functions and properties are named here as they are now. Stage 8 lists
 the names they replaced.
 
+## Warping onto a grid
+
+`warp_raster()` reprojects and resamples bands of a dataset onto a
+destination grid with GDAL's warp API and no utility layer: the
+GenImgProj transformer (approximated within `error_threshold`, gdalwarp's
+`-et`), `GDALWarpOptions` and `GDALWarpOperation::ChunkAndWarpImage` into a
+MEM dataset. For the same source and kernel the values are gdalwarp's (and
+`gdal raster reproject`'s, which the tests check exactly). Source nodata is
+carried over, and a source alpha band masks, found as gdalwarp finds it or
+given as `alpha_band` (needed for WMS and WMTS datasets opened at an
+overview, whose bands report no colour interpretation).
+
+With `nara = TRUE` the warp writes straight into a `nativeRaster`: the MEM
+dataset's four Byte bands are views into the R integer vector
+(`PIXELOFFSET=4`, a byte apart), so nothing is packed or copied afterwards.
+Grey (1 band) or RGB (3), with an optional alpha band; the alpha byte is the
+destination alpha GDAL computes.
+
 ## Icechunk
 
 * A new article, "Icechunk: versioned Zarr through GDAL", reads Icechunk
