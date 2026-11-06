@@ -43,9 +43,9 @@ root <- get_root_group(ds)
 root
 #> <GDALGroup>
 #>   Name: /
-#>   Arrays (4): lon, temperature, lat, time
+#>   Arrays (4): lon, lat, temperature, time
 root@mdarray_names
-#> [1] "lon"         "temperature" "lat"         "time"
+#> [1] "lon"         "lat"         "temperature" "time"
 root@group_names
 #> character(0)
 ```

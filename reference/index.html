@@ -244,7 +244,7 @@
       </dl></div><div class="section level2">
       <h2 id="raster-i-o">Raster I/O<a class="anchor" aria-label="anchor" href="#raster-i-o"></a></h2>
 
-      <div class="section-desc"><p>read_raster() is one call onto GDALRasterIOEx: a fractional source window, an output size chosen independently of it, a resampling algorithm, and the values read straight into the R vector of the requested type. Overviews are reached explicitly when a band’s own pyramid is wanted.</p></div>
+      <div class="section-desc"><p>read_raster() is one call onto GDALRasterIOEx: a fractional source window, an output size chosen independently of it, a resampling algorithm, and the values read straight into the R vector of the requested type. Overviews are reached explicitly when a band’s own pyramid is wanted. warp_raster() reprojects onto a grid with GDAL’s warp API, into bands or a nativeRaster.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -257,6 +257,13 @@
 
         </dt>
         <dd>Read a window of raster data</dd>
+
+        <dt>
+
+          <code><a href="warp_raster.html">warp_raster()</a></code>
+
+        </dt>
+        <dd>Warp a dataset onto a grid</dd>
 
         <dt>
 

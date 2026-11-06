@@ -82,10 +82,13 @@ read_raster() is one call onto GDALRasterIOEx: a fractional source
 window, an output size chosen independently of it, a resampling
 algorithm, and the values read straight into the R vector of the
 requested type. Overviews are reached explicitly when a band’s own
-pyramid is wanted.
+pyramid is wanted. warp_raster() reprojects onto a grid with GDAL’s warp
+API, into bands or a nativeRaster.
 
 - [`read_raster()`](https://rgdal-dev.github.io/GDAL7/reference/read_raster.md)
   : Read a window of raster data
+- [`warp_raster()`](https://rgdal-dev.github.io/GDAL7/reference/warp_raster.md)
+  : Warp a dataset onto a grid
 - [`advise_read()`](https://rgdal-dev.github.io/GDAL7/reference/advise_read.md)
   : Tell GDAL what is about to be read
 - [`get_raster_band()`](https://rgdal-dev.github.io/GDAL7/reference/get_raster_band.md)

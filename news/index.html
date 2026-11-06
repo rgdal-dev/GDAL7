@@ -42,6 +42,11 @@
 <h2 class="pkg-version" data-toc-text="0.1.0" id="gdal7-010">GDAL7 0.1.0<a class="anchor" aria-label="anchor" href="#gdal7-010"></a></h2>
 <p>Functions and properties are named here as they are now. Stage 8 lists the names they replaced.</p>
 <div class="section level3">
+<h3 id="warping-onto-a-grid-0-1-0">Warping onto a grid<a class="anchor" aria-label="anchor" href="#warping-onto-a-grid-0-1-0"></a></h3>
+<p><code><a href="../reference/warp_raster.html">warp_raster()</a></code> reprojects and resamples bands of a dataset onto a destination grid with GDAL’s warp API and no utility layer: the GenImgProj transformer (approximated within <code>error_threshold</code>, gdalwarp’s <code>-et</code>), <code>GDALWarpOptions</code> and <code>GDALWarpOperation::ChunkAndWarpImage</code> into a MEM dataset. For the same source and kernel the values are gdalwarp’s (and <code>gdal raster reproject</code>’s, which the tests check exactly). Source nodata is carried over, and a source alpha band masks, found as gdalwarp finds it or given as <code>alpha_band</code> (needed for WMS and WMTS datasets opened at an overview, whose bands report no colour interpretation).</p>
+<p>With <code>nara = TRUE</code> the result is a <code>nativeRaster</code>: the warp writes four Byte bands and one <code>GDALDatasetRasterIO</code> with a pixel spacing of 4 and a band spacing of 1 interleaves them into the R integer vector, so nothing is packed in R. Grey (1 band) or RGB (3), with an optional alpha band; the alpha byte is the destination alpha GDAL computes.</p>
+</div>
+<div class="section level3">
 <h3 id="icechunk-0-1-0">Icechunk<a class="anchor" aria-label="anchor" href="#icechunk-0-1-0"></a></h3>
 <ul><li><p>A new article, “Icechunk: versioned Zarr through GDAL”, reads Icechunk repositories with GDAL’s Icechunk driver (GDAL 3.14 and later): branches and tags in the connection string, <code>/vsiicechunk/</code>, and the AIFS and ERA5 repositories on S3. It is knitted ahead of time by <code>data-raw/knit-icechunk-article.R</code>, since no CI GDAL has the driver yet.</p></li>
 <li><p><code>inst/extdata/temperature.icechunk</code> is a small Icechunk repository with two commits on <code>main</code>, a tag and a branch, built by <code>data-raw/make_icechunk_fixture.py</code>. Its tests skip where the driver is missing.</p></li>
