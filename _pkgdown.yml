@@ -59,8 +59,11 @@ reference:
     window, an output size chosen independently of it, a resampling algorithm,
     and the values read straight into the R vector of the requested type.
     Overviews are reached explicitly when a band's own pyramid is wanted.
+    warp_raster() reprojects onto a grid with GDAL's warp API, into bands or a
+    nativeRaster.
   contents:
   - read_raster
+  - warp_raster
   - advise_read
   - get_raster_band
   - get_overview
