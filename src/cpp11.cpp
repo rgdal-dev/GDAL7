@@ -1236,6 +1236,20 @@ extern "C" SEXP _GDAL7_GDAL7_config_options() {
     return cpp11::as_sexp(GDAL7_config_options());
   END_CPP11
 }
+// GDAL7_warp.cpp
+cpp11::list GDAL7_dataset_warp(SEXP xp, std::string crs, cpp11::doubles geotransform, cpp11::integers size, std::string resample, cpp11::integers bands, std::string type, double error_threshold, int alpha_band);
+extern "C" SEXP _GDAL7_GDAL7_dataset_warp(SEXP xp, SEXP crs, SEXP geotransform, SEXP size, SEXP resample, SEXP bands, SEXP type, SEXP error_threshold, SEXP alpha_band) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_warp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(crs), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(geotransform), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<std::string>>(type), cpp11::as_cpp<cpp11::decay_t<double>>(error_threshold), cpp11::as_cpp<cpp11::decay_t<int>>(alpha_band)));
+  END_CPP11
+}
+// GDAL7_warp.cpp
+SEXP GDAL7_dataset_warp_nara(SEXP xp, std::string crs, cpp11::doubles geotransform, cpp11::integers size, std::string resample, cpp11::integers bands, double error_threshold, int alpha_band);
+extern "C" SEXP _GDAL7_GDAL7_dataset_warp_nara(SEXP xp, SEXP crs, SEXP geotransform, SEXP size, SEXP resample, SEXP bands, SEXP error_threshold, SEXP alpha_band) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_dataset_warp_nara(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<std::string>>(crs), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(geotransform), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(size), cpp11::as_cpp<cpp11::decay_t<std::string>>(resample), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(bands), cpp11::as_cpp<cpp11::decay_t<double>>(error_threshold), cpp11::as_cpp<cpp11::decay_t<int>>(alpha_band)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
@@ -1321,6 +1335,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_dataset_set_projection",               (DL_FUNC) &_GDAL7_GDAL7_dataset_set_projection,               2},
     {"_GDAL7_GDAL7_dataset_start_transaction",            (DL_FUNC) &_GDAL7_GDAL7_dataset_start_transaction,            2},
     {"_GDAL7_GDAL7_dataset_summary",                      (DL_FUNC) &_GDAL7_GDAL7_dataset_summary,                      1},
+    {"_GDAL7_GDAL7_dataset_warp",                         (DL_FUNC) &_GDAL7_GDAL7_dataset_warp,                         9},
+    {"_GDAL7_GDAL7_dataset_warp_nara",                    (DL_FUNC) &_GDAL7_GDAL7_dataset_warp_nara,                    8},
     {"_GDAL7_GDAL7_dataset_write",                        (DL_FUNC) &_GDAL7_GDAL7_dataset_write,                        6},
     {"_GDAL7_GDAL7_driver_delete",                        (DL_FUNC) &_GDAL7_GDAL7_driver_delete,                        2},
     {"_GDAL7_GDAL7_driver_get_help_topic",                (DL_FUNC) &_GDAL7_GDAL7_driver_get_help_topic,                1},

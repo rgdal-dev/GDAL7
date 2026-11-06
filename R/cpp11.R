@@ -683,3 +683,11 @@ GDAL7_set_config_option <- function(name, value) {
 GDAL7_config_options <- function() {
   .Call(`_GDAL7_GDAL7_config_options`)
 }
+
+GDAL7_dataset_warp <- function(xp, crs, geotransform, size, resample, bands, type, error_threshold, alpha_band) {
+  .Call(`_GDAL7_GDAL7_dataset_warp`, xp, crs, geotransform, size, resample, bands, type, error_threshold, alpha_band)
+}
+
+GDAL7_dataset_warp_nara <- function(xp, crs, geotransform, size, resample, bands, error_threshold, alpha_band) {
+  .Call(`_GDAL7_GDAL7_dataset_warp_nara`, xp, crs, geotransform, size, resample, bands, error_threshold, alpha_band)
+}
