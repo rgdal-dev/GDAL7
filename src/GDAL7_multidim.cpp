@@ -253,6 +253,29 @@ cpp11::list GDAL7_mdarray_get_coordinate_variables(SEXP xp) {
     return out;
 }
 
+// Which kind of value the array holds: "numeric", "string" or "compound".
+// read_mdarray() reads the first two; a compound array has no single R type.
+[[cpp11::register]]
+cpp11::strings GDAL7_mdarray_get_data_type_class(SEXP xp) {
+    GDALExtendedDataTypeH dt = GDALMDArrayGetDataType(mdarray(xp));
+    if (dt == nullptr) {
+        return gdal7::chr(nullptr);
+    }
+    const char* klass = "numeric";
+    switch (GDALExtendedDataTypeGetClass(dt)) {
+        case GEDTC_STRING:
+            klass = "string";
+            break;
+        case GEDTC_COMPOUND:
+            klass = "compound";
+            break;
+        default:
+            break;
+    }
+    GDALExtendedDataTypeRelease(dt);
+    return gdal7::chr(klass);
+}
+
 [[cpp11::register]]
 cpp11::strings GDAL7_mdarray_get_data_type_name(SEXP xp) {
     GDALExtendedDataTypeH dt = GDALMDArrayGetDataType(mdarray(xp));
@@ -449,6 +472,35 @@ std::vector<T> index_vector(cpp11::doubles values, size_t rank, const char* what
     return out;
 }
 
+// The element count of a hyperslab, checked against what an R vector holds,
+// because the product is what sizes the buffer GDAL is about to write into.
+R_xlen_t slab_length(const std::vector<size_t>& counts) {
+    double elements = 1;
+    for (size_t count : counts) {
+        if (count == 0) {
+            return 0;
+        }
+        elements *= static_cast<double>(count);
+    }
+    if (elements > static_cast<double>(R_XLEN_T_MAX)) {
+        cpp11::stop("That slice holds more values than an R vector can");
+    }
+    return static_cast<R_xlen_t>(elements);
+}
+
+// C order: the last dimension is contiguous, each earlier one strides over
+// the whole of everything after it.
+std::vector<GPtrDiff_t> c_order_strides(const std::vector<size_t>& counts) {
+    const size_t rank = counts.size();
+    std::vector<GPtrDiff_t> strides(rank);
+    GPtrDiff_t stride = 1;
+    for (size_t i = rank; i > 0; i--) {
+        strides[i - 1] = stride;
+        stride *= static_cast<GPtrDiff_t>(counts[i - 1]);
+    }
+    return strides;
+}
+
 }  // namespace
 
 // Read a hyperslab into a plain double vector.
@@ -466,34 +518,12 @@ cpp11::doubles GDAL7_mdarray_read(SEXP xp, cpp11::doubles start, cpp11::doubles 
     std::vector<size_t> counts = index_vector<size_t>(count, rank, "count");
     std::vector<GInt64> steps = index_vector<GInt64>(step, rank, "step");
 
-    // The element count is checked here rather than left to overflow, because
-    // the product is what sizes the buffer GDAL is about to write into.
-    double elements = 1;
-    for (size_t i = 0; i < rank; i++) {
-        if (counts[i] == 0) {
-            elements = 0;
-            break;
-        }
-        elements *= static_cast<double>(counts[i]);
-    }
-    if (elements > static_cast<double>(R_XLEN_T_MAX)) {
-        cpp11::stop("That slice holds more values than an R vector can");
-    }
-
-    const R_xlen_t n = static_cast<R_xlen_t>(elements);
+    const R_xlen_t n = slab_length(counts);
     cpp11::writable::doubles out(n);
     if (n == 0) {
         return out;
     }
-
-    // C order: the last dimension is contiguous, each earlier one strides over
-    // the whole of everything after it.
-    std::vector<GPtrDiff_t> strides(rank);
-    GPtrDiff_t stride = 1;
-    for (size_t i = rank; i > 0; i--) {
-        strides[i - 1] = stride;
-        stride *= static_cast<GPtrDiff_t>(counts[i - 1]);
-    }
+    std::vector<GPtrDiff_t> strides = c_order_strides(counts);
 
     // Float64 whatever the array holds, for the same reason the raster reads
     // do it: one return type covers every array, and only Int64 past 2^53
@@ -511,6 +541,69 @@ cpp11::doubles GDAL7_mdarray_read(SEXP xp, cpp11::doubles start, cpp11::doubles 
     }
     err.flush();
 
+    return out;
+}
+
+// Read a hyperslab of a string array into a character vector.
+//
+// The same layout as GDAL7_mdarray_read(). GDAL fills the buffer with one
+// char* per value, allocated with CPLMalloc and owned by the caller, so each
+// is freed here once copied; a null pointer is a missing value. Strings are
+// taken as UTF-8, which is what GDAL's drivers hand back. Numeric arrays read
+// as strings too (GDAL formats each value), but read_mdarray() sends those to
+// the numeric reader.
+[[cpp11::register]]
+cpp11::strings GDAL7_mdarray_read_strings(SEXP xp, cpp11::doubles start,
+                                          cpp11::doubles count, cpp11::doubles step) {
+    GDALMDArrayH h = mdarray(xp);
+
+    const size_t rank = GDALMDArrayGetDimensionCount(h);
+    std::vector<GUInt64> offsets = index_vector<GUInt64>(start, rank, "start");
+    std::vector<size_t> counts = index_vector<size_t>(count, rank, "count");
+    std::vector<GInt64> steps = index_vector<GInt64>(step, rank, "step");
+
+    const R_xlen_t n = slab_length(counts);
+    cpp11::writable::strings out(n);
+    if (n == 0) {
+        return out;
+    }
+    std::vector<GPtrDiff_t> strides = c_order_strides(counts);
+
+    std::vector<char*> buffer(static_cast<size_t>(n), nullptr);
+    GDALExtendedDataTypeH type = GDALExtendedDataTypeCreateString(0);
+
+    gdal7::ErrorScope err;
+    const int ok = GDALMDArrayRead(h, offsets.data(), counts.data(), steps.data(),
+                                   strides.data(), type, buffer.data(),
+                                   buffer.data(),
+                                   static_cast<size_t>(n) * sizeof(char*));
+    GDALExtendedDataTypeRelease(type);
+
+    if (!ok) {
+        for (char* s : buffer) CPLFree(s);
+        err.stop("Could not read that slice of the array");
+    }
+    err.flush();
+
+    // Copied out and freed before any R allocation, so an R error while
+    // building the result can't leak GDAL's strings.
+    std::vector<std::string> values(static_cast<size_t>(n));
+    std::vector<bool> missing(static_cast<size_t>(n), false);
+    for (size_t i = 0; i < buffer.size(); i++) {
+        if (buffer[i] == nullptr) {
+            missing[i] = true;
+        } else {
+            values[i] = buffer[i];
+        }
+        CPLFree(buffer[i]);
+    }
+    for (R_xlen_t i = 0; i < n; i++) {
+        const size_t k = static_cast<size_t>(i);
+        SET_STRING_ELT(out, i, missing[k] ? NA_STRING
+                                          : Rf_mkCharLenCE(values[k].data(),
+                                                           static_cast<int>(values[k].size()),
+                                                           CE_UTF8));
+    }
     return out;
 }
 

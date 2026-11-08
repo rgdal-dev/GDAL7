@@ -1,0 +1,13 @@
+netcdf strings {
+dimensions:
+  station = 3 ;
+  band = 2 ;
+variables:
+  string station(station) ;
+  string label(band, station) ;
+  double temp(station) ;
+data:
+  station = "Casey", "Davis", "Mawson" ;
+  label = "a", "bb", "ccc", "d", "", "ünï" ;
+  temp = 1, 2, 3 ;
+}

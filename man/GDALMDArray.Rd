@@ -17,6 +17,8 @@ about itself is a property of it:
 \itemize{
 \item \code{name} and \code{full_name}, the path from the root of the dataset.
 \item \code{data_type_name}, \code{unit_type}, \code{nodata_value}, \code{scale}, \code{offset}.
+\item \code{data_type_class}, the kind of value held: \code{"numeric"}, \code{"string"} or
+\code{"compound"}. \code{\link[=read_mdarray]{read_mdarray()}} reads numeric and string arrays.
 \item \code{crs}, as WKT2.
 \item \code{dimension_count}, and \code{dimensions}, a data frame with one row per
 dimension: its \code{name} and \code{size}, the \code{type} and \code{direction} the format

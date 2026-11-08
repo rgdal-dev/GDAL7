@@ -356,6 +356,10 @@ GDAL7_mdarray_get_coordinate_variables <- function(xp) {
   .Call(`_GDAL7_GDAL7_mdarray_get_coordinate_variables`, xp)
 }
 
+GDAL7_mdarray_get_data_type_class <- function(xp) {
+  .Call(`_GDAL7_GDAL7_mdarray_get_data_type_class`, xp)
+}
+
 GDAL7_mdarray_get_data_type_name <- function(xp) {
   .Call(`_GDAL7_GDAL7_mdarray_get_data_type_name`, xp)
 }
@@ -394,6 +398,10 @@ GDAL7_mdarray_crs <- function(xp) {
 
 GDAL7_mdarray_read <- function(xp, start, count, step) {
   .Call(`_GDAL7_GDAL7_mdarray_read`, xp, start, count, step)
+}
+
+GDAL7_mdarray_read_strings <- function(xp, start, count, step) {
+  .Call(`_GDAL7_GDAL7_mdarray_read_strings`, xp, start, count, step)
 }
 
 GDAL7_mdarray_get_block_size <- function(xp) {

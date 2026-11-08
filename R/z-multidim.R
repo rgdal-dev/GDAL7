@@ -56,6 +56,8 @@ GDALGroup <- S7::new_class(
 #'
 #' * `name` and `full_name`, the path from the root of the dataset.
 #' * `data_type_name`, `unit_type`, `nodata_value`, `scale`, `offset`.
+#' * `data_type_class`, the kind of value held: `"numeric"`, `"string"` or
+#'   `"compound"`. [read_mdarray()] reads numeric and string arrays.
 #' * `crs`, as WKT2.
 #' * `dimension_count`, and `dimensions`, a data frame with one row per
 #'   dimension: its `name` and `size`, the `type` and `direction` the format
@@ -100,6 +102,10 @@ GDALMDArray <- S7::new_class(
     data_type_name = S7::new_property(
       S7::class_character,
       getter = function(self) GDAL7_mdarray_get_data_type_name(self@.ptr)
+    ),
+    data_type_class = S7::new_property(
+      S7::class_character,
+      getter = function(self) GDAL7_mdarray_get_data_type_class(self@.ptr)
     ),
     unit_type = S7::new_property(
       S7::class_character,
@@ -300,7 +306,10 @@ mdarray_block_size <- function(x) {
 #' @param nodata_as_na Whether to turn the array's nodata value into `NA`.
 #'   TRUE by default.
 #' @return A numeric array, or a plain numeric vector for a one-dimensional
-#'   array.
+#'   array. A string array (`data_type_class` `"string"`, such as Zarr
+#'   `fixed_length_utf32` or netCDF `string`) reads as character instead,
+#'   with `NA` for a missing value; `nodata_as_na` doesn't apply to it. A
+#'   compound array can't be read.
 #' @export
 #' @examples
 #' path <- system.file("extdata/multidim.zarr", package = "GDAL7")
@@ -354,9 +363,19 @@ S7::method(read_mdarray, GDALMDArray) <- function(x, start = NULL, count = NULL,
          call. = FALSE)
   }
 
-  values <- GDAL7_mdarray_read(x@.ptr, start - 1, count, step)
+  klass <- x@data_type_class
+  if (identical(klass, "compound")) {
+    stop("`", x@name, "` holds compound values, which read_mdarray() can't ",
+         "read", call. = FALSE)
+  }
+  is_string <- identical(klass, "string")
+  values <- if (is_string) {
+    GDAL7_mdarray_read_strings(x@.ptr, start - 1, count, step)
+  } else {
+    GDAL7_mdarray_read(x@.ptr, start - 1, count, step)
+  }
 
-  if (isTRUE(nodata_as_na)) {
+  if (!is_string && isTRUE(nodata_as_na)) {
     nodata <- x@nodata_value
     if (!is.null(nodata) && !is.na(nodata)) {
       values[!is.na(values) & values == nodata] <- NA_real_

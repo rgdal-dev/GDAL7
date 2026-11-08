@@ -635,6 +635,13 @@ extern "C" SEXP _GDAL7_GDAL7_mdarray_get_coordinate_variables(SEXP xp) {
   END_CPP11
 }
 // GDAL7_multidim.cpp
+cpp11::strings GDAL7_mdarray_get_data_type_class(SEXP xp);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_get_data_type_class(SEXP xp) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_get_data_type_class(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
 cpp11::strings GDAL7_mdarray_get_data_type_name(SEXP xp);
 extern "C" SEXP _GDAL7_GDAL7_mdarray_get_data_type_name(SEXP xp) {
   BEGIN_CPP11
@@ -703,6 +710,13 @@ cpp11::doubles GDAL7_mdarray_read(SEXP xp, cpp11::doubles start, cpp11::doubles 
 extern "C" SEXP _GDAL7_GDAL7_mdarray_read(SEXP xp, SEXP start, SEXP count, SEXP step) {
   BEGIN_CPP11
     return cpp11::as_sexp(GDAL7_mdarray_read(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(start), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(count), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(step)));
+  END_CPP11
+}
+// GDAL7_multidim.cpp
+cpp11::strings GDAL7_mdarray_read_strings(SEXP xp, cpp11::doubles start, cpp11::doubles count, cpp11::doubles step);
+extern "C" SEXP _GDAL7_GDAL7_mdarray_read_strings(SEXP xp, SEXP start, SEXP count, SEXP step) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(GDAL7_mdarray_read_strings(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xp), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(start), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(count), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(step)));
   END_CPP11
 }
 // GDAL7_multidim.cpp
@@ -1399,6 +1413,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_mdarray_get_attributes",               (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_attributes,               1},
     {"_GDAL7_GDAL7_mdarray_get_block_size",               (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_block_size,               1},
     {"_GDAL7_GDAL7_mdarray_get_coordinate_variables",     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_coordinate_variables,     1},
+    {"_GDAL7_GDAL7_mdarray_get_data_type_class",          (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_data_type_class,          1},
     {"_GDAL7_GDAL7_mdarray_get_data_type_name",           (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_data_type_name,           1},
     {"_GDAL7_GDAL7_mdarray_get_dimension_count",          (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_dimension_count,          1},
     {"_GDAL7_GDAL7_mdarray_get_dimension_variables",      (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_dimension_variables,      1},
@@ -1411,6 +1426,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GDAL7_GDAL7_mdarray_get_unit",                     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_unit,                     1},
     {"_GDAL7_GDAL7_mdarray_get_view",                     (DL_FUNC) &_GDAL7_GDAL7_mdarray_get_view,                     2},
     {"_GDAL7_GDAL7_mdarray_read",                         (DL_FUNC) &_GDAL7_GDAL7_mdarray_read,                         4},
+    {"_GDAL7_GDAL7_mdarray_read_strings",                 (DL_FUNC) &_GDAL7_GDAL7_mdarray_read_strings,                 4},
     {"_GDAL7_GDAL7_mdarray_release",                      (DL_FUNC) &_GDAL7_GDAL7_mdarray_release,                      1},
     {"_GDAL7_GDAL7_release_arrow_stream",                 (DL_FUNC) &_GDAL7_GDAL7_release_arrow_stream,                 1},
     {"_GDAL7_GDAL7_set_config_option",                    (DL_FUNC) &_GDAL7_GDAL7_set_config_option,                    2},

@@ -17,6 +17,16 @@ test_zarr <- function() {
   system.file("extdata", "multidim.zarr", package = "GDAL7", mustWork = TRUE)
 }
 
+# String arrays, built by data-raw/make_strings_fixtures.sh: a Zarr V3 store
+# written by zarr-python (fixed_length_utf32, null_terminated_bytes, and
+# variable-length strings) and a netCDF-4 file with `string` variables.
+test_strings_zarr <- function() {
+  system.file("extdata", "strings.zarr", package = "GDAL7", mustWork = TRUE)
+}
+test_strings_nc <- function() {
+  system.file("extdata", "strings.nc", package = "GDAL7", mustWork = TRUE)
+}
+
 # A scratch copy, for tests that write. GDAL drops a .aux.xml sidecar beside a
 # dataset whose metadata changes, and that must never land in inst/extdata.
 test_tif_copy <- function() {
