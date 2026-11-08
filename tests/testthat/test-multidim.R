@@ -311,3 +311,53 @@ test_that("a two-dimensional array is also a raster", {
   expect_error(as_classic_dataset(open_mdarray(get_root_group(ds), "lon")),
                "needs two dimensions")
 })
+
+test_that("string arrays read as character: Zarr V3 string types", {
+  skip_if_no_driver("Zarr")
+
+  ds <- gdal_open(test_strings_zarr(), multidim = TRUE)
+  on.exit(gdal_close(ds))
+  grp <- get_root_group(ds)
+  arr <- function(nm) open_mdarray(grp, nm)
+
+  expect_identical(arr("u")@data_type_class, "string")
+  expect_identical(read_mdarray(arr("u")),
+                   c("alpha", "β-beta", "", "δέλτα", "e"))
+  expect_identical(read_mdarray(arr("s")), c("ab", "", "cdef", "g", "hijkl"))
+  expect_identical(read_mdarray(arr("v")),
+                   c("one", "", "three", "日本語", "a longer string here"))
+  expect_identical(Encoding(read_mdarray(arr("u"))[2]), "UTF-8")
+
+  # (gy, gx) = 3 x 2 in GDAL's order, so dim is reversed as for numbers
+  grid <- read_mdarray(arr("grid"))
+  expect_identical(dim(grid), c(gx = 2L, gy = 3L))
+  expect_identical(grid[, 2], c("ccc", "dddd"))
+
+  # slabs, and reading backwards
+  expect_identical(read_mdarray(arr("u"), start = 2, count = 3),
+                   c("β-beta", "", "δέλτα"))
+  expect_identical(read_mdarray(arr("u"), start = 5, count = 3, step = -2),
+                   c("e", "", "alpha"))
+  expect_identical(read_mdarray(arr("u"), count = 0), character())
+})
+
+test_that("string arrays read as character: netCDF-4 string", {
+  skip_if_no_driver("netCDF")
+
+  ds <- gdal_open(test_strings_nc(), multidim = TRUE)
+  on.exit(gdal_close(ds))
+  grp <- get_root_group(ds)
+
+  station <- open_mdarray(grp, "station")
+  expect_identical(station@data_type_class, "string")
+  expect_identical(read_mdarray(station), c("Casey", "Davis", "Mawson"))
+
+  label <- read_mdarray(open_mdarray(grp, "label"))   # (band, station)
+  expect_identical(dim(label), c(station = 3L, band = 2L))
+  expect_identical(label[, 1], c("a", "bb", "ccc"))
+  expect_identical(label[, 2], c("d", "", "ünï"))
+
+  temp <- open_mdarray(grp, "temp")
+  expect_identical(temp@data_type_class, "numeric")
+  expect_identical(read_mdarray(temp), c(1, 2, 3))
+})

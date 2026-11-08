@@ -3,6 +3,19 @@
 Functions and properties are named here as they are now. Stage 8 lists
 the names they replaced.
 
+## Reading string arrays
+
+`read_mdarray()` reads string arrays as character: Zarr V3
+`fixed_length_utf32`, `null_terminated_bytes` and variable-length `string`,
+and netCDF-4 `string` variables, with the same `start`, `count` and `step`
+as numeric arrays and the same reversed `dim`. GDAL hands back one
+allocated string per value; they are copied as UTF-8 (a null is `NA`) and
+freed before the R vector is built. A new `data_type_class` property says
+which kind of value an array holds (`"numeric"`, `"string"` or
+`"compound"`); compound arrays still can't be read, and say so. The
+fixtures are `strings.zarr` (written by zarr-python) and `strings.nc`,
+built by `data-raw/make_strings_fixtures.sh`.
+
 ## Warping onto a grid
 
 `warp_raster()` reprojects and resamples bands of a dataset onto a

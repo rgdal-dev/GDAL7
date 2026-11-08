@@ -24,7 +24,10 @@ TRUE by default.}
 }
 \value{
 A numeric array, or a plain numeric vector for a one-dimensional
-array.
+array. A string array (\code{data_type_class} \code{"string"}, such as Zarr
+\code{fixed_length_utf32} or netCDF \code{string}) reads as character instead,
+with \code{NA} for a missing value; \code{nodata_as_na} doesn't apply to it. A
+compound array can't be read.
 }
 \description{
 Reads a hyperslab: an origin, a count of values along each dimension, and a
