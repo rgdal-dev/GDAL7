@@ -38,6 +38,10 @@ read_mdarray(x, start = NULL, count = NULL, step = NULL, nodata_as_na = TRUE)
 ## Value
 
 A numeric array, or a plain numeric vector for a one-dimensional array.
+A string array (`data_type_class` `"string"`, such as Zarr
+`fixed_length_utf32` or netCDF `string`) reads as character instead,
+with `NA` for a missing value; `nodata_as_na` doesn't apply to it. A
+compound array can't be read.
 
 ## Details
 

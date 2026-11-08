@@ -64,6 +64,8 @@ about itself is a property of it:</p>
 
 <ul><li><p><code>name</code> and <code>full_name</code>, the path from the root of the dataset.</p></li>
 <li><p><code>data_type_name</code>, <code>unit_type</code>, <code>nodata_value</code>, <code>scale</code>, <code>offset</code>.</p></li>
+<li><p><code>data_type_class</code>, the kind of value held: <code>"numeric"</code>, <code>"string"</code> or
+<code>"compound"</code>. <code><a href="read_mdarray.html">read_mdarray()</a></code> reads numeric and string arrays.</p></li>
 <li><p><code>crs</code>, as WKT2.</p></li>
 <li><p><code>dimension_count</code>, and <code>dimensions</code>, a data frame with one row per
 dimension: its <code>name</code> and <code>size</code>, the <code>type</code> and <code>direction</code> the format

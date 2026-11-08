@@ -51,7 +51,7 @@ vfs_stat(system.file("extdata/test.tif", package = "GDAL7"))$size
 
 # What ships with the package.
 vfs_list(system.file("extdata", package = "GDAL7"))
-#> [1] "."                    "temperature.icechunk" "test.tif"            
-#> [4] "multidim.zarr"        "overviews.tif"        "test.gpkg"           
-#> [7] ".."                  
+#> [1] "."                    "strings.zarr"         "temperature.icechunk"
+#> [4] "test.tif"             "multidim.zarr"        "strings.nc"          
+#> [7] "overviews.tif"        "test.gpkg"            ".."                  
 ```

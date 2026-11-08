@@ -83,7 +83,10 @@ TRUE by default.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A numeric array, or a plain numeric vector for a one-dimensional
-array.</p>
+array. A string array (<code>data_type_class</code> <code>"string"</code>, such as Zarr
+<code>fixed_length_utf32</code> or netCDF <code>string</code>) reads as character instead,
+with <code>NA</code> for a missing value; <code>nodata_as_na</code> doesn't apply to it. A
+compound array can't be read.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

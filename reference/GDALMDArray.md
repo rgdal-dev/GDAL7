@@ -21,6 +21,11 @@ GDALMDArray(.ptr = NULL)
 
 - `data_type_name`, `unit_type`, `nodata_value`, `scale`, `offset`.
 
+- `data_type_class`, the kind of value held: `"numeric"`, `"string"` or
+  `"compound"`.
+  [`read_mdarray()`](https://rgdal-dev.github.io/GDAL7/reference/read_mdarray.md)
+  reads numeric and string arrays.
+
 - `crs`, as WKT2.
 
 - `dimension_count`, and `dimensions`, a data frame with one row per
