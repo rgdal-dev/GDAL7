@@ -320,6 +320,13 @@ test_that("string arrays read as character: Zarr V3 string types", {
   grp <- get_root_group(ds)
   arr <- function(nm) open_mdarray(grp, nm)
 
+  # Ask the library rather than a version number: a GDAL whose Zarr driver
+  # does not know these data types (3.12 does not) opens none of the arrays.
+  readable <- vapply(grp@mdarray_names, function(nm) {
+    !is.null(suppressWarnings(arr(nm)))
+  }, logical(1))
+  skip_if_not(all(readable), "this GDAL's Zarr driver does not read Zarr V3 string types")
+
   expect_identical(arr("u")@data_type_class, "string")
   expect_identical(read_mdarray(arr("u")),
                    c("alpha", "β-beta", "", "δέλτα", "e"))
