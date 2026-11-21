@@ -5,6 +5,22 @@
 Functions and properties are named here as they are now. Stage 8 lists
 the names they replaced.
 
+### S7 1.0.0
+
+GDAL7 now needs S7 1.0.0. `zzz.R` uses its load hooks: `S7_on_load()`
+(the new name for `methods_register()`), `S7_on_unload()`, and a
+top-level `S7_on_build()`, which removes the stand-in for `print` that
+each `method(print, ...) <-` would otherwise leave in GDAL7’s namespace.
+
+Property setters check the type of what they are given.
+`band@scale <- "abc"` used to store NA with only a coercion warning,
+`band@nodata_value <- 1:3` kept the 1, and `band@unit_type <- 5` stored
+`"5"`; each is now an error naming the property, and nothing is written.
+A number setter takes an integer or a double; `nodata_value` also takes
+`NA` or `NaN` (set as NaN) and `NULL` (cleared). The generator writes
+the same checks into every setter it derives, so a property GDAL adds
+later is checked too.
+
 ### Reading string arrays
 
 [`read_mdarray()`](https://rgdal-dev.github.io/GDAL7/reference/read_mdarray.md)
@@ -687,7 +703,7 @@ GDAL7, each of which it needs and none of which it can add for itself.
 - Fixed print methods, which were defined but never dispatched. S7
   registers methods for other packages’ generics at load time, so
   `.onLoad()` now calls
-  [`S7::methods_register()`](https://rconsortium.github.io/S7/reference/methods_register.html).
+  [`S7::methods_register()`](https://rconsortium.github.io/S7/reference/S7_on_load.html).
   [`print()`](https://rdrr.io/r/base/print.html) on a dataset, band,
   driver, group or array now shows a summary instead of the raw external
   pointer.
