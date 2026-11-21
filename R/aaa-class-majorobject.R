@@ -25,7 +25,7 @@ GDALMajorObject <- S7::new_class(
       S7::class_character,
       getter = function(self) GDAL7_majorobject_get_description(self@.ptr),
       setter = function(self, value) {
-        GDAL7_majorobject_set_description(self@.ptr, value)
+        GDAL7_majorobject_set_description(self@.ptr, property_string(value, "description"))
         self
       }
     ),

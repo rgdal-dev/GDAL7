@@ -195,10 +195,13 @@ render_property <- function(class_name, spec) {
 
   if (!is.null(spec$setter)) {
     param <- spec$setter$params[[1]]
+    # A scalar is checked for its type before it reaches the binding, which
+    # would otherwise coerce "abc" to NA and 5 to "5" (R/property-values.R).
     value <- switch(r_arg_kind(param),
-      integer = "as.integer(value)",
-      double = "as.double(value)",
-      logical = "as.logical(value)",
+      integer = sprintf('property_integer(value, "%s")', spec$name),
+      double = sprintf('property_number(value, "%s")', spec$name),
+      logical = sprintf('property_logical(value, "%s")', spec$name),
+      string = sprintf('property_string(value, "%s")', spec$name),
       strings = "as.character(value)",
       list = "as.list(value)",
       "value")

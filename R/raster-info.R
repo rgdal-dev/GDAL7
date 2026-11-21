@@ -86,9 +86,11 @@ GDALRasterBand <- S7::new_class(
             S7::class_any,
             getter = function(self) GDAL7_band_get_nodata_value(self@.ptr),
             setter = function(self, value) {
-                GDAL7_band_set_nodata_value(
-                    self@.ptr, if (is.null(value)) NULL else as.double(value)
-                )
+                # NULL clears the nodata value; NA (or NaN) sets it to NaN.
+                if (!is.null(value)) {
+                    value <- property_number(value, "nodata_value", na = TRUE)
+                }
+                GDAL7_band_set_nodata_value(self@.ptr, value)
                 self
             }
         ),
@@ -96,7 +98,7 @@ GDALRasterBand <- S7::new_class(
             S7::class_any,
             getter = function(self) GDAL7_band_get_scale(self@.ptr),
             setter = function(self, value) {
-                GDAL7_band_set_scale(self@.ptr, as.double(value))
+                GDAL7_band_set_scale(self@.ptr, property_number(value, "scale"))
                 self
             }
         ),
@@ -104,7 +106,7 @@ GDALRasterBand <- S7::new_class(
             S7::class_any,
             getter = function(self) GDAL7_band_get_offset(self@.ptr),
             setter = function(self, value) {
-                GDAL7_band_set_offset(self@.ptr, as.double(value))
+                GDAL7_band_set_offset(self@.ptr, property_number(value, "offset"))
                 self
             }
         ),
@@ -112,7 +114,7 @@ GDALRasterBand <- S7::new_class(
             S7::class_character,
             getter = function(self) GDAL7_band_get_unit_type(self@.ptr),
             setter = function(self, value) {
-                GDAL7_band_set_unit_type(self@.ptr, as.character(value))
+                GDAL7_band_set_unit_type(self@.ptr, property_string(value, "unit_type"))
                 self
             }
         ),
@@ -121,7 +123,7 @@ GDALRasterBand <- S7::new_class(
             S7::class_any,
             getter = function(self) GDAL7_band_get_color_interpretation(self@.ptr),
             setter = function(self, value) {
-                GDAL7_band_set_color_interpretation(self@.ptr, as.character(value))
+                GDAL7_band_set_color_interpretation(self@.ptr, property_string(value, "color_interpretation"))
                 self
             }
         ),

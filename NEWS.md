@@ -3,6 +3,21 @@
 Functions and properties are named here as they are now. Stage 8 lists
 the names they replaced.
 
+## S7 1.0.0
+
+GDAL7 now needs S7 1.0.0. `zzz.R` uses its load hooks: `S7_on_load()`
+(the new name for `methods_register()`), `S7_on_unload()`, and a top-level
+`S7_on_build()`, which removes the stand-in for `print` that each
+`method(print, ...) <-` would otherwise leave in GDAL7's namespace.
+
+Property setters check the type of what they are given. `band@scale <- "abc"`
+used to store NA with only a coercion warning, `band@nodata_value <- 1:3`
+kept the 1, and `band@unit_type <- 5` stored `"5"`; each is now an error
+naming the property, and nothing is written. A number setter takes an
+integer or a double; `nodata_value` also takes `NA` or `NaN` (set as NaN)
+and `NULL` (cleared). The generator writes the same checks into every
+setter it derives, so a property GDAL adds later is checked too.
+
 ## Reading string arrays
 
 `read_mdarray()` reads string arrays as character: Zarr V3

@@ -62,6 +62,43 @@ test_that("what GDAL lets you set is set by assignment", {
   expect_identical(ds@description, "a description")
 })
 
+test_that("a setter refuses a value of the wrong type instead of coercing it", {
+  path <- tempfile(fileext = ".tif")
+  ds <- gdal_create(path, 4, 4, bands = 1, type = "Int16")
+  on.exit({
+    gdal_close(ds)
+    unlink(path)
+  }, add = TRUE)
+  band <- get_raster_band(ds, 1)
+  band@scale <- 0.5
+  band@nodata_value <- -999
+
+  # Each of these used to reach GDAL as NA, "5" or the first element.
+  expect_error(band@scale <- "abc", "`@scale` must be a single non-missing number", fixed = TRUE)
+  expect_error(band@scale <- NA, "single non-missing number")
+  expect_error(band@scale <- TRUE, "single non-missing number")
+  expect_error(band@offset <- "x", "single non-missing number")
+  expect_error(band@nodata_value <- 1:3, "integer vector of length 3")
+  expect_error(band@nodata_value <- "x", "single number")
+  expect_error(band@unit_type <- 5, "single string")
+  expect_error(band@unit_type <- NA_character_, "single string")
+  expect_error(ds@description <- 1, "single string")
+  expect_error(ds@crs <- 4326, "single string")
+  expect_error(ds@geotransform <- letters[1:6], "`@geotransform` must be 6 non-missing numbers")
+
+  # Nothing above was written.
+  expect_identical(band@scale, 0.5)
+  expect_identical(band@nodata_value, -999)
+
+  # NA and NaN are a nodata value GDAL can hold, and NULL clears it.
+  band@nodata_value <- NA
+  expect_true(is.nan(band@nodata_value))
+  band@nodata_value <- NULL
+  expect_null(band@nodata_value)
+  band@nodata_value <- 0L
+  expect_identical(band@nodata_value, 0)
+})
+
 test_that("a version-guarded accessor stays a function, so printing is safe", {
   # Reading a property must never raise, and printing an object reads every
   # one of them, so a getter whose GDAL is newer than the package floor is

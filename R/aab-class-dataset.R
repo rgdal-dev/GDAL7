@@ -38,7 +38,7 @@ GDALDataset <- S7::new_class(
       S7::class_character,
       getter = function(self) GDAL7_dataset_get_projection(self@.ptr),
       setter = function(self, value) {
-        GDAL7_dataset_set_projection(self@.ptr, value)
+        GDAL7_dataset_set_projection(self@.ptr, property_string(value, "projection"))
         self
       }
     ),
