@@ -20,6 +20,10 @@ dataset_geotransform <- function(x) {
 }
 
 dataset_set_geotransform <- function(x, value) {
+  if (!is.numeric(value) || anyNA(value)) {
+    stop(sprintf("`@geotransform` must be 6 non-missing numbers, not %s", describe_value(value)),
+         call. = FALSE)
+  }
   GDAL7_dataset_set_geotransform(x@.ptr, as.double(value))
   invisible(x)
 }
@@ -474,7 +478,7 @@ dataset_crs <- function(x) {
 }
 
 dataset_set_crs <- function(x, value) {
-  GDAL7_dataset_set_crs(x@.ptr, as.character(value))
+  GDAL7_dataset_set_crs(x@.ptr, property_string(value, "crs"))
   invisible(x)
 }
 
